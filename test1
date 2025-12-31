@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ClubWPT Gold – Preflop Ranges (Interactive)</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#0f1733;
+      --panel2:#121c3f;
+      --text:#e7ecff;
+      --muted:#aab3d6;
+      --border:#24305f;
+      --raise:#24c26a;
+      --call:#36a3ff;
+      --fold:#ff4d5a;
+      --mix:#f6c445;
+      --cell:#0c1430;
+      --cell2:#0b132b;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 30% 10%, #152252 0%, var(--bg) 55%, #070a14 100%);
+      color:var(--text);
+    }
+    .wrap{max-width:1100px;margin:0 auto;padding:22px}
+    .hdr{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+    .title{
+      display:flex;flex-direction:column;gap:6px
+    }
+    h1{font-size:20px;margin:0;font-weight:800;letter-spacing:.2px}
+    .sub{color:var(--muted);font-size:13px;line-height:1.35}
+
+    .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    select, button{
+      background: linear-gradient(180deg, var(--panel2), var(--panel));
+      color:var(--text);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:10px 12px;
+      font-size:13px;
+      outline:none;
+    }
+    button{cursor:pointer}
+    button:hover{filter:brightness(1.08)}
+
+    .gridWrap{margin-top:16px;display:grid;grid-template-columns: 1fr 280px;gap:14px;align-items:start}
+    @media (max-width: 900px){
+      .gridWrap{grid-template-columns: 1fr;}
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(18,28,63,.88), rgba(12,18,44,.88));
+      border:1px solid var(--border);
+      border-radius:18px;
+      overflow:hidden;
+      box-shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+    .cardHd{padding:14px 14px 10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+    .cardHd .kicker{color:var(--muted);font-size:12px}
+
+    .matrix{
+      padding:12px;
+      display:grid;
+      grid-template-columns: 42px repeat(13, 1fr);
+      gap:6px;
+    }
+    .hdrCell{
+      height:32px;
+      border-radius:10px;
+      display:flex;align-items:center;justify-content:center;
+      color:var(--muted);
+      font-weight:700;
+      font-size:12px;
+      background: rgba(255,255,255,.03);
+      border:1px solid rgba(255,255,255,.06);
+    }
+
+    .cell{
+      position:relative;
+      height:44px;
+      border-radius:12px;
+      background: linear-gradient(180deg, rgba(13,20,48,.95), rgba(10,16,38,.95));
+      border:1px solid rgba(255,255,255,.07);
+      display:flex;align-items:center;justify-content:center;
+      cursor:pointer;
+      user-select:none;
+      transition: transform .06s ease, filter .06s ease;
+    }
+    .cell:hover{transform: translateY(-1px);filter:brightness(1.06)}
+
+    .cell .hand{font-weight:800;font-size:13px;letter-spacing:.2px}
+    .cell .act{
+      position:absolute;bottom:6px;right:8px;
+      font-size:10px;font-weight:800;opacity:.9
+    }
+
+    .act-raise{background: rgba(36,194,106,.14); border-color: rgba(36,194,106,.45)}
+    .act-call{background: rgba(54,163,255,.14); border-color: rgba(54,163,255,.45)}
+    .act-fold{background: rgba(255,77,90,.10); border-color: rgba(255,77,90,.35)}
+    .act-mix{background: rgba(246,196,69,.12); border-color: rgba(246,196,69,.42)}
+
+    .side{padding:14px}
+    .legend{display:grid;gap:10px;margin-top:6px}
+    .pill{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:14px;border:1px solid var(--border);background: rgba(255,255,255,.03)}
+    .dot{width:12px;height:12px;border-radius:99px}
+    .dot.raise{background:var(--raise)}
+    .dot.call{background:var(--call)}
+    .dot.fold{background:var(--fold)}
+    .dot.mix{background:var(--mix)}
+    .pill b{font-size:13px}
+    .pill span{color:var(--muted);font-size:12px}
+
+    .info{margin-top:14px;padding:12px;border-radius:16px;border:1px solid rgba(255,255,255,.08);background: rgba(255,255,255,.03)}
+    .info h3{margin:0 0 8px;font-size:13px}
+    .kv{display:grid;grid-template-columns: 1fr 1fr;gap:8px}
+    .kv div{padding:8px;border-radius:12px;background: rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.06)}
+    .kv .k{color:var(--muted);font-size:11px}
+    .kv .v{font-weight:800;font-size:13px;margin-top:2px}
+
+    .footerNote{margin-top:14px;color:var(--muted);font-size:12px;line-height:1.4}
+
+    .toast{
+      position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
+      background: rgba(15,23,51,.95);
+      border:1px solid var(--border);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:14px;
+      box-shadow:0 14px 30px rgba(0,0,0,.35);
+      opacity:0;pointer-events:none;
+      transition: opacity .15s ease, transform .15s ease;
+      font-size:13px;
+      max-width:min(560px, calc(100vw - 22px));
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(-3px)}
+
+    .tag{
+      padding:3px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      font-size:11px;font-weight:800;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hdr">
+      <div class="title">
+        <h1>ClubWPT Gold – Preflop Ranges (Interactive)</h1>
+        <div class="sub">
+          Built for <span class="tag">8-max</span> <span class="tag">$0.05/$0.10</span> <span class="tag">$0.05 ante</span> <span class="tag">4% rake (cap fast)</span> and typical <span class="tag">3–4x</span> opens.
+          <br/>Tip: click any hand to see the action and why it’s there.
+        </div>
+      </div>
+      <div class="controls">
+        <select id="scenario"></select>
+        <button id="toggleLabels">Hide action labels</button>
+        <button id="copy">Copy current range as text</button>
+      </div>
+    </div>
+
+    <div class="gridWrap">
+      <div class="card">
+        <div class="cardHd">
+          <div>
+            <div style="font-weight:900" id="scenarioTitle">—</div>
+            <div class="kicker" id="scenarioKicker">—</div>
+          </div>
+          <div class="kicker" id="mixNote">Green = Raise/Open/3B • Blue = Call • Red = Fold • Yellow = Mix</div>
+        </div>
+        <div class="matrix" id="matrix"></div>
+      </div>
+
+      <div class="card side">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <div style="font-weight:900">Legend</div>
+          <div class="kicker" id="rangePct">—</div>
+        </div>
+        <div class="legend">
+          <div class="pill"><div style="display:flex;align-items:center;gap:10px"><div class="dot raise"></div><b>Raise</b></div><span id="cntRaise">—</span></div>
+          <div class="pill"><div style="display:flex;align-items:center;gap:10px"><div class="dot call"></div><b>Call</b></div><span id="cntCall">—</span></div>
+          <div class="pill"><div style="display:flex;align-items:center;gap:10px"><div class="dot mix"></div><b>Mix</b></div><span id="cntMix">—</span></div>
+          <div class="pill"><div style="display:flex;align-items:center;gap:10px"><div class="dot fold"></div><b>Fold</b></div><span id="cntFold">—</span></div>
+        </div>
+
+        <div class="info">
+          <h3>Selected Hand</h3>
+          <div class="kv">
+            <div><div class="k">Hand</div><div class="v" id="selHand">—</div></div>
+            <div><div class="k">Action</div><div class="v" id="selAct">—</div></div>
+            <div style="grid-column:1 / -1"><div class="k">Note</div><div class="v" id="selNote" style="font-size:12px;font-weight:700;color:var(--muted);line-height:1.35">Click a cell</div></div>
+          </div>
+        </div>
+
+        <div class="footerNote">
+          These are practical, rake-aware ranges (not solver-perfect). We can add more scenarios (ISO vs limps, 4-bets, squeeze, BB vs 4x, etc.) once you like the look/feel.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  const ranks = ["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
+
+  // Action codes
+  const ACT = {
+    R: {label:"RAISE", cls:"act-raise", color:"var(--raise)"},
+    C: {label:"CALL",  cls:"act-call",  color:"var(--call)"},
+    F: {label:"FOLD",  cls:"act-fold",  color:"var(--fold)"},
+    M: {label:"MIX",   cls:"act-mix",   color:"var(--mix)"},
+  };
+
+  // --- Helper: expand shorthand specs into a 169-hand action map ---
+  // We store rules as arrays of tokens:
+  //  - Pair ranges: "22+", "TT+"
+  //  - Suited ranges: "A2s+", "K9s+", "Q9s+", "J9s+", "T8s+", "97s+", "86s+"
+  //  - Offsuit ranges: "ATo+", "KTo+", "QTo+", "JTo", "KJo+", "QJo", "AJo+"
+  //  - Specific combos: "KQs", "AQo" etc.
+
+  function rankIndex(r){ return ranks.indexOf(r); }
+
+  function allHands(){
+    const hands=[];
+    for(let i=0;i<ranks.length;i++){
+      for(let j=0;j<ranks.length;j++){
+        const a=ranks[i], b=ranks[j];
+        if(i===j) hands.push(a+b);
+        else if(i<j) hands.push(a+b+"s");
+        else hands.push(a+b+"o");
+      }
+    }
+    return hands;
+  }
+
+  function inPairPlus(hand, startPair){
+    // hand like "77"; startPair like "TT" means TT, JJ, QQ, KK, AA
+    if(hand.length!==2 || hand[0]!==hand[1]) return false;
+    const h=rankIndex(hand[0]);
+    const s=rankIndex(startPair[0]);
+    return h<=s; // A is index 0 (stronger), so <= means higher/equal strength
+  }
+
+  function expandPairPlus(token){
+    const base=token.slice(0,2); // e.g. "22"
+    const res=[];
+    for(const r of ranks){
+      const h=r+r;
+      if(inPairPlus(h, base)) res.push(h);
+    }
+    return res;
+  }
+
+  function expandSuitedPlus(token){
+    // e.g. "A7s+" => A7s..A2s? careful: plus means stronger kicker (closer to A)
+    // We'll interpret as: same first rank, second rank from given up to (but not including first rank)
+    const a=token[0];
+    const b=token[1];
+    const res=[];
+    const ai=rankIndex(a);
+    const bi=rankIndex(b);
+    for(let j=bi; j>ai; j--){ // toward stronger kicker (lower index)
+      const kicker=ranks[j];
+      res.push(a+kicker+"s");
+    }
+    return res;
+  }
+
+  function expandOffsuitPlus(token){
+    // e.g. "ATo+" => ATo, AJo, AQo, AKo
+    const a=token[0];
+    const b=token[1];
+    const ai=rankIndex(a);
+    const bi=rankIndex(b);
+    const res=[];
+    for(let j=bi; j>ai; j--){
+      const kicker=ranks[j];
+      res.push(a+kicker+"o");
+    }
+    return res;
+  }
+
+  function normalizeToken(tok){
+    return tok.replace(/\s+/g, "");
+  }
+
+  function applyTokens(map, tokens, action){
+    for(let tok of tokens){
+      tok = normalizeToken(tok);
+      if(!tok) continue;
+      if(/^[2-9TJQKA]{2}\+$/.test(tok)){
+        // pair+
+        expandPairPlus(tok).forEach(h=> map[h]=action);
+      } else if(/^[2-9TJQKA]{2}s\+$/.test(tok)){
+        expandSuitedPlus(tok).forEach(h=> map[h]=action);
+      } else if(/^[2-9TJQKA]{2}o\+$/.test(tok)){
+        expandOffsuitPlus(tok).forEach(h=> map[h]=action);
+      } else if(/^[2-9TJQKA]{2}$/.test(tok) || /^[2-9TJQKA]{2}[so]$/.test(tok)){
+        map[tok]=action;
+      } else {
+        console.warn("Unrecognized token:", tok);
+      }
+    }
+  }
+
+  function buildRange(def){
+    const map={};
+    allHands().forEach(h=> map[h]="F");
+
+    // Apply in order: folds default, then calls, mixes, raises, etc (so later rules override)
+    if(def.calls) applyTokens(map, def.calls, "C");
+    if(def.mixes) applyTokens(map, def.mixes, "M");
+    if(def.raises) applyTokens(map, def.raises, "R");
+
+    // Add per-hand notes if provided
+    const notes = def.notes || {};
+    return { map, notes };
+  }
+
+  // --- Scenarios ---
+  // You can add more simply by extending this object.
+  const scenarios = {
+    "BTN_RFI": {
+      name: "BTN Open (RFI)",
+      kicker: "8-max • rake/ante aware • open ~3x",
+      def: {
+        raises: [
+          "22+",
+          "A2s+", "A2o+", // all aces
+          "K8s+", "KTo+",
+          "Q9s+", "QTo+",
+          "J9s+", "JTo",
+          "T8s+",
+          "97s+",
+          "86s+"
+        ],
+        notes: {
+          "AJo":"Prefer 3-bet-or-fold vs earlier opens; as RFI it’s strong enough.",
+          "KTo":"Late-position steal; be ready to barrel selectively on good textures.",
+          "86s":"Lowest suited connector we open here in this rake environment."
+        }
+      }
+    },
+
+    "CO_RFI": {
+      name: "CO Open (RFI)",
+      kicker: "8-max • open ~3x",
+      def: {
+        raises: [
+          "22+",
+          "A7s+", "ATo+",
+          "K9s+", "KJo+",
+          "Q9s+", "QJo",
+          "J9s+",
+          "T9s",
+          "98s"
+        ],
+        notes: {
+          "KJo":"Often a fold vs 3-bet OOP; don’t overcall with it.",
+          "A7s":"Good wheel/backdoor properties; avoid calling 3-bets OOP too wide."
+        }
+      }
+    },
+
+    "HJ_RFI": {
+      name: "HJ Open (RFI)",
+      kicker: "8-max • open ~3.5x",
+      def: {
+        raises: [
+          "22+",
+          "A9s+", "ATo+",
+          "KTs+", "KQo",
+          "QTs+",
+          "JTs",
+          "T9s"
+        ]
+      }
+    },
+
+    "LJ_RFI": {
+      name: "LJ / UTG+1 Open (RFI)",
+      kicker: "8-max • open ~3.5x",
+      def: {
+        raises: [
+          "22+",
+          "ATs+", "AJo+",
+          "KQs", "KJs",
+          "QJs",
+          "JTs"
+        ]
+      }
+    },
+
+    "UTG_RFI": {
+      name: "UTG Open (RFI)",
+      kicker: "8-max • rake-sensitive • open ~3.5–4x",
+      def: {
+        raises: [
+          "22+",
+          "AJs+", "AQo+",
+          "KQs"
+        ]
+      }
+    },
+
+    "BB_vs_BTN_3x": {
+      name: "BB Defend vs BTN Open (3x)",
+      kicker: "Call with playable equity • 3-bet linear/value-heavy",
+      def: {
+        // For simplicity: mark calls & raises (3-bet) — folds are default.
+        raises: [
+          "88+",
+          "AJs+", "AQo+",
+          "KQs",
+          "A5s", "A4s",
+          "KTs", "QTs", "JTs"
+        ],
+        calls: [
+          "22+",
+          "A2s+",
+          "K9s+", "Q9s+", "J9s+",
+          "T8s+", "97s+", "86s+",
+          "KTo+", "QTo+", "JTo"
+        ],
+        notes: {
+          "A2s":"Great as a call; mixes into 3-bet bluffs depending on opener tendencies.",
+          "KTo":"Defend vs wide BTN opens; be cautious on K-high boards vs heavy barreling regs."
+        }
+      }
+    }
+  };
+
+  // --- UI rendering ---
+  const scenarioSel = document.getElementById("scenario");
+  const matrixEl = document.getElementById("matrix");
+  const scenarioTitle = document.getElementById("scenarioTitle");
+  const scenarioKicker = document.getElementById("scenarioKicker");
+  const rangePct = document.getElementById("rangePct");
+  const cntRaise = document.getElementById("cntRaise");
+  const cntCall  = document.getElementById("cntCall");
+  const cntMix   = document.getElementById("cntMix");
+  const cntFold  = document.getElementById("cntFold");
+  const selHand  = document.getElementById("selHand");
+  const selAct   = document.getElementById("selAct");
+  const selNote  = document.getElementById("selNote");
+  const toastEl  = document.getElementById("toast");
+
+  let showLabels = true;
+
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    setTimeout(()=> toastEl.classList.remove("show"), 1200);
+  }
+
+  function handForCell(rowRank, colRank){
+    const i = rankIndex(rowRank);
+    const j = rankIndex(colRank);
+    if(i===j) return rowRank+colRank; // pair
+    if(i<j) return rowRank+colRank+"s"; // suited above diagonal
+    return rowRank+colRank+"o"; // offsuit below diagonal
+  }
+
+  function prettyAction(code){
+    return ACT[code]?.label || "—";
+  }
+
+  function computeCounts(map){
+    const counts={R:0,C:0,M:0,F:0};
+    for(const h in map){
+      const a=map[h]||"F";
+      counts[a] = (counts[a]||0)+1;
+    }
+    return counts;
+  }
+
+  function rangeText(map){
+    const groups={R:[],C:[],M:[]};
+    Object.entries(map).forEach(([h,a])=>{
+      if(a==="R") groups.R.push(h);
+      if(a==="C") groups.C.push(h);
+      if(a==="M") groups.M.push(h);
+    });
+    const fmt = arr => arr.sort().join(", ");
+    return `Raise: ${fmt(groups.R)}\n\nCall: ${fmt(groups.C)}\n\nMix: ${fmt(groups.M)}`;
+  }
+
+  async function copyToClipboard(text){
+    try{
+      await navigator.clipboard.writeText(text);
+      toast("Copied range to clipboard");
+    }catch(e){
+      toast("Copy failed (browser permissions)");
+      console.error(e);
+    }
+  }
+
+  function renderScenario(key){
+    const sc = scenarios[key];
+    const { map, notes } = buildRange(sc.def);
+
+    scenarioTitle.textContent = sc.name;
+    scenarioKicker.textContent = sc.kicker;
+
+    // Build matrix header row
+    matrixEl.innerHTML = "";
+    matrixEl.appendChild(hdrCorner());
+    ranks.forEach(r=> matrixEl.appendChild(hdr(r)));
+
+    // Body
+    let selectedFirst = false;
+    for(const rRow of ranks){
+      matrixEl.appendChild(hdr(rRow));
+      for(const rCol of ranks){
+        const h = handForCell(rRow, rCol);
+        const a = map[h] || "F";
+        const el = document.createElement("div");
+        el.className = `cell ${ACT[a].cls}`;
+        const handLabel = displayHandLabel(rRow, rCol);
+        el.innerHTML = `<div class="hand">${handLabel}</div>${showLabels ? `<div class="act">${a}</div>` : ""}`;
+        el.addEventListener("click", ()=>{
+          selHand.textContent = handLabel;
+          selAct.textContent = prettyAction(a);
+          const n = notes[h] || defaultNoteFor(a, h, key);
+          selNote.textContent = n;
+          toast(`${handLabel}: ${prettyAction(a)}`);
+        });
+        matrixEl.appendChild(el);
+        if(!selectedFirst){
+          selHand.textContent = "—";
+          selAct.textContent = "—";
+          selNote.textContent = "Click a cell";
+          selectedFirst = true;
+        }
+      }
+    }
+
+    const counts = computeCounts(map);
+    cntRaise.textContent = `${counts.R} combos`;
+    cntCall.textContent  = `${counts.C} combos`;
+    cntMix.textContent   = `${counts.M} combos`;
+    cntFold.textContent  = `${counts.F} combos`;
+
+    const playable = counts.R + counts.C + counts.M;
+    const pct = (playable / 169 * 100).toFixed(1);
+    rangePct.textContent = `${pct}% of hands playable`;
+
+    // Wire copy button
+    document.getElementById("copy").onclick = ()=> copyToClipboard(rangeText(map));
+  }
+
+  function defaultNoteFor(action, hand, key){
+    if(action==="R"){
+      if(key.includes("RFI")) return "Open for value + steal equity; rake rewards taking initiative.";
+      if(key.includes("BB")) return "3-bet (value/pressure). Prefer linear/value-heavy in this rake environment.";
+      return "Raise/3-bet.";
+    }
+    if(action==="C") return "Call with playable equity; avoid dominated offsuit junk.";
+    if(action==="M") return "Mix between call/raise based on opener tendencies and players behind.";
+    return "Fold: too dominated / poor equity realization / rake-sensitive.";
+  }
+
+  function displayHandLabel(rowRank, colRank){
+    const i = rankIndex(rowRank);
+    const j = rankIndex(colRank);
+    if(i===j) return rowRank+colRank;
+    if(i<j) return rowRank+colRank+"s";
+    return rowRank+colRank+"o";
+  }
+
+  function hdrCorner(){
+    const el=document.createElement("div");
+    el.className="hdrCell";
+    el.textContent="";
+    return el;
+  }
+  function hdr(t){
+    const el=document.createElement("div");
+    el.className="hdrCell";
+    el.textContent=t;
+    return el;
+  }
+
+  // Populate scenario selector
+  const scenarioEntries = Object.entries(scenarios);
+  for(const [key, sc] of scenarioEntries){
+    const opt=document.createElement("option");
+    opt.value=key;
+    opt.textContent=sc.name;
+    scenarioSel.appendChild(opt);
+  }
+  scenarioSel.value = scenarioEntries[0][0];
+  scenarioSel.addEventListener("change", ()=> renderScenario(scenarioSel.value));
+
+  // Toggle labels
+  document.getElementById("toggleLabels").addEventListener("click", (e)=>{
+    showLabels = !showLabels;
+    e.target.textContent = showLabels ? "Hide action labels" : "Show action labels";
+    renderScenario(scenarioSel.value);
+  });
+
+  // Initial render
+  renderScenario(scenarioSel.value);
+</script>
+</body>
+</html>
