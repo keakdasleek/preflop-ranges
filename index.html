@@ -162,58 +162,7 @@
     .trainerBadge.good{background: rgba(36,194,106,.14);border-color: rgba(36,194,106,.45)}
     .trainerBadge.bad{background: rgba(255,77,90,.12);border-color: rgba(255,77,90,.35)}
     .trainerBadge.mix{background: rgba(246,196,69,.12);border-color: rgba(246,196,69,.42)}
-    .trainerExplain{margin-top:8px;color:var(--muted);font-size:12px;line-height:1.45;font-weight:700}
-
-
-    .matrixScroll{overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:6px}
-    .matrixScroll::-webkit-scrollbar{height:10px}
-    .matrixScroll::-webkit-scrollbar-thumb{background: rgba(255,255,255,.10); border-radius:999px}
-
-    /* Mobile sizing tweaks */
-    @media (max-width: 520px){
-      .wrap{padding:14px}
-      .controls{width:100%}
-      select, button{width:100%}
-      .matrix{grid-template-columns: 34px repeat(13, minmax(26px, 1fr)); gap:5px; padding:10px}
-      .cell{height:34px; border-radius:10px}
-      .cell .hand{font-size:11px}
-      .cell .act{display:none}
-      .hdrCell{height:26px; border-radius:9px; font-size:11px}
-      .trainerHand{font-size:28px; min-width:130px}
-      .btnAct{min-width:96px; width:100%}
-      .trainerBtns{width:100%}
-      .trainerHandRow{gap:10px}
-    }
-
-    /* Trainer mini grid */
-    .miniWrap{border:1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.02); border-radius:16px; padding:10px}
-    .miniTitle{color:var(--muted); font-size:12px; font-weight:900; margin:2px 0 8px}
-    .matrix.mini{grid-template-columns: 34px repeat(13, minmax(22px, 1fr)); gap:4px; padding:8px}
-    .matrix.mini .cell{height:28px; border-radius:9px}
-    .matrix.mini .cell .hand{font-size:10px}
-    .matrix.mini .hdrCell{height:22px; border-radius:8px; font-size:10px}
-    .cell.sel{outline: 3px solid rgba(255,255,255,.85); outline-offset: -2px}
-    .cell.sel.good{outline-color: rgba(36,194,106,.95)}
-    .cell.sel.bad{outline-color: rgba(255,77,90,.95)}
-
-
-    /* Modal */
-    .modal{position:fixed;inset:0;z-index:50}
-    .modalBackdrop{position:absolute;inset:0;background:rgba(0,0,0,.55)}
-    .modalPanel{position:relative;max-width:820px;margin:18px auto;background: linear-gradient(180deg, rgba(18,28,63,.98), rgba(12,18,44,.98));border:1px solid var(--border);border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.55);overflow:hidden}
-    .modalHd{padding:12px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px}
-    .modalBody{padding:14px;max-height:70vh;overflow:auto}
-    .gloss{display:grid;gap:10px}
-    .gRow{display:grid;grid-template-columns:110px 1fr;gap:10px;padding:10px;border-radius:14px;background: rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)}
-    .gKey{font-weight:950;color:var(--text)}
-    .gVal{color:var(--muted);font-size:13px;line-height:1.45;font-weight:700}
-    @media (max-width: 520px){
-      .modalPanel{margin:10px;}
-      .gRow{grid-template-columns:90px 1fr}
-      .gVal{font-size:12px}
-    }
-
-</style>
+    
 </head>
 <body>
   <div class="wrap">
@@ -263,7 +212,16 @@
           <div class="kv">
             <div><div class="k">Hand</div><div class="v" id="selHand">—</div></div>
             <div><div class="k">Action</div><div class="v" id="selAct">—</div></div>
-            <div style="grid-column:1 / -1"><div class="k">Note</div><div class="v" id="selNote" style="font-size:12px;font-weight:700;color:var(--muted);line-height:1.35">Click a cell</div></div>
+            <div style="grid-column:1 / -1"><div class="k">Note</div><div class="v" id="selNote" style="font-size:12px;font-weight:700;color:var(--muted);line-hei
+    /* Flop coach */
+    .boardRow{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    .board{display:flex;gap:10px;align-items:center}
+    .cardTile{display:inline-flex;align-items:center;justify-content:center;min-width:54px;height:54px;padding:0 10px;border-radius:16px;border:1px solid rgba(255,255,255,.10);background: rgba(0,0,0,.18);font-weight:950;font-size:18px;letter-spacing:.4px}
+    @media (max-width: 520px){
+      .cardTile{min-width:48px;height:48px;border-radius:14px;font-size:16px}
+    }
+
+</style>">Click a cell</div></div>
           </div>
         </div>
 
@@ -276,14 +234,12 @@
 
     <!-- Trainer View -->
     <div id="trainerView" class="gridWrap" style="display:none">
-      <div class="card">
-        <div class="cardHd">
-          <div>
-            <div style="font-weight:900">Trainer Mode</div>
+      <div class="card<div style="font-weight:900">Trainer Mode</div>
             <div class="kicker" id="trainerKicker">Random spot + random hand. Choose the action you’d take.</div>
           </div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <select id="trainerScenario" title="Scenario"></select>
+   <button id="modeBtn">Trainer mode</button>
+        <button id="flopBtn" title="Postflop patterns trainer">Flop coach</button>e="Scenario"></select>
             <select id="trainerRandomness" title="Hand selection">
               <option value="smart">Smart practice (recommended)</option>
               <option value="all">All hands (uniform)</option>
@@ -353,8 +309,7 @@
   <div class="toast" id="toast"></div>
 
   <!-- Help Modal (mobile-friendly) -->
-  <div id="helpModal" class="modal" style="display:none">
-    <div class="modalBackdrop" id="helpBackdrop"></div>
+  <div id="helpModal" class="modal" style="display:nonedrop"></div>
     <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
       <div class="modalHd">
         <div>
@@ -393,7 +348,78 @@
   // --- Helper: expand shorthand specs into a 169-hand action map ---
   // We store rules as arrays of tokens:
   //  - Pair ranges: "22+", "TT+"
-  //  - Suited ranges: "A2s+", "K9s+", "Q9s+", "J9s+", "T8s+", "97s+", "86s+"
+  //  - Suited ranges: "A2s<!-- Flop Coach View -->
+    <div id="flopView" class="gridWrap" style="display:none">
+      <div class="card">
+        <div class="cardHd">
+          <div>
+            <div style="font-weight:900">Flop Coach</div>
+            <div class="kicker" id="flopKicker">Board-texture practice (solver-lite). Make the best default c-bet/check decision.</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <select id="flopSpot" title="Spot">
+              <option value="BTN_vs_BB_SRP">BTN vs BB (single-raised pot)</option>
+            </select>
+            <button id="flopNext">Next</button>
+          </div>
+        </div>
+
+        <div style="padding:16px;display:grid;gap:14px">
+          <div class="trainerPrompt" id="flopPrompt">—</div>
+
+          <div class="boardRow">
+            <div class="board" id="flopBoard">
+              <span class="cardTile" id="c1">—</span>
+              <span class="cardTile" id="c2">—</span>
+              <span class="cardTile" id="c3">—</span>
+            </div>
+            <div class="trainerBtns" style="justify-content:flex-end">
+              <button class="btnAct" id="btnCheck">Check</button>
+              <button class="btnAct" id="btnB33">Bet 33%</button>
+              <button class="btnAct" id="btnB66">Bet 66%</button>
+            </div>
+          </div>
+
+          <div class="trainerResult" id="flopResult" style="display:none">
+            <div class="trainerResultTop">
+              <div>
+                <div class="kicker">Result</div>
+                <div style="font-weight:900;font-size:16px" id="flopResultTitle">—</div>
+              </div>
+              <div class="trainerBadge" id="flopBadge">—</div>
+            </div>
+            <div class="trainerExplain" id="flopExplain">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card side">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <div style="font-weight:900">Stats</div>
+          <div class="kicker">This session</div>
+        </div>
+
+        <div class="info" style="margin-top:10px">
+          <div class="kv">
+            <div><div class="k">Correct</div><div class="v" id="fpCorrect">0</div></div>
+            <div><div class="k">Total</div><div class="v" id="fpTotal">0</div></div>
+            <div><div class="k">Accuracy</div><div class="v" id="fpAcc">0%</div></div>
+            <div><div class="k">Streak</div><div class="v" id="fpStreak">0</div></div>
+            <div style="grid-column:1 / -1"><div class="k">Missed boards (recent)</div><div class="v" id="fpMissed" style="font-size:12px;font-weight:700;color:var(--muted);line-height:1.35">—</div></div>
+          </div>
+        </div>
+
+        <div class="footerNote">
+          Practical defaults for rake/ante games. Next iteration: add turn cards + “barrel or give up”.
+          <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+            <button id="fpReset">Reset session</button>
+            <button id="fpClear">Clear missed list</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  <div class="toast" id="toast"></div>"97s+", "86s+"
   //  - Offsuit ranges: "ATo+", "KTo+", "QTo+", "JTo", "KJo+", "QJo", "AJo+"
   //  - Specific combos: "KQs", "AQo" etc.
 
@@ -497,15 +523,7 @@
   }
 
   // --- Scenarios ---
-  // You can add more simply by extending this object.
-  const scenarios = {
-    "BTN_RFI": {
-      name: "BTN Open (RFI)",
-      kicker: "8-max • rake/ante aware • open ~3x",
-      def: {
-        raises: [
-          "22+",
-          "A2s+", "A2o+", // all aces
+  // You can as+", "A2o+", // all aces
           "K8s+", "KTo+",
           "Q9s+", "QTo+",
           "J9s+", "JTo",
@@ -944,7 +962,33 @@
       const raw = localStorage.getItem(LS_KEY);
       if(!raw) return;
       const obj = JSON.parse(raw);
-      if(typeof obj?.correct === "number") session.correct = obj.correct;
+  const explorerView = document.getElementById("explorerView");
+  const flopView     = document.getElementById("flopView");
+  const flopBtn      = document.getElementById("flopBtn");
+  const flopNextBtn  = document.getElementById("flopNext");
+  const flopSpotSel  = document.getElementById("flopSpot");
+  const flopPrompt   = document.getElementById("flopPrompt");
+  const flopResult   = document.getElementById("flopResult");
+  const flopResultTitle = document.getElementById("flopResultTitle");
+  const flopBadge    = document.getElementById("flopBadge");
+  const flopExplain  = document.getElementById("flopExplain");
+  const c1 = document.getElementById("c1");
+  const c2 = document.getElementById("c2");
+  const c3 = document.getElementById("c3");
+  const btnCheck = document.getElementById("btnCheck");
+  const btnB33   = document.getElementById("btnB33");
+  const btnB66   = document.getElementById("btnB66");
+
+  const fpCorrect = document.getElementById("fpCorrect");
+  const fpTotal   = document.getElementById("fpTotal");
+  const fpAcc     = document.getElementById("fpAcc");
+  const fpStreak  = document.getElementById("fpStreak");
+  const fpMissed  = document.getElementById("fpMissed");
+  const fpReset   = document.getElementById("fpReset");
+  const fpClear   = document.getElementById("fpClear");
+
+  const explorerViewRef = explorerView;
+  const explorerView = explorerViewRef;j.correct;
       if(typeof obj?.total === "number") session.total = obj.total;
       if(typeof obj?.streak === "number") session.streak = obj.streak;
       if(Array.isArray(obj?.missed)) session.missed = obj.missed;
@@ -996,8 +1040,7 @@
       // Smart practice:
       // - Mostly playable hands
       // - Some folds (to keep discipline)
-      // - Extra weight for MIX and missed hands
-      const playable = all.filter(h => map[h] !== "F");
+      // - Extra weighh => map[h] !== "F");
       const folds = all.filter(h => map[h] === "F");
 
       // Sample ~30% folds by taking a random subset
@@ -1258,3 +1301,181 @@
 </script>
 </body>
 </html>
+// --- Flop Coach (solver-lite) ---
+  const LS_FLOP = "flopCoach_v1";
+  const flopSession = { correct:0, total:0, streak:0, missed:[] };
+  function loadFlop(){
+    try{ const raw = localStorage.getItem(LS_FLOP); if(!raw) return; const o = JSON.parse(raw);
+      if(typeof o?.correct==="number") flopSession.correct=o.correct;
+      if(typeof o?.total==="number") flopSession.total=o.total;
+      if(typeof o?.streak==="number") flopSession.streak=o.streak;
+      if(Array.isArray(o?.missed)) flopSession.missed=o.missed;
+    }catch(e){}
+  }
+  function saveFlop(){ try{ localStorage.setItem(LS_FLOP, JSON.stringify(flopSession)); }catch(e){} }
+  function renderFlopStats(){
+    if(!fpCorrect) return;
+    fpCorrect.textContent = flopSession.correct;
+    fpTotal.textContent = flopSession.total;
+    const acc = flopSession.total ? (flopSession.correct/flopSession.total*100).toFixed(1) : "0.0";
+    fpAcc.textContent = `${acc}%`;
+    fpStreak.textContent = flopSession.streak;
+    fpMissed.textContent = flopSession.missed.length ? flopSession.missed.slice(0,10).join(" • ") : "—";
+  }
+
+  const suits = ["♠","♥","♦","♣"]; // just for display
+  const rankVals = {"A":14,"K":13,"Q":12,"J":11,"T":10,"9":9,"8":8,"7":7,"6":6,"5":5,"4":4,"3":3,"2":2};
+  function rand(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+  function genFlop(){
+    // generate 3 distinct cards
+    const deck=[];
+    for(const r of ranks){ for(const s of suits){ deck.push(r+s); } }
+    const pick=[];
+    while(pick.length<3){
+      const c = deck.splice(Math.floor(Math.random()*deck.length),1)[0];
+      pick.push(c);
+    }
+    // sort ranks high->low for display consistency
+    pick.sort((a,b)=> rankVals[b[0]]-rankVals[a[0]]);
+    return pick;
+  }
+
+  function classifyFlop(flop){
+    const rs = flop.map(c=>c[0]);
+    const ss = flop.map(c=>c[1]);
+    const vals = rs.map(r=>rankVals[r]).sort((a,b)=>b-a);
+    const uniqR = [...new Set(rs)];
+    const uniqS = [...new Set(ss)];
+
+    const paired = uniqR.length < 3;
+    const monotone = uniqS.length === 1;
+    const twotone = uniqS.length === 2;
+
+    // connectedness: gaps between sorted values
+    const v = vals;
+    const gaps = [v[0]-v[1], v[1]-v[2]]; // 0 means pair
+    const maxGap = Math.max(...gaps);
+    const veryConnected = !paired && (gaps[0] <= 2 && gaps[1] <= 2);
+
+    const highCard = rs.includes("A") ? "A" : (rs.includes("K")?"K":(rs.includes("Q")?"Q":"other"));
+    const lowHeavy = v[0] <= 10; // T-high or lower
+
+    // Tags
+    const tags=[];
+    if(paired) tags.push("paired");
+    if(monotone) tags.push("monotone");
+    else if(twotone) tags.push("two-tone");
+    else tags.push("rainbow");
+
+    if(veryConnected) tags.push("connected");
+    else if(maxGap >= 4) tags.push("disconnected");
+    else tags.push("semi-connected");
+
+    if(highCard !== "other") tags.push(`${highCard}-high`);
+    if(lowHeavy) tags.push("low" );
+
+    return {paired, monotone, twotone, veryConnected, maxGap, highCard, lowHeavy, tags};
+  }
+
+  function recommendBTNvsBBSRP(meta){
+    // Simplified, practical defaults:
+    // - Bet small a lot on A/K-high dry and paired boards
+    // - Check more on low/connected and monotone
+    // - Use bigger bets on very disconnected low boards less often (rare), and on some broadway-ish connectedness we check
+
+    if(meta.monotone){
+      return { ok:["Check","Bet 33%"], best:"Check", badge:"Monotone", why:"Monotone flops reduce nut-advantage and increase check frequency. Default: check more; mix some small bets." };
+    }
+    if(meta.paired){
+      return { ok:["Bet 33%","Check"], best:"Bet 33%", badge:"Paired", why:"Paired boards are hard to hit; IP raiser can often apply small pressure." };
+    }
+    if(meta.highCard === "A" && meta.maxGap >= 3 && !meta.twotone){
+      return { ok:["Bet 33%"], best:"Bet 33%", badge:"A-high dry", why:"A-high dry boards favor BTN’s range advantage. Small c-bet frequently." };
+    }
+    if((meta.highCard === "K" || meta.highCard==="Q") && meta.maxGap >= 3 && !meta.twotone){
+      return { ok:["Bet 33%","Check"], best:"Bet 33%", badge:`${meta.highCard}-high dry`, why:"High-card dry boards usually favor the preflop raiser. Small c-bet often, but check some." };
+    }
+    if(meta.veryConnected || meta.lowHeavy){
+      return { ok:["Check","Bet 33%"], best:"Check", badge:"Connected/low", why:"Low + connected flops hit BB’s defending range. Default: check more; bet small selectively." };
+    }
+    if(meta.twotone){
+      return { ok:["Check","Bet 33%"], best:"Check", badge:"Two-tone", why:"Flush draws increase equity realization for BB. Default: check more; mix small bets." };
+    }
+    return { ok:["Bet 33%","Check"], best:"Bet 33%", badge:"Neutral", why:"In neutral textures, a small c-bet is a solid default; mix checks." };
+  }
+
+  let flopCurrent = { spot:"BTN_vs_BB_SRP", flop:null, rec:null };
+  function setFlopButtonsEnabled(on){
+    [btnCheck, btnB33, btnB66].forEach(b=>{ if(b) b.disabled = !on; });
+  }
+
+  function startFlopQuestion(){
+    if(!flopPrompt) return;
+    const spot = flopSpotSel ? flopSpotSel.value : "BTN_vs_BB_SRP";
+    const flop = genFlop();
+    const meta = classifyFlop(flop);
+    const rec = (spot === "BTN_vs_BB_SRP") ? recommendBTNvsBBSRP(meta) : recommendBTNvsBBSRP(meta);
+
+    flopCurrent = { spot, flop, rec, meta };
+    flopPrompt.textContent = `Spot: ${spot === "BTN_vs_BB_SRP" ? "BTN vs BB SRP (you are BTN)" : spot} — Choose your default action:`;
+    c1.textContent = flop[0];
+    c2.textContent = flop[1];
+    c3.textContent = flop[2];
+
+    flopResult.style.display = "none";
+    flopBadge.className = "trainerBadge";
+    flopBadge.textContent = "";
+
+    setFlopButtonsEnabled(true);
+  }
+
+  function submitFlop(choice){
+    const { rec, flop, meta } = flopCurrent;
+    flopSession.total += 1;
+    const ok = rec.ok.includes(choice);
+    if(ok){ flopSession.correct += 1; flopSession.streak += 1; }
+    else {
+      flopSession.streak = 0;
+      const miss = `${flop.join("")} (${meta.tags.join(",")}) — best: ${rec.best}`;
+      flopSession.missed.unshift(miss);
+      flopSession.missed = flopSession.missed.slice(0,30);
+    }
+    saveFlop();
+    renderFlopStats();
+
+    setFlopButtonsEnabled(false);
+    flopResult.style.display = "block";
+
+    if(ok){
+      flopResultTitle.textContent = "Correct";
+      flopBadge.textContent = rec.badge;
+      flopBadge.classList.add("good");
+    } else {
+      flopResultTitle.textContent = "Not quite";
+      flopBadge.textContent = `Best: ${rec.best} • ${rec.badge}`;
+      flopBadge.classList.add("bad");
+    }
+    flopExplain.textContent = `${rec.why} (Texture: ${meta.tags.join(" • ")})`;
+  }
+
+  if(flopNextBtn) flopNextBtn.addEventListener("click", startFlopQuestion);
+  if(flopSpotSel) flopSpotSel.addEventListener("change", startFlopQuestion);
+  if(btnCheck) btnCheck.addEventListener("click", ()=> submitFlop("Check"));
+  if(btnB33) btnB33.addEventListener("click", ()=> submitFlop("Bet 33%"));
+  if(btnB66) btnB66.addEventListener("click", ()=> submitFlop("Bet 66%"));
+  if(fpReset) fpReset.addEventListener("click", ()=>{ flopSession.correct=0;flopSession.total=0;flopSession.streak=0; saveFlop(); renderFlopStats(); toast("Flop session reset"); });
+  if(fpClear) fpClear.addEventListener("click", ()=>{ flopSession.missed=[]; saveFlop(); renderFlopStats(); toast("Flop missed list cleared"); });
+
+  if(flopBtn){
+    flopBtn.addEventListener("click", ()=>{
+      const isFlop = flopView && flopView.style.display !== "none";
+      setMode(isFlop ? "explorer" : "flop");
+    });
+  }
+
+  // Init flop stats
+  loadFlop();
+  renderFlopStats();
+
+// Initial render
