@@ -285,6 +285,7 @@
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <select id="trainerScenario" title="Scenario"></select>
             <select id="trainerRandomness" title="Hand selection">
+              <option value="smart">Smart practice (recommended)</option>
               <option value="all">All hands (uniform)</option>
               <option value="playable">Playable hands only (R/C/M)</option>
               <option value="edge">Focus mistakes (missed hands)</option>
@@ -605,6 +606,90 @@
           "KTo":"Defend vs wide BTN opens; be cautious on K-high boards vs heavy barreling regs."
         }
       }
+    },
+
+    "BB_vs_BTN_4x": {
+      name: "BB Defend vs BTN Open (4x)",
+      kicker: "Tighter vs bigger size • prioritize suited + connected hands",
+      def: {
+        raises: [
+          "99+",
+          "AJs+", "AQo+",
+          "KQs",
+          "A5s", "A4s",
+          "KTs", "QTs", "JTs"
+        ],
+        calls: [
+          "22+",
+          "A2s+",
+          "KTs+", "QTs+", "JTs",
+          "T9s", "98s", "87s",
+          "KQo", "QJo", "JTo" 
+        ],
+        notes: {
+          "KQo":"Call some vs BTN 4x if BTN is wide and you play well postflop; otherwise mix to 3-bet/fold.",
+          "87s":"Bottom of suited connector calls vs 4x; fold weaker gappers."
+        }
+      }
+    },
+
+    "BB_vs_CO_3x": {
+      name: "BB Defend vs CO Open (3x)",
+      kicker: "CO is tighter than BTN • defend tighter and 3-bet more value",
+      def: {
+        raises: [
+          "99+",
+          "AQo+", "AJs+",
+          "KQs",
+          "A5s", "A4s",
+          "KTs", "QTs", "JTs"
+        ],
+        calls: [
+          "22+",
+          "A2s+",
+          "KTs+", "QTs+", "JTs",
+          "T9s", "98s",
+          "KQo"
+        ]
+      }
+    },
+
+    "BB_vs_CO_4x": {
+      name: "BB Defend vs CO Open (4x)",
+      kicker: "Tightest of these spots • fewer offsuit continues",
+      def: {
+        raises: [
+          "TT+",
+          "AQo+", "AJs+",
+          "KQs",
+          "A5s", "A4s"
+        ],
+        calls: [
+          "22+",
+          "A2s+",
+          "KQs", "KJs",
+          "QJs", "JTs",
+          "T9s", "98s"
+        ]
+      }
+    },
+
+    "SB_vs_BTN_3betFold": {
+      name: "SB vs BTN (3-bet or Fold)",
+      kicker: "No flatting in SB • 3-bet linear + suited blockers",
+      def: {
+        raises: [
+          "88+",
+          "AJs+", "AQo+",
+          "KQs",
+          "A2s+",   
+          "KTs", "QTs", "JTs"
+        ],
+        notes: {
+          "A2s":"Use as 3-bet bluff vs wide BTN. Suited wheel aces play well as blockers.",
+          "KTs":"Good semi-bluff 3-bet candidate; plays fine when called."
+        }
+      }
     }
   };
 
@@ -631,23 +716,13 @@
     setTimeout(()=> toastEl.classList.remove("show"), 1200);
   }
 
- function handForCell(rowRank, colRank){
-  const i = rankIndex(rowRank);
-  const j = rankIndex(colRank);
-
-  if(i === j) return rowRank + colRank; // pair
-
-  const hi = i < j ? rowRank : colRank;
-  const lo = i < j ? colRank : rowRank;
-
-  if(i < j){
-    // above diagonal → suited
-    return hi + lo + "s";
-  } else {
-    // below diagonal → offsuit
-    return hi + lo + "o";
+  function handForCell(rowRank, colRank){
+    const i = rankIndex(rowRank);
+    const j = rankIndex(colRank);
+    if(i===j) return rowRank+colRank; // pair
+    if(i<j) return rowRank+colRank+"s"; // suited above diagonal
+    return rowRank+colRank+"o"; // offsuit below diagonal
   }
-}
 
   function prettyAction(code){
     return ACT[code]?.label || "—";
@@ -898,8 +973,10 @@
 
   function listHands(map, mode){
     const all = Object.keys(map);
+
     if(mode === "all") return all;
     if(mode === "playable") return all.filter(h => map[h] !== "F");
+
     if(mode === "edge"){
       // Try to focus on missed hands; if none, fallback to playable
       const missedHands = session.missed
@@ -908,6 +985,43 @@
       const uniq = [...new Set(missedHands)].filter(h => map[h]);
       return uniq.length ? uniq : all.filter(h => map[h] !== "F");
     }
+
+    if(mode === "smart"){
+      // Smart practice:
+      // - Mostly playable hands
+      // - Some folds (to keep discipline)
+      // - Extra weight for MIX and missed hands
+      const playable = all.filter(h => map[h] !== "F");
+      const folds = all.filter(h => map[h] === "F");
+
+      // Sample ~30% folds by taking a random subset
+      const foldCount = Math.min(Math.floor(playable.length * 0.45), Math.floor(folds.length * 0.35));
+      const foldSubset = [];
+      for(let i=0;i<foldCount;i++) foldSubset.push(randomChoice(folds));
+
+      // Weight list by duplicating entries
+      const weighted = [];
+      for(const h of playable){
+        const a = map[h];
+        let w = 1;
+        if(a === "M") w = 3;
+        else if(a === "C" || a === "R") w = 2;
+        for(let k=0;k<w;k++) weighted.push(h);
+      }
+      for(const h of foldSubset) weighted.push(h);
+
+      // Boost missed hands heavily
+      const missedHands = session.missed
+        .map(x => x.split(": ")[1]?.split(" ")[0])
+        .filter(Boolean);
+      const uniqMissed = [...new Set(missedHands)].filter(h => map[h]);
+      for(const h of uniqMissed){
+        for(let k=0;k<6;k++) weighted.push(h);
+      }
+
+      return weighted.length ? weighted : all;
+    }
+
     return all;
   }
 
