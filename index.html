@@ -399,18 +399,27 @@
 
   function rankIndex(r){ return ranks.indexOf(r); }
 
+  function canonicalHand(code){
+  if(!code) return code;
+  if(code.length === 2) return code; // pairs like "77"
+  const a = code[0], b = code[1], s = code[2];
+  const ia = rankIndex(a), ib = rankIndex(b);
+  return (ia <= ib) ? (a + b + s) : (b + a + s);
+}
+  
   function allHands(){
-    const hands=[];
-    for(let i=0;i<ranks.length;i++){
-      for(let j=0;j<ranks.length;j++){
-        const a=ranks[i], b=ranks[j];
-        if(i===j) hands.push(a+b);
-        else if(i<j) hands.push(a+b+"s");
-        else hands.push(a+b+"o");
-      }
+  const hands=[];
+  for(let i=0;i<ranks.length;i++){
+    for(let j=0;j<ranks.length;j++){
+      const a=ranks[i], b=ranks[j];
+      if(i===j) hands.push(a+b);
+      else if(i<j) hands.push(canonicalHand(a+b+"s"));
+      else hands.push(canonicalHand(a+b+"o"));
     }
-    return hands;
   }
+  return hands;
+}
+
 
   function inPairPlus(hand, startPair){
     // hand like "77"; startPair like "TT" means TT, JJ, QQ, KK, AA
@@ -475,7 +484,8 @@
       } else if(/^[2-9TJQKA]{2}o\+$/.test(tok)){
         expandOffsuitPlus(tok).forEach(h=> map[h]=action);
       } else if(/^[2-9TJQKA]{2}$/.test(tok) || /^[2-9TJQKA]{2}[so]$/.test(tok)){
-        map[tok]=action;
+        map[canonicalHand(tok)] = action;
+
       } else {
         console.warn("Unrecognized token:", tok);
       }
@@ -717,12 +727,18 @@
   }
 
   function handForCell(rowRank, colRank){
-    const i = rankIndex(rowRank);
-    const j = rankIndex(colRank);
-    if(i===j) return rowRank+colRank; // pair
-    if(i<j) return rowRank+colRank+"s"; // suited above diagonal
-    return rowRank+colRank+"o"; // offsuit below diagonal
-  }
+  const i = rankIndex(rowRank);
+  const j = rankIndex(colRank);
+
+  if(i === j) return rowRank + colRank;
+
+  // Above diagonal = suited, below diagonal = offsuit
+  const suited = i < j;
+  const hi = i < j ? rowRank : colRank;
+  const lo = i < j ? colRank : rowRank;
+
+  return canonicalHand(hi + lo + (suited ? "s" : "o"));
+}
 
   function prettyAction(code){
     return ACT[code]?.label || "—";
@@ -823,22 +839,18 @@
     return "Fold: too dominated / poor equity realization / rake-sensitive.";
   }
 
-  function displayHandLabel(rowRank, colRank){
-    const i = rankIndex(rowRank);
-    const j = rankIndex(colRank);
-    if(i===j) return rowRank+colRank;
-    if(i<j) return rowRank+colRank+"s";
-    return rowRank+colRank+"o";
+ function displayHandLabel(rowRank, colRank){
+  const i = rankIndex(rowRank);
+  const j = rankIndex(colRank);
 
-    if(i === j) return rowRank + colRank;
+  if(i === j) return rowRank + colRank;
 
-    // Always show higher rank first (canonical), but suited/offsuit depends on position vs diagonal
-    const hi = i < j ? rowRank : colRank;
-    const lo = i < j ? colRank : rowRank;
+  const suited = i < j;
+  const hi = i < j ? rowRank : colRank;
+  const lo = i < j ? colRank : rowRank;
 
-    if(i < j) return hi + lo + "s"; // above diagonal
-    return hi + lo + "o";          // below diagonal
-  }
+  return canonicalHand(hi + lo + (suited ? "s" : "o"));
+}
 
   function hdrCorner(){
     const el=document.createElement("div");
@@ -960,6 +972,9 @@
     } catch(e){ /* ignore */ }
   }
 
+
+
+  
   function renderStats(){
     stCorrect.textContent = session.correct;
     stTotal.textContent = session.total;
@@ -1040,10 +1055,10 @@
     [btnRaise, btnCall, btnFold].forEach(b => b.disabled = !enabled);
   }
 
-  function prettyHandFromCode(code){
-    // code like "AKs" or "AJo" or "77"
-    return code;
-  }
+ function prettyHandFromCode(code){
+  return canonicalHand(code);
+}
+
 
   function scenarioLabel(key){
     return scenarios[key]?.name || key;
@@ -1246,3 +1261,4 @@
 </script>
 </body>
 </html>
+
