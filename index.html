@@ -631,13 +631,23 @@
     setTimeout(()=> toastEl.classList.remove("show"), 1200);
   }
 
-  function handForCell(rowRank, colRank){
-    const i = rankIndex(rowRank);
-    const j = rankIndex(colRank);
-    if(i===j) return rowRank+colRank; // pair
-    if(i<j) return rowRank+colRank+"s"; // suited above diagonal
-    return rowRank+colRank+"o"; // offsuit below diagonal
+ function handForCell(rowRank, colRank){
+  const i = rankIndex(rowRank);
+  const j = rankIndex(colRank);
+
+  if(i === j) return rowRank + colRank; // pair
+
+  const hi = i < j ? rowRank : colRank;
+  const lo = i < j ? colRank : rowRank;
+
+  if(i < j){
+    // above diagonal → suited
+    return hi + lo + "s";
+  } else {
+    // below diagonal → offsuit
+    return hi + lo + "o";
   }
+}
 
   function prettyAction(code){
     return ACT[code]?.label || "—";
