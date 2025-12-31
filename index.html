@@ -1037,7 +1037,22 @@
     [btnRaise, btnCall, btnFold].forEach(b => b.disabled = !enabled);
   }
 
+  function canonicalHand(code){
+    // Normalize any hand code to canonical form (highest rank first)
+    if(!code) return code;
+    if(code.length === 2) return code; // pair
+    const a = code[0], b = code[1];
+    const s = code[2];
+    const ia = rankIndex(a), ib = rankIndex(b);
+    if(ia <= ib) return a + b + s;
+    return b + a + s;
+  }
+
   function prettyHandFromCode(code){
+    return canonicalHand(code);
+  }
+
+  function (code){
     // code like "AKs" or "AJo" or "77"
     return code;
   }
