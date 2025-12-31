@@ -36,8 +36,8 @@
 
     .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
     select, button{
-      background: linear-gradient(180deg, var(--panel2), var(--panel));
-      color:var(--text);
+      background: linear-gradient(180deg, #0b132b, #0f1733);
+      color:#e7ecff;
       border:1px solid var(--border);
       border-radius:12px;
       padding:10px 12px;
@@ -145,7 +145,26 @@
       color: var(--muted);
       font-size:11px;font-weight:800;
     }
-  </style>
+  
+    /* Trainer */
+    .trainerPrompt{padding:12px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.08);background: rgba(255,255,255,.03);font-weight:800;line-height:1.35}
+    .trainerHandRow{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    .trainerHand{font-size:34px;font-weight:950;letter-spacing:.6px;padding:12px 16px;border-radius:18px;border:1px solid rgba(255,255,255,.10);background: rgba(0,0,0,.18);min-width:150px;text-align:center}
+    .trainerBtns{display:flex;gap:10px;flex-wrap:wrap}
+    .btnAct{padding:12px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.10);font-weight:900;min-width:110px}
+    .btnAct.raise{background: rgba(36,194,106,.14);border-color: rgba(36,194,106,.45)}
+    .btnAct.call{background: rgba(54,163,255,.14);border-color: rgba(54,163,255,.45)}
+    .btnAct.fold{background: rgba(255,77,90,.10);border-color: rgba(255,77,90,.35)}
+    .btnAct:disabled{opacity:.55;cursor:not-allowed;filter:none}
+    .trainerResult{padding:12px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.08);background: rgba(255,255,255,.03)}
+    .trainerResultTop{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    .trainerBadge{padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.10);font-size:11px;font-weight:950;letter-spacing:.4px}
+    .trainerBadge.good{background: rgba(36,194,106,.14);border-color: rgba(36,194,106,.45)}
+    .trainerBadge.bad{background: rgba(255,77,90,.12);border-color: rgba(255,77,90,.35)}
+    .trainerBadge.mix{background: rgba(246,196,69,.12);border-color: rgba(246,196,69,.42)}
+    .trainerExplain{margin-top:8px;color:var(--muted);font-size:12px;line-height:1.45;font-weight:700}
+
+</style>
 </head>
 <body>
   <div class="wrap">
@@ -161,10 +180,11 @@
         <select id="scenario"></select>
         <button id="toggleLabels">Hide action labels</button>
         <button id="copy">Copy current range as text</button>
+        <button id="modeBtn">Trainer mode</button>
       </div>
     </div>
 
-    <div class="gridWrap">
+    <div id="explorerView" class="gridWrap">
       <div class="card">
         <div class="cardHd">
           <div>
@@ -203,6 +223,76 @@
       </div>
     </div>
   </div>
+
+    <!-- Trainer View -->
+    <div id="trainerView" class="gridWrap" style="display:none">
+      <div class="card">
+        <div class="cardHd">
+          <div>
+            <div style="font-weight:900">Trainer Mode</div>
+            <div class="kicker" id="trainerKicker">Random spot + random hand. Choose the action you’d take.</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <select id="trainerScenario" title="Scenario"></select>
+            <select id="trainerRandomness" title="Hand selection">
+              <option value="all">All hands (uniform)</option>
+              <option value="playable">Playable hands only (R/C/M)</option>
+              <option value="edge">Focus mistakes (missed hands)</option>
+            </select>
+            <button id="trainerNext">Next</button>
+          </div>
+        </div>
+
+        <div style="padding:16px;display:grid;gap:14px">
+          <div class="trainerPrompt" id="trainerPrompt">—</div>
+
+          <div class="trainerHandRow">
+            <div class="trainerHand" id="trainerHand">—</div>
+            <div class="trainerBtns">
+              <button class="btnAct raise" id="btnRaise">Raise</button>
+              <button class="btnAct call" id="btnCall">Call</button>
+              <button class="btnAct fold" id="btnFold">Fold</button>
+            </div>
+          </div>
+
+          <div class="trainerResult" id="trainerResult" style="display:none">
+            <div class="trainerResultTop">
+              <div>
+                <div class="kicker">Result</div>
+                <div style="font-weight:900;font-size:16px" id="trainerResultTitle">—</div>
+              </div>
+              <div class="trainerBadge" id="trainerBadge">—</div>
+            </div>
+            <div class="trainerExplain" id="trainerExplain">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card side">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <div style="font-weight:900">Stats</div>
+          <div class="kicker" id="trainerSession">This session</div>
+        </div>
+
+        <div class="info" style="margin-top:10px">
+          <div class="kv">
+            <div><div class="k">Correct</div><div class="v" id="stCorrect">0</div></div>
+            <div><div class="k">Total</div><div class="v" id="stTotal">0</div></div>
+            <div><div class="k">Accuracy</div><div class="v" id="stAcc">0%</div></div>
+            <div><div class="k">Streak</div><div class="v" id="stStreak">0</div></div>
+            <div style="grid-column:1 / -1"><div class="k">Missed hands (recent)</div><div class="v" id="stMissed" style="font-size:12px;font-weight:700;color:var(--muted);line-height:1.35">—</div></div>
+          </div>
+        </div>
+
+        <div class="footerNote">
+          Tip: Start with “Playable hands only” to build intuition, then switch to “All hands” to eliminate leaks.
+          <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+            <button id="trainerReset">Reset session</button>
+            <button id="trainerClearHistory">Clear missed list</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
   <div class="toast" id="toast"></div>
 
@@ -605,8 +695,268 @@
     renderScenario(scenarioSel.value);
   });
 
+  // --- Trainer Mode ---
+  const explorerView = document.getElementById("explorerView");
+  const trainerView  = document.getElementById("trainerView");
+  const modeBtn      = document.getElementById("modeBtn");
+
+  const trainerScenarioSel = document.getElementById("trainerScenario");
+  const trainerRandomness  = document.getElementById("trainerRandomness");
+  const trainerNextBtn     = document.getElementById("trainerNext");
+  const trainerPrompt      = document.getElementById("trainerPrompt");
+  const trainerHandEl      = document.getElementById("trainerHand");
+  const trainerResult      = document.getElementById("trainerResult");
+  const trainerResultTitle = document.getElementById("trainerResultTitle");
+  const trainerBadge       = document.getElementById("trainerBadge");
+  const trainerExplain     = document.getElementById("trainerExplain");
+
+  const btnRaise = document.getElementById("btnRaise");
+  const btnCall  = document.getElementById("btnCall");
+  const btnFold  = document.getElementById("btnFold");
+
+  const stCorrect = document.getElementById("stCorrect");
+  const stTotal   = document.getElementById("stTotal");
+  const stAcc     = document.getElementById("stAcc");
+  const stStreak  = document.getElementById("stStreak");
+  const stMissed  = document.getElementById("stMissed");
+
+  const trainerReset = document.getElementById("trainerReset");
+  const trainerClearHistory = document.getElementById("trainerClearHistory");
+
+  const cache = {}; // scenarioKey -> {map, notes}
+  function getScenarioData(key){
+    if(!cache[key]){
+      cache[key] = buildRange(scenarios[key].def);
+    }
+    return cache[key];
+  }
+
+  // Populate trainer scenario dropdown
+  function populateTrainerScenarios(){
+    trainerScenarioSel.innerHTML = "";
+    // default option: random among all
+    const optAll = document.createElement("option");
+    optAll.value = "__RANDOM__";
+    optAll.textContent = "Random scenario";
+    trainerScenarioSel.appendChild(optAll);
+
+    for(const [key, sc] of Object.entries(scenarios)){
+      const opt=document.createElement("option");
+      opt.value=key;
+      opt.textContent=sc.name;
+      trainerScenarioSel.appendChild(opt);
+    }
+    trainerScenarioSel.value = "__RANDOM__";
+  }
+
+  // Session stats + missed list stored in localStorage (so it survives refresh)
+  const LS_KEY = "preflopTrainer_v1";
+  const session = {
+    correct: 0,
+    total: 0,
+    streak: 0,
+    missed: [] // array of strings like "BB vs BTN 3x: KTo (correct CALL)"
+  };
+
+  function loadSession(){
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      if(!raw) return;
+      const obj = JSON.parse(raw);
+      if(typeof obj?.correct === "number") session.correct = obj.correct;
+      if(typeof obj?.total === "number") session.total = obj.total;
+      if(typeof obj?.streak === "number") session.streak = obj.streak;
+      if(Array.isArray(obj?.missed)) session.missed = obj.missed;
+    } catch(e){ /* ignore */ }
+  }
+
+  function saveSession(){
+    try{
+      localStorage.setItem(LS_KEY, JSON.stringify(session));
+    } catch(e){ /* ignore */ }
+  }
+
+  function renderStats(){
+    stCorrect.textContent = session.correct;
+    stTotal.textContent = session.total;
+    const acc = session.total ? (session.correct/session.total*100).toFixed(1) : "0.0";
+    stAcc.textContent = `${acc}%`;
+    stStreak.textContent = session.streak;
+    stMissed.textContent = session.missed.length ? session.missed.slice(0, 10).join(" • ") : "—";
+  }
+
+  function randomChoice(arr){
+    return arr[Math.floor(Math.random()*arr.length)];
+  }
+
+  function chooseScenarioKey(){
+    const v = trainerScenarioSel.value;
+    if(v && v !== "__RANDOM__") return v;
+    const keys = Object.keys(scenarios);
+    return randomChoice(keys);
+  }
+
+  function listHands(map, mode){
+    const all = Object.keys(map);
+    if(mode === "all") return all;
+    if(mode === "playable") return all.filter(h => map[h] !== "F");
+    if(mode === "edge"){
+      // Try to focus on missed hands; if none, fallback to playable
+      const missedHands = session.missed
+        .map(x => x.split(": ")[1]?.split(" ")[0])
+        .filter(Boolean);
+      const uniq = [...new Set(missedHands)].filter(h => map[h]);
+      return uniq.length ? uniq : all.filter(h => map[h] !== "F");
+    }
+    return all;
+  }
+
+  let current = { scenarioKey: null, hand: null, correct: null, prettyHand: null };
+
+  function setButtonsEnabled(enabled){
+    [btnRaise, btnCall, btnFold].forEach(b => b.disabled = !enabled);
+  }
+
+  function prettyHandFromCode(code){
+    // code like "AKs" or "AJo" or "77"
+    return code;
+  }
+
+  function scenarioLabel(key){
+    return scenarios[key]?.name || key;
+  }
+
+  function noteForTrainer(key, handCode, correctAct){
+    const { notes } = getScenarioData(key);
+    if(notes && notes[handCode]) return notes[handCode];
+    // A little more contextual messaging
+    if(correctAct === "F") return "Fold: dominated / poor equity realization / rake-sensitive in this spot.";
+    if(correctAct === "C") return "Call: defend with playable equity; avoid turning everything into a bloated rake pot.";
+    if(correctAct === "R"){
+      if(key.includes("RFI")) return "Raise first in: take initiative and capture dead money from antes.";
+      return "Raise: value/pressure (linear, rake-aware).";
+    }
+    if(correctAct === "M") return "Mix: either action can be fine; use opponent tendencies and players behind to choose.";
+    return "";
+  }
+
+  function startQuestion(){
+    const key = chooseScenarioKey();
+    const { map } = getScenarioData(key);
+    const mode = trainerRandomness.value;
+    const hands = listHands(map, mode);
+    const hand = randomChoice(hands);
+    const act = map[hand] || "F";
+
+    current = { scenarioKey: key, hand, correct: act, prettyHand: prettyHandFromCode(hand) };
+
+    trainerPrompt.textContent = `${scenarioLabel(key)} — What do you do with:`;
+    trainerHandEl.textContent = current.prettyHand;
+
+    trainerResult.style.display = "none";
+    trainerBadge.className = "trainerBadge";
+    trainerBadge.textContent = "";
+
+    setButtonsEnabled(true);
+  }
+
+  function isCorrect(userAct, correctAct){
+    if(correctAct === "M"){
+      // Treat MIX as either R or C is acceptable
+      return userAct === "R" || userAct === "C";
+    }
+    return userAct === correctAct;
+  }
+
+  function submit(userAct){
+    const key = current.scenarioKey;
+    const hand = current.hand;
+    const correctAct = current.correct;
+
+    session.total += 1;
+
+    const ok = isCorrect(userAct, correctAct);
+    if(ok){
+      session.correct += 1;
+      session.streak += 1;
+    } else {
+      session.streak = 0;
+      const miss = `${scenarioLabel(key)}: ${hand} (correct ${prettyAction(correctAct)})`;
+      session.missed.unshift(miss);
+      session.missed = session.missed.slice(0, 30);
+    }
+
+    saveSession();
+    renderStats();
+
+    setButtonsEnabled(false);
+    trainerResult.style.display = "block";
+
+    if(ok){
+      trainerResultTitle.textContent = "Correct";
+      trainerBadge.textContent = "NICE";
+      trainerBadge.classList.add("good");
+    } else {
+      trainerResultTitle.textContent = "Not quite";
+      trainerBadge.textContent = `Correct: ${prettyAction(correctAct)}`;
+      trainerBadge.classList.add("bad");
+    }
+
+    // Explain
+    const n = noteForTrainer(key, hand, correctAct);
+    if(correctAct === "M"){
+      trainerBadge.textContent = "Mix (Raise or Call)";
+      trainerBadge.className = "trainerBadge mix";
+      trainerExplain.textContent = `${n} (In this trainer, Raise OR Call counts as correct.)`;
+    } else {
+      trainerExplain.textContent = n;
+    }
+  }
+
+  function setMode(mode){
+    const isTrainer = mode === "trainer";
+    explorerView.style.display = isTrainer ? "none" : "grid";
+    trainerView.style.display  = isTrainer ? "grid" : "none";
+    modeBtn.textContent = isTrainer ? "Back to explorer" : "Trainer mode";
+
+    if(isTrainer){
+      startQuestion();
+    }
+  }
+
+  modeBtn.addEventListener("click", ()=>{
+    const isTrainer = trainerView.style.display !== "none";
+    setMode(isTrainer ? "explorer" : "trainer");
+  });
+
+  trainerNextBtn.addEventListener("click", ()=> startQuestion());
+  trainerScenarioSel.addEventListener("change", ()=> startQuestion());
+  trainerRandomness.addEventListener("change", ()=> startQuestion());
+
+  btnRaise.addEventListener("click", ()=> submit("R"));
+  btnCall.addEventListener("click", ()=> submit("C"));
+  btnFold.addEventListener("click", ()=> submit("F"));
+
+  trainerReset.addEventListener("click", ()=>{
+    session.correct = 0; session.total = 0; session.streak = 0;
+    saveSession();
+    renderStats();
+    toast("Session reset");
+  });
+
+  trainerClearHistory.addEventListener("click", ()=>{
+    session.missed = [];
+    saveSession();
+    renderStats();
+    toast("Missed list cleared");
+  });
+
   // Initial render
   renderScenario(scenarioSel.value);
+  populateTrainerScenarios();
+  loadSession();
+  renderStats();
+
 </script>
 </body>
 </html>
