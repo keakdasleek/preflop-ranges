@@ -164,6 +164,38 @@
     .trainerBadge.mix{background: rgba(246,196,69,.12);border-color: rgba(246,196,69,.42)}
     .trainerExplain{margin-top:8px;color:var(--muted);font-size:12px;line-height:1.45;font-weight:700}
 
+
+    .matrixScroll{overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:6px}
+    .matrixScroll::-webkit-scrollbar{height:10px}
+    .matrixScroll::-webkit-scrollbar-thumb{background: rgba(255,255,255,.10); border-radius:999px}
+
+    /* Mobile sizing tweaks */
+    @media (max-width: 520px){
+      .wrap{padding:14px}
+      .controls{width:100%}
+      select, button{width:100%}
+      .matrix{grid-template-columns: 34px repeat(13, minmax(26px, 1fr)); gap:5px; padding:10px}
+      .cell{height:34px; border-radius:10px}
+      .cell .hand{font-size:11px}
+      .cell .act{display:none}
+      .hdrCell{height:26px; border-radius:9px; font-size:11px}
+      .trainerHand{font-size:28px; min-width:130px}
+      .btnAct{min-width:96px; width:100%}
+      .trainerBtns{width:100%}
+      .trainerHandRow{gap:10px}
+    }
+
+    /* Trainer mini grid */
+    .miniWrap{border:1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.02); border-radius:16px; padding:10px}
+    .miniTitle{color:var(--muted); font-size:12px; font-weight:900; margin:2px 0 8px}
+    .matrix.mini{grid-template-columns: 34px repeat(13, minmax(22px, 1fr)); gap:4px; padding:8px}
+    .matrix.mini .cell{height:28px; border-radius:9px}
+    .matrix.mini .cell .hand{font-size:10px}
+    .matrix.mini .hdrCell{height:22px; border-radius:8px; font-size:10px}
+    .cell.sel{outline: 3px solid rgba(255,255,255,.85); outline-offset: -2px}
+    .cell.sel.good{outline-color: rgba(36,194,106,.95)}
+    .cell.sel.bad{outline-color: rgba(255,77,90,.95)}
+
 </style>
 </head>
 <body>
@@ -193,7 +225,7 @@
           </div>
           <div class="kicker" id="mixNote">Green = Raise/Open/3B • Blue = Call • Red = Fold • Yellow = Mix</div>
         </div>
-        <div class="matrix" id="matrix"></div>
+        <div class="matrixScroll"><div class="matrix" id="matrix"></div></div>
       </div>
 
       <div class="card side">
@@ -245,6 +277,11 @@
 
         <div style="padding:16px;display:grid;gap:14px">
           <div class="trainerPrompt" id="trainerPrompt">—</div>
+
+          <div class="miniWrap">
+            <div class="miniTitle">Reference grid (current scenario)</div>
+            <div class="matrixScroll"><div class="matrix mini" id="trainerMatrix"></div></div>
+          </div>
 
           <div class="trainerHandRow">
             <div class="trainerHand" id="trainerHand">—</div>
@@ -706,6 +743,7 @@
   const trainerPrompt      = document.getElementById("trainerPrompt");
   const trainerHandEl      = document.getElementById("trainerHand");
   const trainerResult      = document.getElementById("trainerResult");
+  const trainerMatrix      = document.getElementById("trainerMatrix");
   const trainerResultTitle = document.getElementById("trainerResultTitle");
   const trainerBadge       = document.getElementById("trainerBadge");
   const trainerExplain     = document.getElementById("trainerExplain");
@@ -840,6 +878,39 @@
     return "";
   }
 
+  function renderMiniMatrix(key, selectedHand, selStatus){
+    if(!trainerMatrix) return;
+    const { map } = getScenarioData(key);
+
+    trainerMatrix.innerHTML = "";
+    // header row
+    trainerMatrix.appendChild(hdrCorner());
+    ranks.forEach(r=> trainerMatrix.appendChild(hdr(r)));
+
+    for(const rRow of ranks){
+      trainerMatrix.appendChild(hdr(rRow));
+      for(const rCol of ranks){
+        const h = handForCell(rRow, rCol);
+        const a = map[h] || "F";
+        const el = document.createElement("div");
+        el.className = `cell ${ACT[a].cls}`;
+        el.dataset.hand = h;
+        const handLabel = displayHandLabel(rRow, rCol);
+        el.innerHTML = `<div class="hand">${handLabel}</div>`;
+        if(selectedHand && h === selectedHand){
+          el.classList.add("sel");
+          if(selStatus === "good") el.classList.add("good");
+          if(selStatus === "bad") el.classList.add("bad");
+        }
+        // allow click to peek in trainer
+        el.addEventListener("click", ()=>{
+          toast(`${handLabel}: ${prettyAction(a)}`);
+        });
+        trainerMatrix.appendChild(el);
+      }
+    }
+  }
+
   function startQuestion(){
     const key = chooseScenarioKey();
     const { map } = getScenarioData(key);
@@ -857,6 +928,7 @@
     trainerBadge.className = "trainerBadge";
     trainerBadge.textContent = "";
 
+    renderMiniMatrix(key, hand, null);
     setButtonsEnabled(true);
   }
 
@@ -911,6 +983,9 @@
     } else {
       trainerExplain.textContent = n;
     }
+
+    // Visual: highlight selected hand as correct/incorrect
+    renderMiniMatrix(key, hand, ok ? "good" : "bad");
   }
 
   function setMode(mode){
