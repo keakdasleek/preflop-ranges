@@ -196,6 +196,23 @@
     .cell.sel.good{outline-color: rgba(36,194,106,.95)}
     .cell.sel.bad{outline-color: rgba(255,77,90,.95)}
 
+
+    /* Modal */
+    .modal{position:fixed;inset:0;z-index:50}
+    .modalBackdrop{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+    .modalPanel{position:relative;max-width:820px;margin:18px auto;background: linear-gradient(180deg, rgba(18,28,63,.98), rgba(12,18,44,.98));border:1px solid var(--border);border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.55);overflow:hidden}
+    .modalHd{padding:12px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .modalBody{padding:14px;max-height:70vh;overflow:auto}
+    .gloss{display:grid;gap:10px}
+    .gRow{display:grid;grid-template-columns:110px 1fr;gap:10px;padding:10px;border-radius:14px;background: rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)}
+    .gKey{font-weight:950;color:var(--text)}
+    .gVal{color:var(--muted);font-size:13px;line-height:1.45;font-weight:700}
+    @media (max-width: 520px){
+      .modalPanel{margin:10px;}
+      .gRow{grid-template-columns:90px 1fr}
+      .gVal{font-size:12px}
+    }
+
 </style>
 </head>
 <body>
@@ -213,6 +230,7 @@
         <button id="toggleLabels">Hide action labels</button>
         <button id="copy">Copy current range as text</button>
         <button id="modeBtn">Trainer mode</button>
+        <button id="helpBtn" title="Help / definitions">Help</button>
       </div>
     </div>
 
@@ -278,7 +296,7 @@
         <div style="padding:16px;display:grid;gap:14px">
           <div class="trainerPrompt" id="trainerPrompt">—</div>
 
-          <div class="miniWrap">
+          <div class="miniWrap" id="trainerRef" style="display:none">
             <div class="miniTitle">Reference grid (current scenario)</div>
             <div class="matrixScroll"><div class="matrix mini" id="trainerMatrix"></div></div>
           </div>
@@ -332,6 +350,33 @@
     </div>
 
   <div class="toast" id="toast"></div>
+
+  <!-- Help Modal (mobile-friendly) -->
+  <div id="helpModal" class="modal" style="display:none">
+    <div class="modalBackdrop" id="helpBackdrop"></div>
+    <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <div class="modalHd">
+        <div>
+          <div id="helpTitle" style="font-weight:950">Help & Definitions</div>
+          <div class="kicker">Quick glossary for the charts and trainer.</div>
+        </div>
+        <button id="helpClose">Close</button>
+      </div>
+      <div class="modalBody">
+        <div class="gloss">
+          <div class="gRow"><div class="gKey">RFI</div><div class="gVal"><b>Raise First In</b> — you are the first player to open the pot (no one has raised before you).</div></div>
+          <div class="gRow"><div class="gKey">UTG</div><div class="gVal"><b>Under the Gun</b> — first position to act preflop (8-max).</div></div>
+          <div class="gRow"><div class="gKey">UTG+1</div><div class="gVal">The next seat after UTG. In this app it’s grouped as <b>LJ / UTG+1</b> for 8-max.</div></div>
+          <div class="gRow"><div class="gKey">LJ / HJ / CO / BTN</div><div class="gVal"><b>LoJack</b>, <b>HiJack</b>, <b>Cutoff</b>, <b>Button</b> — progressively later positions with more stealing power.</div></div>
+          <div class="gRow"><div class="gKey">SB / BB</div><div class="gVal"><b>Small Blind</b> / <b>Big Blind</b> — the two forced blind positions.</div></div>
+          <div class="gRow"><div class="gKey">3x / 4x</div><div class="gVal">Open size in big blinds (e.g., 3x = raise to 3×BB).</div></div>
+          <div class="gRow"><div class="gKey">Mix</div><div class="gVal">Either action can be fine. In Trainer Mode, <b>Raise or Call</b> counts as correct when the chart says MIX.</div></div>
+          <div class="gRow"><div class="gKey">Why so tight early?</div><div class="gVal">This game has big antes and a rake cap that hits fast. Marginal, dominated hands (especially offsuit) lose money without initiative.</div></div>
+        </div>
+        <div class="kicker" style="margin-top:12px">Tip: On mobile, open this Help from the top bar whenever a label isn’t intuitive.</div>
+      </div>
+    </div>
+  </div>
 
 <script>
   const ranks = ["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
@@ -744,6 +789,13 @@
   const trainerHandEl      = document.getElementById("trainerHand");
   const trainerResult      = document.getElementById("trainerResult");
   const trainerMatrix      = document.getElementById("trainerMatrix");
+  const trainerRef         = document.getElementById("trainerRef");
+
+  // Help modal elements
+  const helpBtn = document.getElementById("helpBtn");
+  const helpModal = document.getElementById("helpModal");
+  const helpClose = document.getElementById("helpClose");
+  const helpBackdrop = document.getElementById("helpBackdrop");
   const trainerResultTitle = document.getElementById("trainerResultTitle");
   const trainerBadge       = document.getElementById("trainerBadge");
   const trainerExplain     = document.getElementById("trainerExplain");
@@ -928,7 +980,10 @@
     trainerBadge.className = "trainerBadge";
     trainerBadge.textContent = "";
 
-    renderMiniMatrix(key, hand, null);
+    // Hide reference grid until after the answer
+    if(trainerRef) trainerRef.style.display = "none";
+    if(trainerMatrix) trainerMatrix.innerHTML = "";
+
     setButtonsEnabled(true);
   }
 
@@ -984,7 +1039,8 @@
       trainerExplain.textContent = n;
     }
 
-    // Visual: highlight selected hand as correct/incorrect
+    // Visual: show reference grid only after answer + highlight selected hand
+    if(trainerRef) trainerRef.style.display = "block";
     renderMiniMatrix(key, hand, ok ? "good" : "bad");
   }
 
@@ -1002,6 +1058,28 @@
   modeBtn.addEventListener("click", ()=>{
     const isTrainer = trainerView.style.display !== "none";
     setMode(isTrainer ? "explorer" : "trainer");
+  });
+
+  function openHelp(){
+    helpModal.style.display = "block";
+    document.body.style.overflow = "hidden";
+  }
+  function closeHelp(){
+    helpModal.style.display = "none";
+    document.body.style.overflow = "";
+  }
+
+  if(helpBtn){
+    helpBtn.addEventListener("click", openHelp);
+  }
+  if(helpClose){
+    helpClose.addEventListener("click", closeHelp);
+  }
+  if(helpBackdrop){
+    helpBackdrop.addEventListener("click", closeHelp);
+  }
+  window.addEventListener("keydown", (e)=>{
+    if(e.key === "Escape" && helpModal && helpModal.style.display !== "none") closeHelp();
   });
 
   trainerNextBtn.addEventListener("click", ()=> startQuestion());
