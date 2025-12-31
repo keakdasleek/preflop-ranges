@@ -826,9 +826,15 @@
   function displayHandLabel(rowRank, colRank){
     const i = rankIndex(rowRank);
     const j = rankIndex(colRank);
-    if(i===j) return rowRank+colRank;
-    if(i<j) return rowRank+colRank+"s";
-    return rowRank+colRank+"o";
+
+    if(i === j) return rowRank + colRank;
+
+    // Always show higher rank first (canonical), but suited/offsuit depends on position vs diagonal
+    const hi = i < j ? rowRank : colRank;
+    const lo = i < j ? colRank : rowRank;
+
+    if(i < j) return hi + lo + "s"; // above diagonal
+    return hi + lo + "o";          // below diagonal
   }
 
   function hdrCorner(){
