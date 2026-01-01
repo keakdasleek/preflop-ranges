@@ -1020,7 +1020,16 @@ function applyPersona(def, scenarioKey, persona){
 // - Limper: (for now) behaves like loose-passive from our POV (more calls, less 3b)
 //   NOTE: true "limper" exploitation needs limp scenarios; we’ll add those later.
 
-const PERSONA_MODELS = {
+// Map dropdown labels -> internal model codes
+const PERSONA_CODE = {
+  "Standard": "STD",
+  "Tight": "TIGHT",
+  "Loose": "LOOSE",
+  "Aggro 3bettor": "AGGRO3B",
+  "Limper": "LIMPER",
+};
+  
+  const PERSONA_MODELS = {
   STD:    { foldBias: 0.00, callBias: 0.00, raiseBias: 0.00, bluffBias: 0.00 },
   TIGHT:  { foldBias: 0.20, callBias:-0.10, raiseBias:-0.05, bluffBias:-0.25 },
   LOOSE:  { foldBias:-0.25, callBias: 0.25, raiseBias: 0.05, bluffBias:-0.05 },
@@ -1476,8 +1485,10 @@ el.className = `cell ${meta.cls}`;
 const cache = {}; // cacheKey -> {map, notes, mixWeights}
 
 function getScenarioData(key){
-  const personaCode = personaSel?.value || "STD";
-  const cacheKey = `${key}__${personaCode}`;
+  const personaLabel = personaSel?.value || "Standard";
+  const personaCode  = PERSONA_CODE[personaLabel] || "STD";
+
+  const cacheKey = `${key}__${personaLabel}`;
 
   if(!cache[cacheKey]){
     // 1) base range (optionally keep token-style persona edits too)
@@ -1487,6 +1498,8 @@ function getScenarioData(key){
     // 2) probability transform persona (THIS is the main new behavior)
     cache[cacheKey] = applyPersonaToBuiltRange(built, key, personaCode);
   }
+
+  console.log("Persona:", personaLabel, "->", personaCode);
 
   return cache[cacheKey];
 }
