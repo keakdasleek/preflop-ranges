@@ -103,6 +103,35 @@
     .act-fold{background: rgba(255,77,90,.10); border-color: rgba(255,77,90,.35)}
     .act-mix{background: rgba(246,196,69,.12); border-color: rgba(246,196,69,.42)}
 
+    /* Mix intensity overlay (set via CSS variables per-cell) */
+.cell.act-mix{
+  position:relative;
+}
+
+.cell.act-mix::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  background: rgba(246,196,69,var(--mixA,0.12)); /* default if not set */
+  pointer-events:none;
+}
+
+/* Optional tiny mix % badge in the cell */
+.cell .mixPct{
+  position:absolute;
+  bottom:6px;
+  left:8px;
+  font-size:10px;
+  font-weight:900;
+  opacity:.9;
+  color: rgba(231,236,255,.9);
+}
+@media (max-width: 520px){
+  .cell .mixPct{ display:none; } /* keep mobile clean */
+}
+
+
     .side{padding:14px}
     .legend{display:grid;gap:10px;margin-top:6px}
     .pill{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:14px;border:1px solid var(--border);background: rgba(255,255,255,.03)}
@@ -852,6 +881,14 @@ function mixPreferred(weights){
   return (w.C ?? 0.5) >= (w.R ?? 0.5) ? "CALL" : "RAISE";
 }
 
+  function mixIntensity(weights){
+  const w = weights || { R: 0.5, C: 0.5 };
+  const r = Math.max(0, Math.min(1, Number(w.R ?? 0.5)));
+  // map raise-frequency to a nice visible overlay alpha
+  // 0.0 -> 0.10, 1.0 -> 0.34
+  return 0.10 + (0.24 * r);
+}
+
    
   function prettyAction(code){
     return ACT[code]?.label || "—";
@@ -923,6 +960,13 @@ const meta = ACT[a] || ACT.F;
         const el = document.createElement("div");
 el.className = `cell ${meta.cls}`;
 
+        if(a === "M"){
+  const { mixWeights } = getScenarioData(key);
+  const w = mixWeights?.[h] || { R: 0.5, C: 0.5 };
+  el.style.setProperty("--mixA", mixIntensity(w));
+}
+
+        
         const handLabel = displayHandLabel(rRow, rCol);
         el.innerHTML = `<div class="hand">${handLabel}</div>${showLabels ? `<div class="act">${a}</div>` : ""}`;
         el.addEventListener("click", ()=>{
@@ -1226,7 +1270,8 @@ el.className = `cell ${meta.cls}`;
 
   function renderMiniMatrix(key, selectedHand, selStatus){
     if(!trainerMatrix) return;
-    const { map } = getScenarioData(key);
+   const { map, mixWeights } = getScenarioData(key);
+
 
     trainerMatrix.innerHTML = "";
     // header row
@@ -1246,7 +1291,21 @@ el.className = `cell ${meta.cls}`;
 
         el.dataset.hand = h;
         const handLabel = displayHandLabel(rRow, rCol);
-        el.innerHTML = `<div class="hand">${handLabel}</div>`;
+        const w = (a === "M") ? (mixWeights?.[h] || { R: 0.5, C: 0.5 }) : null;
+
+if(a === "M"){
+  el.style.setProperty("--mixA", mixIntensity(w));
+}
+
+const mixBadge = (showLabels && a === "M")
+  ? `<div class="mixPct">${Math.round((w.R ?? 0.5)*100)}/${Math.round((w.C ?? 0.5)*100)}</div>`
+  : "";
+
+el.innerHTML =
+  `<div class="hand">${handLabel}</div>` +
+  (showLabels ? `<div class="act">${a}</div>` : "") +
+  mixBadge;
+
         if(selectedHand && h === selectedHand){
           el.classList.add("sel");
           if(selStatus === "good") el.classList.add("good");
