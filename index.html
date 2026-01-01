@@ -389,7 +389,48 @@
     F: {label:"FOLD",  cls:"act-fold",  color:"var(--fold)"},
     M: {label:"MIX",   cls:"act-mix",   color:"var(--mix)"},
   };
+// --- Dist (frequency) helpers ---
+  function dist(action, p=1){
+    return { R: action==="R" ? p : 0, C: action==="C" ? p : 0, F: action==="F" ? p : 0 };
+  }
 
+  function normalizeDist(d){
+    const R = +d.R || 0, C = +d.C || 0, F = +d.F || 0;
+    const s = R + C + F;
+    if(s <= 0) return {R:0, C:0, F:1};
+    return {R:R/s, C:C/s, F:F/s};
+  }
+
+  function distType(d){
+    d = normalizeDist(d);
+    const nonZero = ["R","C","F"].filter(k => d[k] > 1e-9);
+    return nonZero.length === 1 ? nonZero[0] : "M";
+  }
+
+  function primaryAction(d){
+    d = normalizeDist(d);
+    let best = "F";
+    let bestV = d.F;
+    if(d.R > bestV){ best="R"; bestV=d.R; }
+    if(d.C > bestV){ best="C"; bestV=d.C; }
+    return best;
+  }
+
+  function prettyDist(d){
+    d = normalizeDist(d);
+    const pct = (x)=> `${Math.round(x*100)}%`;
+    const parts = [];
+    if(d.R>0.001) parts.push(`Raise ${pct(d.R)}`);
+    if(d.C>0.001) parts.push(`Call ${pct(d.C)}`);
+    if(d.F>0.001) parts.push(`Fold ${pct(d.F)}`);
+    return parts.join(" • ");
+  }
+
+  function classForDist(d){
+    const t = distType(d);
+    if(t === "M") return ACT.M.cls;
+    return ACT[t].cls;
+  }
   // --- Helper: expand shorthand specs into a 169-hand action map ---
   // We store rules as arrays of tokens:
   //  - Pair ranges: "22+", "TT+"
