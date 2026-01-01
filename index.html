@@ -1109,17 +1109,43 @@ function moveMass(d, from, to, amt){
   return d;
 }
 
+  // 0..1 where 1 = very marginal (more likely to fold), 0 = premium (more likely to raise)
+function marginalScore(hand){
+  const [r1, r2] = ranksOf(hand);
+  const broad = isBroadway(r1) && isBroadway(r2);
+  const pair = isPair(hand);
+  const suited = isSuited(hand);
+  const offsuit = isOffsuit(hand);
+  const conn = isConnector(hand);
+  const wheelA = isWheelAce(hand);
+
+  let m = 0.55;
+  if(pair) m -= 0.30;
+  if(broad) m -= 0.20;
+  if(suited) m -= 0.10;
+  if(offsuit) m += 0.10;
+  if(conn) m -= 0.08;
+  if(gapSize(hand) >= 2 && !broad) m += 0.12;
+  if(wheelA && suited) m -= 0.05;
+
+  return Math.max(0.05, Math.min(0.95, m));
+}
+
+  
 // Core transform:
 // - starts from base dist (R/C/F)
 // - persona nudges it, with stronger effects on "marginal" buckets
 function transformDistForPersona(hand, baseDist, scenarioKey, personaCode){
   const m = PERSONA_MODELS[personaCode] || PERSONA_MODELS.STD;
-  const isRFI = scenarioKey.includes("_RFI");
-if(isRFI){
-  d.R += d.C;
-  d.C = 0;
-}
   const d = normalizeDist(baseDist);
+
+  if(personaCode === "STD") return d;
+
+  const isRFI = scenarioKey.includes("_RFI");
+  const isBB  = scenarioKey.startsWith("BB_");
+  const isSB3B = scenarioKey.includes("SB_vs_BTN_");
+
+
 
   if(personaCode === "STD") return d;
 
@@ -1196,8 +1222,34 @@ if(isRFI){
     moveMass(d, "R", "F", bluffAmt * 0.45);
   }
 
+  // ===== RFI clamp: no flatting when you're first in =====
+  // Convert any call-mass into raise or fold based on marginality.
+  if(isRFI){
+    const mScore = marginalScore(hand); // 0 strong -> 1 marginal
+
+    // threshold shifts by persona:
+    // Tight folds more marginal hands; Loose/Aggro raise more marginal hands.
+    let t = 0.55; // baseline
+    if(personaCode === "TIGHT")  t -= 0.10;  // more call->fold
+    if(personaCode === "LOOSE")  t += 0.10;  // more call->raise
+    if(personaCode === "AGGRO3B") t += 0.12; // even more call->raise
+    if(personaCode === "LIMPER") t -= 0.05;  // passive -> more folds
+
+    // If hand is "strong enough" (low marginalScore), call-mass becomes raises.
+    // If very marginal (high marginalScore), call-mass becomes folds.
+    const callMass = d.C;
+
+    if(callMass > 0){
+      const toRaise = (mScore <= t);
+      d.C = 0;
+      if(toRaise) d.R += callMass;
+      else d.F += callMass;
+    }
+  }
+
   return normalizeDist(d);
 }
+
 
 // Apply persona transform to an entire built range
 function applyPersonaToBuiltRange(built, scenarioKey, personaCode){
@@ -1528,7 +1580,15 @@ const cache = {}; // cacheKey -> {map, notes, mixWeights}
 
 function getScenarioData(key){
   const personaLabel = personaSel?.value || "Standard";
-  const personaCode  = PERSONA_CODE[personaLabel] || "STD";
+const PERSONA_CODE = {
+  "Standard": "STD",
+  "Tight": "TIGHT",
+  "Loose": "LOOSE",
+  "Aggro 3bettor": "AGGRO3B",
+  "Limper": "LIMPER",
+};
+
+const personaCode = PERSONA_CODE[personaSel?.value] || "STD";
 
   const cacheKey = `${key}__${personaLabel}`;
 
