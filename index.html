@@ -896,9 +896,13 @@ function distPretty(d){
       matrixEl.appendChild(hdr(rRow));
       for(const rCol of ranks){
         const h = handForCell(rRow, rCol);
-        const a = map[h] || "F";
+      const aRaw = map[h] ?? "F";
+const a = (typeof aRaw === "string") ? aRaw : distToCode(aRaw);
+const meta = ACT[a] || ACT.F;
+
         const el = document.createElement("div");
-        el.className = `cell ${ACT[a].cls}`;
+el.className = `cell ${meta.cls}`;
+
         const handLabel = displayHandLabel(rRow, rCol);
         el.innerHTML = `<div class="hand">${handLabel}</div>${showLabels ? `<div class="act">${a}</div>` : ""}`;
         el.addEventListener("click", ()=>{
@@ -1195,9 +1199,13 @@ function distPretty(d){
       trainerMatrix.appendChild(hdr(rRow));
       for(const rCol of ranks){
         const h = handForCell(rRow, rCol);
-        const a = map[h] || "F";
-        const el = document.createElement("div");
-        el.className = `cell ${ACT[a].cls}`;
+       const aRaw = map[h] ?? "F";
+const a = (typeof aRaw === "string") ? aRaw : distToCode(aRaw);
+const meta = ACT[a] || ACT.F;
+
+const el = document.createElement("div");
+el.className = `cell ${meta.cls}`;
+
         el.dataset.hand = h;
         const handLabel = displayHandLabel(rRow, rCol);
         el.innerHTML = `<div class="hand">${handLabel}</div>`;
