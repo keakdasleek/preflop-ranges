@@ -1734,22 +1734,19 @@ const a = distToCode(d);
 const prim = primaryAction(d);
 const meta = ACT[prim] || ACT.F;
 
-
 const el = document.createElement("div");
 el.className = `cell ${meta.cls}`;
 
+// Set proportional overlay variables (0..100)
 el.style.setProperty("--r", (d.R * 100).toFixed(0));
 el.style.setProperty("--c", (d.C * 100).toFixed(0));
 el.style.setProperty("--f", (d.F * 100).toFixed(0));
 if(isMix(d)) el.classList.add("isMixed");
 
+el.dataset.hand = h;
+const handLabel = displayHandLabel(rRow, rCol);
+const w = (a === "M") ? (mixWeights?.[h] || { R: 0.5, C: 0.5 }) : null;
 
-const el = document.createElement("div");
-el.className = `cell ${meta.cls}`;
-
-        el.dataset.hand = h;
-        const handLabel = displayHandLabel(rRow, rCol);
-        const w = (a === "M") ? (mixWeights?.[h] || { R: 0.5, C: 0.5 }) : null;
 
 if(a === "M"){
   el.style.setProperty("--mixA", mixIntensity(w));
