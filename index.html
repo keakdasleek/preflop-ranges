@@ -513,29 +513,43 @@
     return tok.replace(/\s+/g, "");
   }
 
-  function applyTokens(map, tokens, action){
-    for(let tok of tokens){
-      tok = normalizeToken(tok);
-      if(!tok) continue;
-      if(/^[2-9TJQKA]{2}\+$/.test(tok)){
-        // pair+
-        expandPairPlus(tok).forEach(h=> map[h]=action);
-      } else if(/^[2-9TJQKA]{2}s\+$/.test(tok)){
-        expandSuitedPlus(tok).forEach(h=> map[h]=action);
-      } else if(/^[2-9TJQKA]{2}o\+$/.test(tok)){
-        expandOffsuitPlus(tok).forEach(h=> map[h]=action);
-      } else if(/^[2-9TJQKA]{2}$/.test(tok) || /^[2-9TJQKA]{2}[so]$/.test(tok)){
-        map[canonicalHand(tok)] = action;
+  function applyTokens(map, tokens, actionOrDist){
+  const distObj = (typeof actionOrDist === "string")
+    ? dist(actionOrDist, 1)
+    : normalizeDist(actionOrDist);
 
-      } else {
-        console.warn("Unrecognized token:", tok);
-      }
+  for(let tok of tokens){
+    tok = normalizeToken(tok);
+    if(!tok) continue;
+
+    const setHand = (h)=>{
+      h = canonicalHand(h);
+      map[h] = normalizeDist(distObj);
+    };
+
+    if(/^[2-9TJQKA]{2}\+$/.test(tok)){
+      // pair+
+      expandPairPlus(tok).forEach(setHand);
+
+    } else if(/^[2-9TJQKA]{2}s\+$/.test(tok)){
+      expandSuitedPlus(tok).forEach(setHand);
+
+    } else if(/^[2-9TJQKA]{2}o\+$/.test(tok)){
+      expandOffsuitPlus(tok).forEach(setHand);
+
+    } else if(/^[2-9TJQKA]{2}$/.test(tok) || /^[2-9TJQKA]{2}[so]$/.test(tok)){
+      setHand(tok);
+
+    } else {
+      console.warn("Unrecognized token:", tok);
     }
   }
+}
+
 
   function buildRange(def){
     const map={};
-    allHands().forEach(h=> map[h]="F");
+    allHands().forEach(h=> map[h]="F");allHands().forEach(h=> map[h]=dist("F", 1));
 
     // Apply in order: folds default, then calls, mixes, raises, etc (so later rules override)
     if(def.calls) applyTokens(map, def.calls, "C");
