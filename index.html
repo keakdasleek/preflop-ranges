@@ -645,28 +645,66 @@ function distPretty(d){
 
 function buildRange(def){
   const map = {};
-  allHands().forEach(h => map[h] = "F");
+  const notes = def.notes || {};
 
-  // Base actions
-  if(def.calls) applyTokens(map, def.calls, "C");
-  if(def.raises) applyTokens(map, def.raises, "R");
+  // Default every hand to FOLD as a distribution
+  allHands().forEach(h => map[h] = dist("F", 1));
 
-  // Mixes override base
+  // Apply base actions (as 100% distributions)
+  if(def.calls)  applyTokens(map, def.calls, dist("C", 1));
+  if(def.raises) applyTokens(map, def.raises, dist("R", 1));
+
+  // Mixes override base:
+  // Supports:
+  //  mixes: ["A2s","A5s"]  (defaults to 50/50 R/C)
+  //  mixes: { "A2s": {R:0.25,C:0.75}, ... } (explicit)
   if(Array.isArray(def.mixes)){
     for(const h of def.mixes){
-      map[canonicalHand(h)] = "M";
+      const hh = canonicalHand(h);
+      // default mix is Raise/Call 50/50
+      map[hh] = normalizeDist({ R:0.5, C:0.5, F:0 });
     }
   } else if(def.mixes && typeof def.mixes === "object"){
-    // Optional newer structure: mixes: { "A2s": {R:0.25,C:0.75}, ... }
     for(const h in def.mixes){
-      map[canonicalHand(h)] = "M";
+      const hh = canonicalHand(h);
+      // if mixes[h] is a dist-like object, use it; else default to 50/50 R/C
+      const d = def.mixes[h];
+      if(d && typeof d === "object"){
+        map[hh] = normalizeDist({ R:d.R||0, C:d.C||0, F:d.F||0 });
+      } else {
+        map[hh] = normalizeDist({ R:0.5, C:0.5, F:0 });
+      }
     }
   }
 
-  const notes = def.notes || {};
+  // Back-compat: if def.mixWeights exists, use it to update any MIX hands
+  // (so you can keep your existing scenario defs unchanged)
   const mixWeights = def.mixWeights || {};
-  return { map, notes, mixWeights };
+  for(const h in mixWeights){
+    const hh = canonicalHand(h);
+    const w = mixWeights[h] || {};
+    // treat weights as R/C only unless F provided
+    map[hh] = normalizeDist({
+      R: Number(w.R ?? 0),
+      C: Number(w.C ?? 0),
+      F: Number(w.F ?? 0),
+    });
+  }
+
+  // Return both:
+  // - map: distributions for every hand
+  // - mixWeights: derived (R/C) weights for display overlays, badges, etc.
+  const derivedMixWeights = {};
+  for(const h in map){
+    const d = normalizeDist(map[h]);
+    if(isMix(d)){
+      derivedMixWeights[h] = { R:d.R, C:d.C, F:d.F };
+    }
+  }
+
+  return { map, notes, mixWeights: derivedMixWeights };
 }
+
 
   // --- Scenarios ---
   // You can add more simply by extending this object.
@@ -1041,31 +1079,34 @@ function mixPreferred(weights){
 function computeCounts(map){
   const counts = { R:0, C:0, M:0, F:0 };
   for(const h in map){
-    const aRaw = map[h] ?? "F";
-    const a = (typeof aRaw === "string") ? aRaw : distToCode(aRaw); // R/C/F/M
+    const d = normalizeDist(map[h] || dist("F", 1));
+    const a = distToCode(d);
     counts[a] = (counts[a] || 0) + 1;
   }
   return counts;
 }
 
 
-  function rangeText(map, mixWeights){
+
+function rangeText(map){
   const groups = { R:[], C:[], M:[] };
 
-  for(const [h, aRaw] of Object.entries(map)){
-    const a = (typeof aRaw === "string") ? aRaw : distToCode(aRaw); // R/C/F/M
+  for(const [h, dRaw] of Object.entries(map)){
+    const d = normalizeDist(dRaw || dist("F", 1));
+    const a = distToCode(d);
+
     if(a === "R") groups.R.push(h);
     if(a === "C") groups.C.push(h);
     if(a === "M"){
-      // If we have weights, include them inline for clarity
-      const w = mixWeights?.[h];
-      groups.M.push(w ? `${h} (${mixText(w)})` : h);
+      // show the actual frequencies, including fold-mixes if present
+      groups.M.push(`${h} (${distPretty(d)})`);
     }
   }
 
   const fmt = arr => arr.slice().sort().join(", ");
   return `Raise: ${fmt(groups.R)}\n\nCall: ${fmt(groups.C)}\n\nMix: ${fmt(groups.M)}`;
 }
+
 
 
   async function copyToClipboard(text){
@@ -1099,18 +1140,18 @@ function renderScenario(key){
       matrixEl.appendChild(hdr(rRow));
       for(const rCol of ranks){
         const h = handForCell(rRow, rCol);
-      const aRaw = map[h] ?? "F";
-const a = (typeof aRaw === "string") ? aRaw : distToCode(aRaw);
+      const d = normalizeDist(map[h] || dist("F", 1));  // distribution always
+const a = distToCode(d);                          // R/C/F/M
 const meta = ACT[a] || ACT.F;
+
 
         const el = document.createElement("div");
 el.className = `cell ${meta.cls}`;
 
-        if(a === "M"){
-  const { mixWeights } = getScenarioData(key);
-  const w = mixWeights?.[h] || { R: 0.5, C: 0.5 };
-  el.style.setProperty("--mixA", mixIntensity(w));
+  if(a === "M"){
+  el.style.setProperty("--mixA", mixIntensity({ R: d.R, C: d.C }));
 }
+
 
         
         const handLabel = displayHandLabel(rRow, rCol);
@@ -1119,11 +1160,10 @@ el.className = `cell ${meta.cls}`;
   selHand.textContent = handLabel;
 
   if(a === "M"){
-    const w = mixWeights?.[h] || { R: 0.5, C: 0.5 };
-    selAct.textContent = `MIX (${mixText(w)})`;
+    selAct.textContent = `MIX (${distPretty(d)})`;
     const base = notes[h] || defaultNoteFor(a, h, key);
-    selNote.textContent = `${base} Preferred: ${mixPreferred(w)} • ${mixText(w)}.`;
-    toast(`${handLabel}: MIX (${mixText(w)})`);
+    selNote.textContent = `${base} Preferred: ${primaryAction(d)} • ${distPretty(d)}.`;
+    toast(`${handLabel}: MIX (${distPretty(d)})`);
   } else {
     selAct.textContent = prettyAction(a);
     const n = notes[h] || defaultNoteFor(a, h, key);
@@ -1131,6 +1171,7 @@ el.className = `cell ${meta.cls}`;
     toast(`${handLabel}: ${prettyAction(a)}`);
   }
 });
+
 
         matrixEl.appendChild(el);
         if(!selectedFirst){
@@ -1153,7 +1194,8 @@ el.className = `cell ${meta.cls}`;
     rangePct.textContent = `${pct}% of hands playable`;
 
     // Wire copy button
-    document.getElementById("copy").onclick = ()=> copyToClipboard(rangeText(map, mixWeights));
+    document.getElementById("copy").onclick = ()=> copyToClipboard(rangeText(map));
+
 
   }
 
@@ -1518,13 +1560,25 @@ current = {
     setButtonsEnabled(true);
   }
 
-  function isCorrect(userAct, correctAct){
-    if(correctAct === "M"){
-      // Treat MIX as either R or C is acceptable
-      return userAct === "R" || userAct === "C";
-    }
-    return userAct === correctAct;
+function isCorrect(userAct, correctAct, correctRaw){
+  // If correctRaw is a distribution, accept any action that has weight > 0
+  if(correctRaw && typeof correctRaw === "object"){
+    const d = normalizeDist(correctRaw);
+    const eps = 1e-9;
+    if(userAct === "R") return d.R > eps;
+    if(userAct === "C") return d.C > eps;
+    if(userAct === "F") return d.F > eps;
+    return false;
   }
+
+  // Fallback: if correctAct is a code
+  if(correctAct === "M"){
+    // legacy behavior (Raise or Call)
+    return userAct === "R" || userAct === "C";
+  }
+  return userAct === correctAct;
+}
+
 
   function submit(userAct){
     const key = current.scenarioKey;
@@ -1533,7 +1587,8 @@ current = {
 
     session.total += 1;
 
-    const ok = isCorrect(userAct, correctAct);
+const ok = isCorrect(userAct, correctAct, current.correctRaw);
+
     if(ok){
       session.correct += 1;
       session.streak += 1;
