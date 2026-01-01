@@ -1114,6 +1114,11 @@ function moveMass(d, from, to, amt){
 // - persona nudges it, with stronger effects on "marginal" buckets
 function transformDistForPersona(hand, baseDist, scenarioKey, personaCode){
   const m = PERSONA_MODELS[personaCode] || PERSONA_MODELS.STD;
+  const isRFI = scenarioKey.includes("_RFI");
+if(isRFI){
+  d.R += d.C;
+  d.C = 0;
+}
   const d = normalizeDist(baseDist);
 
   if(personaCode === "STD") return d;
@@ -1365,7 +1370,7 @@ const meta = ACT[prim] || ACT.F;
 
 const el = document.createElement("div");
 el.className = `cell ${meta.cls}`;
-
+el.title = distPretty(d);
 // Set proportional overlay variables (0..100)
 el.style.setProperty("--r", (d.R * 100).toFixed(0));
 el.style.setProperty("--c", (d.C * 100).toFixed(0));
