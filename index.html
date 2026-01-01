@@ -931,6 +931,48 @@ function buildRange(def){
     }
   };
 
+  const PERSONAS = {
+  Standard: { label: "Standard" },
+  Tight:    { label: "Tight" },
+  Loose:    { label: "Loose" },
+  "Aggro 3bettor": { label: "Aggro 3bettor" },
+  Limper:   { label: "Limper" },
+};
+
+// Applies persona adjustments to a scenario's def BEFORE buildRange()
+function applyPersona(def, scenarioKey, persona){
+  // Always clone so we don't mutate base scenario defs
+  const out = JSON.parse(JSON.stringify(def || {}));
+  const p = persona || "Standard";
+
+  // For now: only adjust RFI scenarios
+  const isRFI = scenarioKey.includes("_RFI");
+  if(!isRFI || p === "Standard") return out;
+
+  out.raises = out.raises || [];
+  out.calls  = out.calls  || [];
+  out.mixes  = out.mixes  || [];
+  out.mixWeights = out.mixWeights || {};
+  out.notes  = out.notes  || {};
+
+  if(p === "Tight"){
+    // Trim weakest opens
+    const remove = ["86s+", "97s+", "T8s+", "JTo", "QTo+", "KTo+"];
+    out.raises = out.raises.filter(t => !remove.includes(t));
+    out.notes.__persona = "Tight: trims marginal suited connectors + weakest offsuit opens.";
+
+  } else if(p === "Loose"){
+    // Add a few extra steals/combos (kept conservative)
+    const add = ["54s", "65s", "76s", "T7s", "97o"];
+    for(const t of add) if(!out.raises.includes(t)) out.raises.push(t);
+    out.notes.__persona = "Loose: adds a few extra steals/combos for wider opening.";
+
+  }
+
+  return out;
+}
+
+
   // --- UI rendering ---
   const scenarioSel = document.getElementById("scenario");
   const personaSel = document.getElementById("persona");
@@ -1037,7 +1079,10 @@ function computeCounts(map){
 
   function renderScenario(key){
     const sc = scenarios[key];
-  const { map, notes, mixWeights } = buildRange(sc.def);
+ const persona = personaSel?.value || "Standard";
+const defAdj = applyPersona(sc.def, key, persona);
+const { map, notes, mixWeights } = buildRange(defAdj);
+
 
 
     scenarioTitle.textContent = sc.name;
@@ -1206,7 +1251,10 @@ el.className = `cell ${meta.cls}`;
   const cache = {}; // scenarioKey -> {map, notes}
   function getScenarioData(key){
     if(!cache[key]){
-      cache[key] = buildRange(scenarios[key].def);
+      const persona = personaSel?.value || "Standard";
+const defAdj = applyPersona(scenarios[key].def, key, persona);
+cache[key] = buildRange(defAdj);
+
     }
     return cache[key];
   }
@@ -1567,13 +1615,14 @@ current = {
   trainerScenarioSel.addEventListener("change", ()=> startQuestion());
   trainerRandomness.addEventListener("change", ()=> startQuestion());
 
-  personaSel.addEventListener("change", ()=>{
-  savePersona();
-  // IMPORTANT: clear cache because ranges depend on persona now
-  for(const k in cache) delete cache[k];
+personaSel.addEventListener("change", () => {
+  // Clear cached scenario builds because persona affects ranges
+  Object.keys(cache).forEach(k => delete cache[k]);
+
+  // Re-render current scenario with new persona
   renderScenario(scenarioSel.value);
-  if(trainerView.style.display !== "none") startQuestion();
 });
+
 
   
   btnRaise.addEventListener("click", ()=> submit("R"));
