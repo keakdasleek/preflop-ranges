@@ -146,18 +146,35 @@ select:focus{
     .act-mix{background: rgba(246,196,69,.12); border-color: rgba(246,196,69,.42)}
 
     /* Mix intensity overlay (set via CSS variables per-cell) */
-.cell.act-mix{
+/* Distribution overlay (Raise/Call/Fold proportions) */
+.cell{
   position:relative;
 }
 
-.cell.act-mix::before{
+/* 3-way stacked bar overlay using CSS variables:
+   --r, --c, --f are 0..100 (percent) */
+.cell::before{
   content:"";
   position:absolute;
   inset:0;
   border-radius:inherit;
-  background: rgba(246,196,69,var(--mixA,0.12)); /* default if not set */
   pointer-events:none;
+
+  /* stacked gradient: green then yellow then red */
+  background: linear-gradient(
+    90deg,
+    rgba(36,194,106,0.22) 0% calc(var(--r,0) * 1%),
+    rgba(246,196,69,0.18) calc(var(--r,0) * 1%) calc((var(--r,0) + var(--c,0)) * 1%),
+    rgba(255,77,90,0.16) calc((var(--r,0) + var(--c,0)) * 1%) 100%
+  );
 }
+
+/* Optional: show that a cell is truly “mixed” (not 100/0/0) */
+.cell.isMixed{
+  outline: 1px dashed rgba(246,196,69,0.35);
+  outline-offset: -2px;
+}
+
 
 /* Optional tiny mix % badge in the cell */
 .cell .mixPct{
@@ -1333,12 +1350,21 @@ const d = (typeof aRaw === "string")
   ? actionToDist(h, aRaw, mixWeights) // uses mixWeights for "M"
   : normalizeDist(aRaw || dist("F", 1));
 
-const a = distToCode(d);                          // R/C/F/M
-const meta = ACT[a] || ACT.F;
+const a = distToCode(d);              // R/C/F/M (for label logic if you want)
+const prim = primaryAction(d);        // R/C/F (dominant action for border color)
+const meta = ACT[prim] || ACT.F;
 
-
-        const el = document.createElement("div");
+const el = document.createElement("div");
 el.className = `cell ${meta.cls}`;
+
+// Set proportional overlay variables (0..100)
+el.style.setProperty("--r", (d.R * 100).toFixed(0));
+el.style.setProperty("--c", (d.C * 100).toFixed(0));
+el.style.setProperty("--f", (d.F * 100).toFixed(0));
+
+// Add a mixed marker if it’s not a pure 100% action
+if(isMix(d)) el.classList.add("isMixed");
+
 
   if(a === "M"){
   const w = mixWeights?.[h] || { R: d.R, C: d.C }; // prefer scenario weights if present
@@ -1698,6 +1724,23 @@ function savePersona(){
 const a = (typeof aRaw === "string") ? aRaw : distToCode(aRaw);
 const meta = ACT[a] || ACT.F;
 
+// If you currently have aRaw as string, convert to dist first
+const d = (typeof aRaw === "string")
+  ? actionToDist(h, aRaw, mixWeights)
+  : normalizeDist(aRaw || dist("F", 1));
+
+const prim = primaryAction(d);
+const meta = ACT[prim] || ACT.F;
+
+const el = document.createElement("div");
+el.className = `cell ${meta.cls}`;
+
+el.style.setProperty("--r", (d.R * 100).toFixed(0));
+el.style.setProperty("--c", (d.C * 100).toFixed(0));
+el.style.setProperty("--f", (d.F * 100).toFixed(0));
+if(isMix(d)) el.classList.add("isMixed");
+
+
 const el = document.createElement("div");
 el.className = `cell ${meta.cls}`;
 
@@ -1715,7 +1758,7 @@ const mixBadge = (showLabels && a === "M")
 
 el.innerHTML =
   `<div class="hand">${handLabel}</div>` +
-  (showLabels ? `<div class="act">${a}</div>` : "") +
+   (showLabels ? `<div class="act">${isMix(d) ? "M" : prim}</div>` : "") +
   mixBadge;
 
         if(selectedHand && h === selectedHand){
