@@ -1077,11 +1077,10 @@ function computeCounts(map){
     }
   }
 
-  function renderScenario(key){
-    const sc = scenarios[key];
- const persona = personaSel?.value || "Standard";
-const defAdj = applyPersona(sc.def, key, persona);
-const { map, notes, mixWeights } = buildRange(defAdj);
+function renderScenario(key){
+  const sc = scenarios[key];
+  const { map, notes, mixWeights } = getScenarioData(key);
+
 
 
 
@@ -1250,12 +1249,16 @@ el.className = `cell ${meta.cls}`;
 
   const cache = {}; // scenarioKey -> {map, notes}
   function getScenarioData(key){
-    if(!cache[key]){
-      const persona = personaSel?.value || "Standard";
-const defAdj = applyPersona(scenarios[key].def, key, persona);
-cache[key] = buildRange(defAdj);
+  const persona = personaSel?.value || "Standard";
+  const cacheKey = `${key}__${persona}`;
 
-    }
+  if(!cache[cacheKey]){
+    const defAdj = applyPersona(scenarios[key].def, key, persona);
+    cache[cacheKey] = buildRange(defAdj);
+  }
+  return cache[cacheKey];
+}
+
     return cache[key];
   }
 
@@ -1616,8 +1619,15 @@ current = {
   trainerRandomness.addEventListener("change", ()=> startQuestion());
 
 personaSel.addEventListener("change", () => {
-  // Clear cached scenario builds because persona affects ranges
-  Object.keys(cache).forEach(k => delete cache[k]);
+  // Clear cached ranges so persona changes actually take effect everywhere
+  for (const k in cache) delete cache[k];
+
+  // Re-render current explorer scenario
+  renderScenario(scenarioSel.value);
+
+  // If trainer view is open, start a fresh question (optional but recommended)
+  if (trainerView.style.display !== "none") startQuestion();
+});
 
   // Re-render current scenario with new persona
   renderScenario(scenarioSel.value);
