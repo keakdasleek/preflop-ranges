@@ -1229,9 +1229,16 @@ el.className = `cell ${meta.cls}`;
     const mode = trainerRandomness.value;
     const hands = listHands(map, mode);
     const hand = randomChoice(hands);
-    const act = map[hand] || "F";
+   const actRaw = map[hand] ?? "F";
+const actCode = (typeof actRaw === "string") ? actRaw : distToCode(actRaw);
 
-    current = { scenarioKey: key, hand, correct: act, prettyHand: prettyHandFromCode(hand) };
+current = {
+  scenarioKey: key,
+  hand,
+  correct: actCode,     // always R/C/F/M now
+  correctRaw: actRaw,   // optional: keeps the original for debugging
+  prettyHand: prettyHandFromCode(hand)
+};
 
     trainerPrompt.textContent = `${scenarioLabel(key)} — What do you do with:`;
     trainerHandEl.textContent = current.prettyHand;
@@ -1269,6 +1276,7 @@ el.className = `cell ${meta.cls}`;
     } else {
       session.streak = 0;
       const miss = `${scenarioLabel(key)}: ${hand} (correct ${prettyAction(correctAct)})`;
+
       session.missed.unshift(miss);
       session.missed = session.missed.slice(0, 30);
     }
