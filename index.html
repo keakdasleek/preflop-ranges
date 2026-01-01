@@ -703,11 +703,10 @@ function buildRange(def){
       }
     },
 
-    "BB_vs_BTN_3x": {
+   "BB_vs_BTN_3x": {
   name: "BB Defend vs BTN Open (3x)",
-  kicker: "Call with playable equity • 3-bet linear/value-heavy",
+  kicker: "Call with playable equity • 3-bet linear/value-heavy • some wheel-ace mixes",
   def: {
-    // For simplicity: mark calls & raises (3-bet) — folds are default.
     raises: [
       "88+",
       "AJs+", "AQo+",
@@ -715,55 +714,81 @@ function buildRange(def){
       "KTs", "QTs", "JTs"
     ],
 
-    // NOTE: remove A2s from calls because it is now explicitly a MIX
+    // NOTE: A2s/A3s/A4s/A5s removed from calls because they are now explicit MIX hands
     calls: [
       "22+",
-      "A3s+",
+      "A6s+",
       "K9s+", "Q9s+", "J9s+",
       "T8s+", "97s+", "86s+",
       "KTo+", "QTo+", "JTo"
     ],
 
-    mixes: ["A2s"],
+    mixes: ["A2s","A3s","A4s","A5s","K9s","Q9s"],
     mixWeights: {
-      "A2s": { R: 0.25, C: 0.75 }
+      // wheel suited aces: mostly call, sometimes 3-bet bluff
+      "A2s": { R: 0.25, C: 0.75 },
+      "A3s": { R: 0.20, C: 0.80 },
+      "A4s": { R: 0.30, C: 0.70 },
+      "A5s": { R: 0.55, C: 0.45 },
+
+      // light pressure vs wide BTN (keep these small so it’s not “spewy”)
+      "K9s": { R: 0.15, C: 0.85 },
+      "Q9s": { R: 0.10, C: 0.90 }
     },
 
     notes: {
-      "A2s":"Great as a call; mixes into 3-bet bluffs depending on opener tendencies.",
+      "A2s":"Mostly a call. Mix in some 3-bets as a blocker bluff vs wide BTN.",
+      "A5s":"Higher 3-bet frequency than other wheel aces (best wheel/backdoor profile).",
+      "K9s":"Mostly call; occasional 3-bet vs very wide BTN or players who overfold to 3-bets.",
+      "Q9s":"Mostly call; sprinkle a few 3-bets if BTN is opening too wide.",
       "KTo":"Defend vs wide BTN opens; be cautious on K-high boards vs heavy barreling regs."
     }
   }
 },
 
-    "BB_vs_BTN_4x": {
-      name: "BB Defend vs BTN Open (4x)",
-      kicker: "Tighter vs bigger size • prioritize suited + connected hands",
-      def: {
-        raises: [
-          "99+",
-          "AJs+", "AQo+",
-          "KQs",
-          "A5s", "A4s",
-          "KTs", "QTs", "JTs"
-        ],
-        calls: [
-          "22+",
-          "A2s+",
-          "KTs+", "QTs+", "JTs",
-          "T9s", "98s", "87s",
-          "KQo", "QJo", "JTo" 
-        ],
-        notes: {
-          "KQo":"Call some vs BTN 4x if BTN is wide and you play well postflop; otherwise mix to 3-bet/fold.",
-          "87s":"Bottom of suited connector calls vs 4x; fold weaker gappers."
-        }
-      }
+
+   "BB_vs_BTN_4x": {
+  name: "BB Defend vs BTN Open (4x)",
+  kicker: "Tighter vs bigger size • prioritize suited + connected • wheel aces mostly-call mixes",
+  def: {
+    raises: [
+      "99+",
+      "AJs+", "AQo+",
+      "KQs",
+      "KTs", "QTs", "JTs"
+    ],
+
+    // NOTE: remove A2s/A3s/A4s/A5s from the A2s+ bucket because they are explicit MIX hands now
+    calls: [
+      "22+",
+      "A6s+",
+      "KTs+", "QTs+", "JTs",
+      "T9s", "98s", "87s",
+      "KQo", "QJo", "JTo"
+    ],
+
+    mixes: ["A2s","A3s","A4s","A5s"],
+    mixWeights: {
+      // vs 4x: much more calling, very little 3-betting
+      "A2s": { R: 0.10, C: 0.90 },
+      "A3s": { R: 0.08, C: 0.92 },
+      "A4s": { R: 0.12, C: 0.88 },
+      "A5s": { R: 0.20, C: 0.80 }
     },
 
-   "BB_vs_CO_3x": {
+    notes: {
+      "A2s":"Mostly call vs 4x. Tiny 3-bet frequency only vs wide BTN / strong fold-to-3b tendencies.",
+      "A5s":"Still mostly call vs 4x; this is the one wheel ace that keeps some 3-bet mix.",
+      "KQo":"Call some vs BTN 4x if BTN is wide and you play well postflop; otherwise mix to 3-bet/fold.",
+      "87s":"Bottom of suited connector calls vs 4x; fold weaker gappers."
+    }
+  }
+},
+
+
+  "BB_vs_CO_3x": {
   name: "BB Defend vs CO Open (3x)",
-  kicker: "CO is tighter than BTN • defend tighter and 3-bet more value",
+  kicker: "CO is tighter than BTN • defend tighter • wheel aces mostly-call mixes",
   def: {
     raises: [
       "99+",
@@ -772,46 +797,70 @@ function buildRange(def){
       "KTs", "QTs", "JTs"
     ],
 
-    // NOTE: remove A2s from calls because it is now explicitly a MIX
+    // NOTE: remove A2s/A3s/A4s/A5s from the A2s+ bucket because they are explicit MIX hands now
     calls: [
       "22+",
-      "A3s+",
+      "A6s+",
       "KTs+", "QTs+", "JTs",
       "T9s", "98s",
       "KQo"
     ],
 
-    mixes: ["A2s"],
+    mixes: ["A2s","A3s","A4s","A5s"],
     mixWeights: {
-      "A2s": { R: 0.15, C: 0.85 }
+      // vs CO: less bluffing than BTN
+      "A2s": { R: 0.15, C: 0.85 },
+      "A3s": { R: 0.10, C: 0.90 },
+      "A4s": { R: 0.15, C: 0.85 },
+      "A5s": { R: 0.35, C: 0.65 }
     },
 
     notes: {
-      "A2s":"Mostly a defend by calling; mixes in a small 3-bet frequency as a blocker bluff."
+      "A2s":"Mostly call vs CO. Small 3-bet frequency as a blocker bluff.",
+      "A5s":"The wheel ace that keeps the most 3-bet mix even vs CO.",
+      "KQo":"Solid defend vs CO; be disciplined postflop on marginal top pair."
     }
   }
 },
 
 
-    "BB_vs_CO_4x": {
-      name: "BB Defend vs CO Open (4x)",
-      kicker: "Tightest of these spots • fewer offsuit continues",
-      def: {
-        raises: [
-          "TT+",
-          "AQo+", "AJs+",
-          "KQs",
-          "A5s", "A4s"
-        ],
-        calls: [
-          "22+",
-          "A2s+",
-          "KQs", "KJs",
-          "QJs", "JTs",
-          "T9s", "98s"
-        ]
-      }
+
+   "BB_vs_CO_4x": {
+  name: "BB Defend vs CO Open (4x)",
+  kicker: "Tightest of these spots • fewer offsuit continues • wheel aces mostly-call mixes",
+  def: {
+    raises: [
+      "TT+",
+      "AQo+", "AJs+",
+      "KQs",
+      "A5s", "A4s"
+    ],
+
+    // NOTE: remove A2s/A3s/A4s/A5s from the A2s+ bucket because they are explicit MIX hands now
+    calls: [
+      "22+",
+      "A6s+",
+      "KQs", "KJs",
+      "QJs", "JTs",
+      "T9s", "98s"
+    ],
+
+    mixes: ["A2s","A3s","A4s","A5s"],
+    mixWeights: {
+      // vs CO 4x: very low 3-bet bluffing frequency
+      "A2s": { R: 0.05, C: 0.95 },
+      "A3s": { R: 0.04, C: 0.96 },
+      "A4s": { R: 0.06, C: 0.94 },
+      "A5s": { R: 0.10, C: 0.90 }
     },
+
+    notes: {
+      "A2s":"Almost always call vs CO 4x; 3-bet frequency is tiny.",
+      "A5s":"Still mostly call; slight 3-bet mix remains as a better bluff candidate."
+    }
+  }
+},
+
 
     "SB_vs_BTN_3betFold": {
       name: "SB vs BTN (3-bet or Fold)",
