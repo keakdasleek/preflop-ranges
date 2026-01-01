@@ -299,12 +299,13 @@ select:focus{
 <div class="controls">
   <select id="scenario"></select>
   <select id="persona" title="Opponent persona">
-    <option value="STD">Standard</option>
-    <option value="TIGHT">Tight</option>
-    <option value="LOOSE">Loose</option>
-    <option value="AGGRO3B">Aggro 3bettor</option>
-    <option value="LIMPER">Limper</option>
-  </select>
+  <option value="Standard">Standard</option>
+  <option value="Tight">Tight</option>
+  <option value="Loose">Loose</option>
+  <option value="Aggro 3bettor">Aggro 3bettor</option>
+  <option value="Limper">Limper</option>
+</select>
+
 
         <button id="toggleLabels">Hide action labels</button>
         <button id="copy">Copy current range as text</button>
@@ -1259,8 +1260,7 @@ el.className = `cell ${meta.cls}`;
   return cache[cacheKey];
 }
 
-    return cache[key];
-  }
+
 
   // Populate trainer scenario dropdown
   function populateTrainerScenarios(){
@@ -1618,6 +1618,20 @@ current = {
   trainerScenarioSel.addEventListener("change", ()=> startQuestion());
   trainerRandomness.addEventListener("change", ()=> startQuestion());
 
+  if (personaSel) {
+  personaSel.addEventListener("change", () => {
+    // Clear cached ranges so persona changes take effect everywhere
+    for (const k in cache) delete cache[k];
+
+    // Re-render explorer
+    renderScenario(scenarioSel.value);
+
+    // Refresh trainer question if trainer is open
+    if (trainerView.style.display !== "none") startQuestion();
+  });
+}
+
+  
 personaSel.addEventListener("change", () => {
   // Clear cached ranges so persona changes actually take effect everywhere
   for (const k in cache) delete cache[k];
@@ -1628,11 +1642,6 @@ personaSel.addEventListener("change", () => {
   // If trainer view is open, start a fresh question (optional but recommended)
   if (trainerView.style.display !== "none") startQuestion();
 });
-
-  // Re-render current scenario with new persona
-  renderScenario(scenarioSel.value);
-});
-
 
   
   btnRaise.addEventListener("click", ()=> submit("R"));
