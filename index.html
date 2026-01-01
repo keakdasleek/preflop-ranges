@@ -254,8 +254,16 @@
           <br/>Tip: click any hand to see the action and why it’s there.
         </div>
       </div>
-      <div class="controls">
-        <select id="scenario"></select>
+<div class="controls">
+  <select id="scenario"></select>
+  <select id="persona" title="Opponent persona">
+    <option value="STD">Standard</option>
+    <option value="TIGHT">Tight</option>
+    <option value="LOOSE">Loose</option>
+    <option value="AGGRO3B">Aggro 3bettor</option>
+    <option value="LIMPER">Limper</option>
+  </select>
+
         <button id="toggleLabels">Hide action labels</button>
         <button id="copy">Copy current range as text</button>
         <button id="modeBtn">Trainer mode</button>
@@ -883,6 +891,8 @@ function buildRange(def){
 
   // --- UI rendering ---
   const scenarioSel = document.getElementById("scenario");
+  const personaSel = document.getElementById("persona");
+
   const matrixEl = document.getElementById("matrix");
   const scenarioTitle = document.getElementById("scenarioTitle");
   const scenarioKicker = document.getElementById("scenarioKicker");
@@ -1186,6 +1196,8 @@ el.className = `cell ${meta.cls}`;
     missed: [] // array of strings like "BB vs BTN 3x: KTo (correct CALL)"
   };
 
+  const LS_PERSONA = "preflopPersona_v1";
+
   function loadSession(){
     try{
       const raw = localStorage.getItem(LS_KEY);
@@ -1203,6 +1215,19 @@ el.className = `cell ${meta.cls}`;
       localStorage.setItem(LS_KEY, JSON.stringify(session));
     } catch(e){ /* ignore */ }
   }
+
+  function loadPersona(){
+  try{
+    const p = localStorage.getItem(LS_PERSONA);
+    if(p && personaSel) personaSel.value = p;
+  }catch(e){}
+}
+
+function savePersona(){
+  try{
+    if(personaSel) localStorage.setItem(LS_PERSONA, personaSel.value);
+  }catch(e){}
+}
 
 
 
@@ -1500,6 +1525,15 @@ current = {
   trainerScenarioSel.addEventListener("change", ()=> startQuestion());
   trainerRandomness.addEventListener("change", ()=> startQuestion());
 
+  personaSel.addEventListener("change", ()=>{
+  savePersona();
+  // IMPORTANT: clear cache because ranges depend on persona now
+  for(const k in cache) delete cache[k];
+  renderScenario(scenarioSel.value);
+  if(trainerView.style.display !== "none") startQuestion();
+});
+
+  
   btnRaise.addEventListener("click", ()=> submit("R"));
   btnCall.addEventListener("click", ()=> submit("C"));
   btnFold.addEventListener("click", ()=> submit("F"));
