@@ -1145,10 +1145,6 @@ function transformDistForPersona(hand, baseDist, scenarioKey, personaCode){
   const isBB  = scenarioKey.startsWith("BB_");
   const isSB3B = scenarioKey.includes("SB_vs_BTN_");
 
-
-
-  if(personaCode === "STD") return d;
-
   // Identify marginality: offsuit gappers are most marginal; pairs/broadways least marginal
   const [r1, r2] = ranksOf(hand);
   const broad = isBroadway(r1) && isBroadway(r2);
@@ -1169,11 +1165,6 @@ function transformDistForPersona(hand, baseDist, scenarioKey, personaCode){
   if(wheelA && suited) marginal -= 0.05;
 
   marginal = Math.max(0.05, Math.min(0.95, marginal));
-
-  // Scenario sensitivity (RFI gets more open/steal behavior; BB defend gets more call behavior)
-  const isRFI = scenarioKey.includes("_RFI");
-  const isBB  = scenarioKey.startsWith("BB_");
-  const isSB3B = scenarioKey.includes("SB_vs_BTN_");
 
   // Fold bias: tight folds more, loose folds less; applied more to marginal hands
   const foldAmt = Math.abs(m.foldBias) * (0.10 + 0.35*marginal);
@@ -1580,13 +1571,6 @@ const cache = {}; // cacheKey -> {map, notes, mixWeights}
 
 function getScenarioData(key){
   const personaLabel = personaSel?.value || "Standard";
-const PERSONA_CODE = {
-  "Standard": "STD",
-  "Tight": "TIGHT",
-  "Loose": "LOOSE",
-  "Aggro 3bettor": "AGGRO3B",
-  "Limper": "LIMPER",
-};
 
 const personaCode = PERSONA_CODE[personaSel?.value] || "STD";
 
