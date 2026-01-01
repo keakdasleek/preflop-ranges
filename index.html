@@ -408,12 +408,21 @@ select:focus{
             </div>
           </div>
 
-          <div class="trainerResult" id="trainerResult" style="display:none">
-            <div class="trainerResultTop">
-              <div>
-                <div class="kicker">Result</div>
-                <div style="font-weight:900;font-size:16px" id="trainerResultTitle">—</div>
-              </div>
+         <div class="trainerResult" id="trainerResult" style="display:none">
+  <div class="trainerResultTop">
+    <div>
+      <div class="kicker">Result</div>
+      <div style="font-weight:900;font-size:16px" id="trainerResultTitle">—</div>
+    </div>
+    <div class="trainerBadge" id="trainerBadge">—</div>
+  </div>
+
+  <!-- NEW -->
+  <div class="trainerExplain" id="trainerChoiceLine" style="margin-top:8px">—</div>
+
+  <div class="trainerExplain" id="trainerExplain">—</div>
+</div>
+
               <div class="trainerBadge" id="trainerBadge">—</div>
             </div>
             <div class="trainerExplain" id="trainerExplain">—</div>
@@ -1494,6 +1503,8 @@ if(isMix(d)) el.classList.add("isMixed");
   const trainerResultTitle = document.getElementById("trainerResultTitle");
   const trainerBadge       = document.getElementById("trainerBadge");
   const trainerExplain     = document.getElementById("trainerExplain");
+  const trainerChoiceLine  = document.getElementById("trainerChoiceLine");
+
 
   const btnRaise = document.getElementById("btnRaise");
   const btnCall  = document.getElementById("btnCall");
@@ -1851,6 +1862,11 @@ const ok = isCorrect(userAct, correctAct, current.correctRaw);
 
     setButtonsEnabled(false);
     trainerResult.style.display = "block";
+
+    if(trainerChoiceLine){
+  trainerChoiceLine.textContent = `You chose: ${prettyAction(userAct)} • Correct: ${prettyAction(correctAct)}`;
+}
+
 
     if(ok){
       trainerResultTitle.textContent = "Correct";
