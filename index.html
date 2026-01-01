@@ -596,19 +596,7 @@ function distPretty(d){
 }
 
 
-  function buildRange(def){
-    const map={};
-    allHands().forEach(h=> map[h]="F");allHands().forEach(h=> map[h]=dist("F", 1));
-
-    // Apply in order: folds default, then calls, mixes, raises, etc (so later rules override)
-    if(def.calls) applyTokens(map, def.calls, "C");
-    if(def.mixes) applyTokens(map, def.mixes, "M");
-    if(def.raises) applyTokens(map, def.raises, "R");
-
-    // Add per-hand notes if provided
-    const notes = def.notes || {};
-    return { map, notes };
-  }
+ function buildRange(def){
 
   // --- Scenarios ---
   // You can add more simply by extending this object.
@@ -715,6 +703,9 @@ function distPretty(d){
           "T8s+", "97s+", "86s+",
           "KTo+", "QTo+", "JTo"
         ],
+mixes: ["A2s"],
+  mixWeights: { "A2s": { R: 0.25, C: 0.75 } },      
+        
         notes: {
           "A2s":"Great as a call; mixes into 3-bet bluffs depending on opener tendencies.",
           "KTo":"Defend vs wide BTN opens; be cautious on K-high boards vs heavy barreling regs."
@@ -844,6 +835,19 @@ function distPretty(d){
   return canonicalHand(hi + lo + (suited ? "s" : "o"));
 }
 
+function mixText(weights){
+  const w = weights || { R: 0.5, C: 0.5 };
+  const r = Math.round((w.R ?? 0.5) * 100);
+  const c = Math.round((w.C ?? 0.5) * 100);
+  return `Raise ${r}% / Call ${c}%`;
+}
+
+function mixPreferred(weights){
+  const w = weights || { R: 0.5, C: 0.5 };
+  return (w.C ?? 0.5) >= (w.R ?? 0.5) ? "CALL" : "RAISE";
+}
+
+   
   function prettyAction(code){
     return ACT[code]?.label || "—";
   }
@@ -880,7 +884,8 @@ function distPretty(d){
 
   function renderScenario(key){
     const sc = scenarios[key];
-    const { map, notes } = buildRange(sc.def);
+  const { map, notes, mixWeights } = buildRange(sc.def);
+
 
     scenarioTitle.textContent = sc.name;
     scenarioKicker.textContent = sc.kicker;
@@ -906,12 +911,22 @@ el.className = `cell ${meta.cls}`;
         const handLabel = displayHandLabel(rRow, rCol);
         el.innerHTML = `<div class="hand">${handLabel}</div>${showLabels ? `<div class="act">${a}</div>` : ""}`;
         el.addEventListener("click", ()=>{
-          selHand.textContent = handLabel;
-          selAct.textContent = prettyAction(a);
-          const n = notes[h] || defaultNoteFor(a, h, key);
-          selNote.textContent = n;
-          toast(`${handLabel}: ${prettyAction(a)}`);
-        });
+  selHand.textContent = handLabel;
+
+  if(a === "M"){
+    const w = mixWeights?.[h] || { R: 0.5, C: 0.5 };
+    selAct.textContent = `MIX (${mixText(w)})`;
+    const base = notes[h] || defaultNoteFor(a, h, key);
+    selNote.textContent = `${base} Preferred: ${mixPreferred(w)} • ${mixText(w)}.`;
+    toast(`${handLabel}: MIX (${mixText(w)})`);
+  } else {
+    selAct.textContent = prettyAction(a);
+    const n = notes[h] || defaultNoteFor(a, h, key);
+    selNote.textContent = n;
+    toast(`${handLabel}: ${prettyAction(a)}`);
+  }
+});
+
         matrixEl.appendChild(el);
         if(!selectedFirst){
           selHand.textContent = "—";
@@ -1173,7 +1188,8 @@ el.className = `cell ${meta.cls}`;
   }
 
   function noteForTrainer(key, handCode, correctAct){
-    const { notes } = getScenarioData(key);
+const { notes, mixWeights } = getScenarioData(key);
+
     if(notes && notes[handCode]) return notes[handCode];
     // A little more contextual messaging
     if(correctAct === "F") return "Fold: dominated / poor equity realization / rake-sensitive in this spot.";
@@ -1182,9 +1198,10 @@ el.className = `cell ${meta.cls}`;
       if(key.includes("RFI")) return "Raise first in: take initiative and capture dead money from antes.";
       return "Raise: value/pressure (linear, rake-aware).";
     }
-    if(correctAct === "M") return "Mix: either action can be fine; use opponent tendencies and players behind to choose.";
-    return "";
-  }
+    if(correctAct === "M"){
+  const w = mixWeights?.[handCode] || { R: 0.5, C: 0.5 };
+  return `Mix: both actions are OK here. Frequency guidance: ${mixText(w)} (preferred: ${mixPreferred(w)}).`;
+}
 
   function renderMiniMatrix(key, selectedHand, selStatus){
     if(!trainerMatrix) return;
