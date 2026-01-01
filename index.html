@@ -1720,17 +1720,20 @@ function savePersona(){
       trainerMatrix.appendChild(hdr(rRow));
       for(const rCol of ranks){
         const h = handForCell(rRow, rCol);
-       const aRaw = map[h] ?? "F";
-const a = (typeof aRaw === "string") ? aRaw : distToCode(aRaw);
-const meta = ACT[a] || ACT.F;
+const aRaw = map[h] ?? "F";
 
-// If you currently have aRaw as string, convert to dist first
+// Normalize to a distribution first
 const d = (typeof aRaw === "string")
   ? actionToDist(h, aRaw, mixWeights)
   : normalizeDist(aRaw || dist("F", 1));
 
+// Label can still show M/R/C/F if you want
+const a = distToCode(d);
+
+// Border/color should use dominant action
 const prim = primaryAction(d);
 const meta = ACT[prim] || ACT.F;
+
 
 const el = document.createElement("div");
 el.className = `cell ${meta.cls}`;
