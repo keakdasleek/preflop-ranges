@@ -1011,6 +1011,185 @@ function applyPersona(def, scenarioKey, persona){
   return out;
 }
 
+  // ===== Persona variability model (probability transform) =====
+
+// A light, low-stakes oriented model:
+// - Tight: folds more marginals, bluffs less
+// - Loose: calls wider, folds less, raises slightly more but not maniac
+// - Aggro 3bettor: shifts more of playable hands into raise/3b buckets
+// - Limper: (for now) behaves like loose-passive from our POV (more calls, less 3b)
+//   NOTE: true "limper" exploitation needs limp scenarios; we’ll add those later.
+
+const PERSONA_MODELS = {
+  STD:    { foldBias: 0.00, callBias: 0.00, raiseBias: 0.00, bluffBias: 0.00 },
+  TIGHT:  { foldBias: 0.20, callBias:-0.10, raiseBias:-0.05, bluffBias:-0.25 },
+  LOOSE:  { foldBias:-0.25, callBias: 0.25, raiseBias: 0.05, bluffBias:-0.05 },
+  AGGRO3B:{ foldBias:-0.10, callBias:-0.10, raiseBias: 0.25, bluffBias: 0.20 },
+  LIMPER: { foldBias:-0.15, callBias: 0.30, raiseBias:-0.10, bluffBias:-0.20 },
+};
+
+// Hand classification helpers (simple but effective)
+function isPair(h){ return h.length === 2; }
+function isSuited(h){ return h.length === 3 && h[2] === "s"; }
+function isOffsuit(h){ return h.length === 3 && h[2] === "o"; }
+function ranksOf(h){
+  if(isPair(h)) return [h[0], h[1]];
+  return [h[0], h[1]];
+}
+function isBroadway(r){ return ["A","K","Q","J","T"].includes(r); }
+function gapSize(h){
+  if(isPair(h)) return 0;
+  const a = rankIndex(h[0]);
+  const b = rankIndex(h[1]);
+  return Math.abs(a - b) - 1; // 0=connectors, 1=1-gap, etc (A,K => big gap)
+}
+function isConnector(h){
+  if(isPair(h)) return false;
+  const g = gapSize(h);
+  return g === 0;
+}
+function isWheelAce(h){
+  if(isPair(h) || h[0] !== "A") return false;
+  return ["2","3","4","5"].includes(h[1]);
+}
+
+// Convert an action code / "M" + mixWeights into a dist object
+function actionToDist(h, aRaw, mixWeights){
+  if(typeof aRaw === "object") return normalizeDist(aRaw);
+  const a = aRaw || "F";
+  if(a === "R") return dist("R", 1);
+  if(a === "C") return dist("C", 1);
+  if(a === "F") return dist("F", 1);
+  // MIX
+  const w = mixWeights?.[h] || { R: 0.5, C: 0.5 };
+  return normalizeDist({ R: Number(w.R ?? 0.5), C: Number(w.C ?? 0.5), F: 0 });
+}
+
+// A small utility to shift probability mass between components
+function moveMass(d, from, to, amt){
+  amt = Math.max(0, Math.min(1, amt));
+  const take = Math.min(d[from], amt);
+  d[from] -= take;
+  d[to] += take;
+  return d;
+}
+
+// Core transform:
+// - starts from base dist (R/C/F)
+// - persona nudges it, with stronger effects on "marginal" buckets
+function transformDistForPersona(hand, baseDist, scenarioKey, personaCode){
+  const m = PERSONA_MODELS[personaCode] || PERSONA_MODELS.STD;
+  const d = normalizeDist(baseDist);
+
+  if(personaCode === "STD") return d;
+
+  // Identify marginality: offsuit gappers are most marginal; pairs/broadways least marginal
+  const [r1, r2] = ranksOf(hand);
+  const broad = isBroadway(r1) && isBroadway(r2);
+  const pair = isPair(hand);
+  const suited = isSuited(hand);
+  const offsuit = isOffsuit(hand);
+  const conn = isConnector(hand);
+  const wheelA = isWheelAce(hand);
+
+  // Base marginal score in [0..1]
+  let marginal = 0.55;
+  if(pair) marginal -= 0.30;
+  if(broad) marginal -= 0.20;
+  if(suited) marginal -= 0.10;
+  if(offsuit) marginal += 0.10;
+  if(conn) marginal -= 0.08;
+  if(gapSize(hand) >= 2 && !broad) marginal += 0.12;
+  if(wheelA && suited) marginal -= 0.05;
+
+  marginal = Math.max(0.05, Math.min(0.95, marginal));
+
+  // Scenario sensitivity (RFI gets more open/steal behavior; BB defend gets more call behavior)
+  const isRFI = scenarioKey.includes("_RFI");
+  const isBB  = scenarioKey.startsWith("BB_");
+  const isSB3B = scenarioKey.includes("SB_vs_BTN_");
+
+  // Fold bias: tight folds more, loose folds less; applied more to marginal hands
+  const foldAmt = Math.abs(m.foldBias) * (0.10 + 0.35*marginal);
+  if(m.foldBias > 0){
+    // move from C and R into F
+    moveMass(d, "C", "F", foldAmt * 0.6);
+    moveMass(d, "R", "F", foldAmt * 0.4);
+  } else if(m.foldBias < 0){
+    // move from F into C (mostly) and a bit into R for RFI
+    const intoR = isRFI ? 0.25 : 0.10;
+    moveMass(d, "F", "C", foldAmt * (1 - intoR));
+    moveMass(d, "F", "R", foldAmt * intoR);
+  }
+
+  // Call bias: loose calls more, aggro calls less; BB spots amplify call bias
+  let callAmt = Math.abs(m.callBias) * (0.08 + 0.30*marginal);
+  if(isBB) callAmt *= 1.15;
+  if(m.callBias > 0){
+    moveMass(d, "F", "C", callAmt * 0.7);
+    moveMass(d, "R", "C", callAmt * 0.3);
+  } else if(m.callBias < 0){
+    moveMass(d, "C", "F", callAmt * 0.6);
+    moveMass(d, "C", "R", callAmt * 0.4);
+  }
+
+  // Raise/3bet bias: aggro shifts into R; tight shifts out of R
+  let raiseAmt = Math.abs(m.raiseBias) * (0.06 + 0.22*(1 - marginal)); // more on strong-ish hands
+  if(isSB3B) raiseAmt *= 1.10; // SB 3bet/fold spot
+  if(m.raiseBias > 0){
+    moveMass(d, "C", "R", raiseAmt * 0.7);
+    moveMass(d, "F", "R", raiseAmt * 0.3);
+  } else if(m.raiseBias < 0){
+    moveMass(d, "R", "C", raiseAmt * 0.6);
+    moveMass(d, "R", "F", raiseAmt * 0.4);
+  }
+
+  // Bluff bias: affects the margin between R and C/F on *marginal* hands
+  const bluffAmt = Math.abs(m.bluffBias) * (0.05 + 0.28*marginal);
+  if(m.bluffBias > 0){
+    // more bluffs => move some C/F to R
+    moveMass(d, "C", "R", bluffAmt * 0.55);
+    moveMass(d, "F", "R", bluffAmt * 0.45);
+  } else if(m.bluffBias < 0){
+    // fewer bluffs => move some R to C/F
+    moveMass(d, "R", "C", bluffAmt * 0.55);
+    moveMass(d, "R", "F", bluffAmt * 0.45);
+  }
+
+  return normalizeDist(d);
+}
+
+// Apply persona transform to an entire built range
+function applyPersonaToBuiltRange(built, scenarioKey, personaCode){
+  const baseMap = built.map || {};
+  const baseNotes = built.notes || {};
+  const baseMixWeights = built.mixWeights || {};
+
+  const outMap = {};
+  const outMixWeights = {};
+
+  for(const h of Object.keys(baseMap)){
+    const baseDist = actionToDist(h, baseMap[h], baseMixWeights);
+    const d2 = transformDistForPersona(h, baseDist, scenarioKey, personaCode);
+
+    outMap[h] = d2;
+
+    // If it becomes MIX after transform, capture weights for UI
+    if(distToCode(d2) === "M"){
+      outMixWeights[h] = { R: d2.R, C: d2.C };
+    }
+  }
+
+  // Notes: keep existing notes; add persona banner note in a safe key
+  const notes = Object.assign({}, baseNotes);
+  if(personaCode && personaCode !== "STD"){
+    notes.__persona = `Persona applied: ${personaCode}`;
+  }
+
+  return { map: outMap, notes, mixWeights: outMixWeights };
+}
+
+
 
   // --- UI rendering ---
   const scenarioSel = document.getElementById("scenario");
@@ -1140,7 +1319,11 @@ function renderScenario(key){
       matrixEl.appendChild(hdr(rRow));
       for(const rCol of ranks){
         const h = handForCell(rRow, rCol);
-      const d = normalizeDist(map[h] || dist("F", 1));  // distribution always
+const aRaw = map[h];
+const d = (typeof aRaw === "string")
+  ? actionToDist(h, aRaw, mixWeights) // uses mixWeights for "M"
+  : normalizeDist(aRaw || dist("F", 1));
+
 const a = distToCode(d);                          // R/C/F/M
 const meta = ACT[a] || ACT.F;
 
@@ -1149,9 +1332,9 @@ const meta = ACT[a] || ACT.F;
 el.className = `cell ${meta.cls}`;
 
   if(a === "M"){
-  el.style.setProperty("--mixA", mixIntensity({ R: d.R, C: d.C }));
+  const w = mixWeights?.[h] || { R: d.R, C: d.C }; // prefer scenario weights if present
+  el.style.setProperty("--mixA", mixIntensity(w));
 }
-
 
         
         const handLabel = displayHandLabel(rRow, rCol);
@@ -1290,17 +1473,24 @@ el.className = `cell ${meta.cls}`;
   const trainerReset = document.getElementById("trainerReset");
   const trainerClearHistory = document.getElementById("trainerClearHistory");
 
-  const cache = {}; // scenarioKey -> {map, notes}
-  function getScenarioData(key){
-  const persona = personaSel?.value || "Standard";
-  const cacheKey = `${key}__${persona}`;
+const cache = {}; // cacheKey -> {map, notes, mixWeights}
+
+function getScenarioData(key){
+  const personaCode = personaSel?.value || "STD";
+  const cacheKey = `${key}__${personaCode}`;
 
   if(!cache[cacheKey]){
-    const defAdj = applyPersona(scenarios[key].def, key, persona);
-    cache[cacheKey] = buildRange(defAdj);
+    // 1) base range (optionally keep token-style persona edits too)
+    const defAdj = applyPersona(scenarios[key].def, key, personaCode); // safe even if it only affects RFI
+    const built = buildRange(defAdj);
+
+    // 2) probability transform persona (THIS is the main new behavior)
+    cache[cacheKey] = applyPersonaToBuiltRange(built, key, personaCode);
   }
+
   return cache[cacheKey];
 }
+
 
 
 
