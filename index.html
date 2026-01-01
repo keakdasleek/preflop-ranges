@@ -389,7 +389,56 @@
     F: {label:"FOLD",  cls:"act-fold",  color:"var(--fold)"},
     M: {label:"MIX",   cls:"act-mix",   color:"var(--mix)"},
   };
-// --- Dist (frequency) helpers ---
+
+  // ===== Distribution helpers (mix-aware engine) =====
+
+function dist(action, p=1){
+  const d = { R:0, C:0, F:0 };
+  if(action === "R" || action === "C" || action === "F") d[action] = p;
+  return normalizeDist(d);
+}
+
+function normalizeDist(d){
+  const out = { R:0, C:0, F:0 };
+  if(!d) return out;
+  out.R = Number(d.R || 0);
+  out.C = Number(d.C || 0);
+  out.F = Number(d.F || 0);
+  const s = out.R + out.C + out.F;
+  if(s <= 0) return out;
+  out.R /= s; out.C /= s; out.F /= s;
+  return out;
+}
+
+function isMix(d){
+  d = normalizeDist(d);
+  const eps = 1e-9;
+  let n = 0;
+  if(d.R > eps) n++;
+  if(d.C > eps) n++;
+  if(d.F > eps) n++;
+  return n >= 2;
+}
+
+function distToCode(d){
+  d = normalizeDist(d);
+  if(isMix(d)) return "M";
+  if(d.R >= 0.999) return "R";
+  if(d.C >= 0.999) return "C";
+  return "F";
+}
+
+function distPretty(d){
+  d = normalizeDist(d);
+  const parts = [];
+  if(d.R>0) parts.push(`Raise ${(d.R*100).toFixed(0)}%`);
+  if(d.C>0) parts.push(`Call ${(d.C*100).toFixed(0)}%`);
+  if(d.F>0) parts.push(`Fold ${(d.F*100).toFixed(0)}%`);
+  return parts.join(" / ");
+}
+
+  
+  // --- Dist (frequency) helpers ---
   function dist(action, p=1){
     return { R: action==="R" ? p : 0, C: action==="C" ? p : 0, F: action==="F" ? p : 0 };
   }
