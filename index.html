@@ -596,7 +596,30 @@ function distPretty(d){
 }
 
 
- function buildRange(def){
+function buildRange(def){
+  const map = {};
+  allHands().forEach(h => map[h] = "F");
+
+  // Base actions
+  if(def.calls) applyTokens(map, def.calls, "C");
+  if(def.raises) applyTokens(map, def.raises, "R");
+
+  // Mixes override base
+  if(Array.isArray(def.mixes)){
+    for(const h of def.mixes){
+      map[canonicalHand(h)] = "M";
+    }
+  } else if(def.mixes && typeof def.mixes === "object"){
+    // Optional newer structure: mixes: { "A2s": {R:0.25,C:0.75}, ... }
+    for(const h in def.mixes){
+      map[canonicalHand(h)] = "M";
+    }
+  }
+
+  const notes = def.notes || {};
+  const mixWeights = def.mixWeights || {};
+  return { map, notes, mixWeights };
+}
 
   // --- Scenarios ---
   // You can add more simply by extending this object.
@@ -685,33 +708,37 @@ function distPretty(d){
     },
 
     "BB_vs_BTN_3x": {
-      name: "BB Defend vs BTN Open (3x)",
-      kicker: "Call with playable equity • 3-bet linear/value-heavy",
-      def: {
-        // For simplicity: mark calls & raises (3-bet) — folds are default.
-        raises: [
-          "88+",
-          "AJs+", "AQo+",
-          "KQs",
-          "A5s", "A4s",
-          "KTs", "QTs", "JTs"
-        ],
-        calls: [
-          "22+",
-          "A2s+",
-          "K9s+", "Q9s+", "J9s+",
-          "T8s+", "97s+", "86s+",
-          "KTo+", "QTo+", "JTo"
-        ],
-mixes: ["A2s"],
-  mixWeights: { "A2s": { R: 0.25, C: 0.75 } },      
-        
-        notes: {
-          "A2s":"Great as a call; mixes into 3-bet bluffs depending on opener tendencies.",
-          "KTo":"Defend vs wide BTN opens; be cautious on K-high boards vs heavy barreling regs."
-        }
-      }
+  name: "BB Defend vs BTN Open (3x)",
+  kicker: "Call with playable equity • 3-bet linear/value-heavy",
+  def: {
+    // For simplicity: mark calls & raises (3-bet) — folds are default.
+    raises: [
+      "88+",
+      "AJs+", "AQo+",
+      "KQs",
+      "KTs", "QTs", "JTs"
+    ],
+
+    // NOTE: remove A2s from calls because it is now explicitly a MIX
+    calls: [
+      "22+",
+      "A3s+",
+      "K9s+", "Q9s+", "J9s+",
+      "T8s+", "97s+", "86s+",
+      "KTo+", "QTo+", "JTo"
+    ],
+
+    mixes: ["A2s"],
+    mixWeights: {
+      "A2s": { R: 0.25, C: 0.75 }
     },
+
+    notes: {
+      "A2s":"Great as a call; mixes into 3-bet bluffs depending on opener tendencies.",
+      "KTo":"Defend vs wide BTN opens; be cautious on K-high boards vs heavy barreling regs."
+    }
+  }
+},
 
     "BB_vs_BTN_4x": {
       name: "BB Defend vs BTN Open (4x)",
@@ -738,26 +765,37 @@ mixes: ["A2s"],
       }
     },
 
-    "BB_vs_CO_3x": {
-      name: "BB Defend vs CO Open (3x)",
-      kicker: "CO is tighter than BTN • defend tighter and 3-bet more value",
-      def: {
-        raises: [
-          "99+",
-          "AQo+", "AJs+",
-          "KQs",
-          "A5s", "A4s",
-          "KTs", "QTs", "JTs"
-        ],
-        calls: [
-          "22+",
-          "A2s+",
-          "KTs+", "QTs+", "JTs",
-          "T9s", "98s",
-          "KQo"
-        ]
-      }
+   "BB_vs_CO_3x": {
+  name: "BB Defend vs CO Open (3x)",
+  kicker: "CO is tighter than BTN • defend tighter and 3-bet more value",
+  def: {
+    raises: [
+      "99+",
+      "AQo+", "AJs+",
+      "KQs",
+      "KTs", "QTs", "JTs"
+    ],
+
+    // NOTE: remove A2s from calls because it is now explicitly a MIX
+    calls: [
+      "22+",
+      "A3s+",
+      "KTs+", "QTs+", "JTs",
+      "T9s", "98s",
+      "KQo"
+    ],
+
+    mixes: ["A2s"],
+    mixWeights: {
+      "A2s": { R: 0.15, C: 0.85 }
     },
+
+    notes: {
+      "A2s":"Mostly a defend by calling; mixes in a small 3-bet frequency as a blocker bluff."
+    }
+  }
+},
+
 
     "BB_vs_CO_4x": {
       name: "BB Defend vs CO Open (4x)",
