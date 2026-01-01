@@ -390,13 +390,8 @@
     M: {label:"MIX",   cls:"act-mix",   color:"var(--mix)"},
   };
 
-  // ===== Distribution helpers (mix-aware engine) =====
-
-function dist(action, p=1){
-  const d = { R:0, C:0, F:0 };
-  if(action === "R" || action === "C" || action === "F") d[action] = p;
-  return normalizeDist(d);
-}
+// ===== Distribution helpers (single canonical block) =====
+// Dist is always an object: {R:0..1, C:0..1, F:0..1}
 
 function normalizeDist(d){
   const out = { R:0, C:0, F:0 };
@@ -410,6 +405,12 @@ function normalizeDist(d){
   return out;
 }
 
+function dist(action, p=1){
+  const d = { R:0, C:0, F:0 };
+  if(action === "R" || action === "C" || action === "F") d[action] = p;
+  return normalizeDist(d);
+}
+
 function isMix(d){
   d = normalizeDist(d);
   const eps = 1e-9;
@@ -420,66 +421,32 @@ function isMix(d){
   return n >= 2;
 }
 
+function primaryAction(d){
+  d = normalizeDist(d);
+  let best = "F";
+  let bestV = d.F;
+  if(d.R > bestV){ best="R"; bestV=d.R; }
+  if(d.C > bestV){ best="C"; bestV=d.C; }
+  return best;
+}
+
+// Convert a dist to a single code used by the UI/trainer: R/C/F/M
 function distToCode(d){
   d = normalizeDist(d);
   if(isMix(d)) return "M";
-  if(d.R >= 0.999) return "R";
-  if(d.C >= 0.999) return "C";
-  return "F";
+  return primaryAction(d);
 }
 
 function distPretty(d){
   d = normalizeDist(d);
   const parts = [];
-  if(d.R>0) parts.push(`Raise ${(d.R*100).toFixed(0)}%`);
-  if(d.C>0) parts.push(`Call ${(d.C*100).toFixed(0)}%`);
-  if(d.F>0) parts.push(`Fold ${(d.F*100).toFixed(0)}%`);
+  if(d.R > 0) parts.push(`Raise ${(d.R*100).toFixed(0)}%`);
+  if(d.C > 0) parts.push(`Call ${(d.C*100).toFixed(0)}%`);
+  if(d.F > 0) parts.push(`Fold ${(d.F*100).toFixed(0)}%`);
   return parts.join(" / ");
 }
 
   
-  // --- Dist (frequency) helpers ---
-  function dist(action, p=1){
-    return { R: action==="R" ? p : 0, C: action==="C" ? p : 0, F: action==="F" ? p : 0 };
-  }
-
-  function normalizeDist(d){
-    const R = +d.R || 0, C = +d.C || 0, F = +d.F || 0;
-    const s = R + C + F;
-    if(s <= 0) return {R:0, C:0, F:1};
-    return {R:R/s, C:C/s, F:F/s};
-  }
-
-  function distType(d){
-    d = normalizeDist(d);
-    const nonZero = ["R","C","F"].filter(k => d[k] > 1e-9);
-    return nonZero.length === 1 ? nonZero[0] : "M";
-  }
-
-  function primaryAction(d){
-    d = normalizeDist(d);
-    let best = "F";
-    let bestV = d.F;
-    if(d.R > bestV){ best="R"; bestV=d.R; }
-    if(d.C > bestV){ best="C"; bestV=d.C; }
-    return best;
-  }
-
-  function prettyDist(d){
-    d = normalizeDist(d);
-    const pct = (x)=> `${Math.round(x*100)}%`;
-    const parts = [];
-    if(d.R>0.001) parts.push(`Raise ${pct(d.R)}`);
-    if(d.C>0.001) parts.push(`Call ${pct(d.C)}`);
-    if(d.F>0.001) parts.push(`Fold ${pct(d.F)}`);
-    return parts.join(" • ");
-  }
-
-  function classForDist(d){
-    const t = distType(d);
-    if(t === "M") return ACT.M.cls;
-    return ACT[t].cls;
-  }
   // --- Helper: expand shorthand specs into a 169-hand action map ---
   // We store rules as arrays of tokens:
   //  - Pair ranges: "22+", "TT+"
@@ -890,25 +857,35 @@ function mixPreferred(weights){
     return ACT[code]?.label || "—";
   }
 
-  function computeCounts(map){
-    const counts={R:0,C:0,M:0,F:0};
-    for(const h in map){
-      const a=map[h]||"F";
-      counts[a] = (counts[a]||0)+1;
+function computeCounts(map){
+  const counts = { R:0, C:0, M:0, F:0 };
+  for(const h in map){
+    const aRaw = map[h] ?? "F";
+    const a = (typeof aRaw === "string") ? aRaw : distToCode(aRaw); // R/C/F/M
+    counts[a] = (counts[a] || 0) + 1;
+  }
+  return counts;
+}
+
+
+  function rangeText(map, mixWeights){
+  const groups = { R:[], C:[], M:[] };
+
+  for(const [h, aRaw] of Object.entries(map)){
+    const a = (typeof aRaw === "string") ? aRaw : distToCode(aRaw); // R/C/F/M
+    if(a === "R") groups.R.push(h);
+    if(a === "C") groups.C.push(h);
+    if(a === "M"){
+      // If we have weights, include them inline for clarity
+      const w = mixWeights?.[h];
+      groups.M.push(w ? `${h} (${mixText(w)})` : h);
     }
-    return counts;
   }
 
-  function rangeText(map){
-    const groups={R:[],C:[],M:[]};
-    Object.entries(map).forEach(([h,a])=>{
-      if(a==="R") groups.R.push(h);
-      if(a==="C") groups.C.push(h);
-      if(a==="M") groups.M.push(h);
-    });
-    const fmt = arr => arr.sort().join(", ");
-    return `Raise: ${fmt(groups.R)}\n\nCall: ${fmt(groups.C)}\n\nMix: ${fmt(groups.M)}`;
-  }
+  const fmt = arr => arr.slice().sort().join(", ");
+  return `Raise: ${fmt(groups.R)}\n\nCall: ${fmt(groups.C)}\n\nMix: ${fmt(groups.M)}`;
+}
+
 
   async function copyToClipboard(text){
     try{
@@ -986,7 +963,8 @@ el.className = `cell ${meta.cls}`;
     rangePct.textContent = `${pct}% of hands playable`;
 
     // Wire copy button
-    document.getElementById("copy").onclick = ()=> copyToClipboard(rangeText(map));
+    document.getElementById("copy").onclick = ()=> copyToClipboard(rangeText(map, mixWeights));
+
   }
 
   function defaultNoteFor(action, hand, key){
@@ -1225,21 +1203,26 @@ el.className = `cell ${meta.cls}`;
     return scenarios[key]?.name || key;
   }
 
-  function noteForTrainer(key, handCode, correctAct){
-const { notes, mixWeights } = getScenarioData(key);
+ function noteForTrainer(key, handCode, correctAct){
+  const { notes, mixWeights } = getScenarioData(key);
 
-    if(notes && notes[handCode]) return notes[handCode];
-    // A little more contextual messaging
-    if(correctAct === "F") return "Fold: dominated / poor equity realization / rake-sensitive in this spot.";
-    if(correctAct === "C") return "Call: defend with playable equity; avoid turning everything into a bloated rake pot.";
-    if(correctAct === "R"){
-      if(key.includes("RFI")) return "Raise first in: take initiative and capture dead money from antes.";
-      return "Raise: value/pressure (linear, rake-aware).";
-    }
-    if(correctAct === "M"){
-  const w = mixWeights?.[handCode] || { R: 0.5, C: 0.5 };
-  return `Mix: both actions are OK here. Frequency guidance: ${mixText(w)} (preferred: ${mixPreferred(w)}).`;
+  if(notes && notes[handCode]) return notes[handCode];
+
+  // A little more contextual messaging
+  if(correctAct === "F") return "Fold: dominated / poor equity realization / rake-sensitive in this spot.";
+  if(correctAct === "C") return "Call: defend with playable equity; avoid turning everything into a bloated rake pot.";
+  if(correctAct === "R"){
+    if(key.includes("RFI")) return "Raise first in: take initiative and capture dead money from antes.";
+    return "Raise: value/pressure (linear, rake-aware).";
+  }
+  if(correctAct === "M"){
+    const w = mixWeights?.[handCode] || { R: 0.5, C: 0.5 };
+    return `Mix: both actions are OK here. Frequency guidance: ${mixText(w)} (preferred: ${mixPreferred(w)}).`;
+  }
+
+  return "—";
 }
+
 
   function renderMiniMatrix(key, selectedHand, selStatus){
     if(!trainerMatrix) return;
