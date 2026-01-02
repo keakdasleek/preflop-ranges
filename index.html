@@ -355,14 +355,36 @@ select:focus{
           <div class="pill"><div style="display:flex;align-items:center;gap:10px"><div class="dot fold"></div><b>Fold</b></div><span id="cntFold">—</span></div>
         </div>
 
-        <div class="info">
-          <h3>Selected Hand</h3>
-          <div class="kv">
-            <div><div class="k">Hand</div><div class="v" id="selHand">—</div></div>
-            <div><div class="k">Action</div><div class="v" id="selAct">—</div></div>
-            <div style="grid-column:1 / -1"><div class="k">Note</div><div class="v" id="selNote" style="font-size:12px;font-weight:700;color:var(--muted);line-height:1.35">Click a cell</div></div>
-          </div>
-        </div>
+<div class="info">
+  <h3>Selected Hand</h3>
+  <div class="kv">
+    <div>
+      <div class="k">Hand</div>
+      <div class="v" id="selHand">—</div>
+    </div>
+
+    <div>
+      <div class="k">Action</div>
+      <div class="v" id="selAct">—</div>
+    </div>
+
+    <div style="grid-column:1 / -1">
+      <div class="k">Note</div>
+      <div class="v" id="selNote" style="font-size:12px;font-weight:700;color:var(--muted);line-height:1.35">
+        Click a cell
+      </div>
+    </div>
+
+    <!-- New block -->
+    <div style="grid-column:1 / -1">
+      <div class="k">Standard vs Persona</div>
+      <div class="v" id="selDelta" style="font-size:12px;font-weight:800;color:var(--muted);line-height:1.35">
+        —
+      </div>
+    </div>
+  </div>
+</div>
+
 
         <div class="footerNote">
           These are practical, rake-aware ranges (not solver-perfect). We can add more scenarios (ISO vs limps, 4-bets, squeeze, BB vs 4x, etc.) once you like the look/feel.
@@ -556,6 +578,75 @@ function distPretty(d){
   return parts.join(" / ");
 }
 
+function codeLabelFromDist(d){
+  const dd = normalizeDist(d);
+  const code = distToCode(dd);
+  if(code !== "M") return prettyAction(code);
+  return `MIX (${distPretty(dd)})`;
+}
+
+function getBaseAndPersonaDistsForHand(hand, scenarioKey){
+  // BASE (Standard)
+  const baseBuilt = buildRange(applyPersona(scenarios[scenarioKey].def, scenarioKey, "Standard"));
+  const baseMap = baseBuilt.map;
+  const baseMix = baseBuilt.mixWeights || {};
+  const baseDist = actionToDist(hand, baseMap[hand], baseMix);
+
+  // PERSONA (current selection)
+  const personaLabel = personaSel?.value || "Standard";
+  const personaCode = PERSONA_CODE[personaLabel] || "STD";
+
+  // start from same token-adjusted def (so Tight/Loose token edits still apply)
+  const defAdj = applyPersona(scenarios[scenarioKey].def, scenarioKey, personaLabel);
+  const built = buildRange(defAdj);
+  const personaBuilt = applyPersonaToBuiltRange(built, scenarioKey, personaCode);
+
+  const pDist = actionToDist(hand, personaBuilt.map[hand], personaBuilt.mixWeights || {});
+  return { baseDist: normalizeDist(baseDist), personaDist: normalizeDist(pDist) };
+}
+
+function explainDelta(hand, scenarioKey, baseDist, personaDist){
+  const baseCode = distToCode(baseDist);
+  const pCode = distToCode(personaDist);
+  if(baseCode === pCode && baseCode !== "M") return "No change: persona doesn’t meaningfully shift this hand here.";
+  if(baseCode === "M" && pCode === "M") return "Still a mix, but frequencies may shift with opponent tendencies.";
+
+  const isRFI = scenarioKey.includes("_RFI");
+  const isDef = scenarioKey.startsWith("BB_") || scenarioKey.startsWith("SB_");
+  const p = PERSONA_CODE[personaSel?.value || "Standard"] || "STD";
+
+  if(isRFI){
+    if(p === "TIGHT") return "Tight table: fewer steals succeed and pots play tougher → trim marginal opens.";
+    if(p === "LOOSE") return "Loose table: wider defenses and more postflop mistakes → open slightly wider for EV.";
+    if(p === "AGGRO3B") return "Aggro 3-bettor: more pressure behind → tighten marginal opens / favor hands that continue well.";
+    if(p === "LIMPER") return "Passive/limpy dynamics: opens get called more → prioritize hands that realize equity well.";
+  }
+
+  if(isDef){
+    if(p === "TIGHT") return "Tight opponents: narrower ranges and less spew → defend tighter, bluff less.";
+    if(p === "LOOSE") return "Loose opponents: wider opens and more mistakes → defend wider and realize more equity.";
+    if(p === "AGGRO3B") return "Aggro opponents: more pressure → shift some flats into raises and defend a bit wider.";
+    if(p === "LIMPER") return "Passive opponents: less 3-bet pressure → more calls, fewer bluffs.";
+  }
+
+  return "Persona nudges the baseline frequencies based on tighter/looser and more/less aggressive opponents.";
+}
+
+function renderDeltaLine(hand, scenarioKey){
+  const deltaEl = document.getElementById("selDelta");
+  if(!deltaEl) return;
+
+  const { baseDist, personaDist } = getBaseAndPersonaDistsForHand(hand, scenarioKey);
+
+  const baseLine = `Standard: ${codeLabelFromDist(baseDist)}`;
+  const personaName = personaSel?.value || "Standard";
+  const personaLine = `${personaName}: ${codeLabelFromDist(personaDist)}`;
+  const why = explainDelta(hand, scenarioKey, baseDist, personaDist);
+
+  deltaEl.textContent = `${baseLine}\n${personaLine}\n${why}`;
+  deltaEl.style.whiteSpace = "pre-line";
+}
+  
   
   // --- Helper: expand shorthand specs into a 169-hand action map ---
   // We store rules as arrays of tokens:
@@ -1455,6 +1546,7 @@ if(isMix(d)) el.classList.add("isMixed");
     selNote.textContent = n;
     toast(`${handLabel}: ${prettyAction(a)}`);
   }
+renderDeltaLine(h, key);
 });
 
 
