@@ -1083,6 +1083,12 @@ function isWheelAce(h){
   return ["2","3","4","5"].includes(h[1]);
 }
 
+  function handCodeFromMapVal(v){
+  const d = (typeof v === "object") ? normalizeDist(v) : dist(v || "F", 1);
+  return distToCode(d); // "R"|"C"|"F"|"M"
+}
+
+
 // Convert an action code / "M" + mixWeights into a dist object
 function actionToDist(h, aRaw, mixWeights){
   if(typeof aRaw === "object") return normalizeDist(aRaw);
@@ -1573,7 +1579,7 @@ const personaCode = PERSONA_CODE[personaSel?.value] || "STD";
 
   if(!cache[cacheKey]){
     // 1) base range (optionally keep token-style persona edits too)
-    const defAdj = applyPersona(scenarios[key].def, key, personaCode); // safe even if it only affects RFI
+const defAdj = applyPersona(scenarios[key].def, key, personaLabel); // safe even if it only affects RFI
     const built = buildRange(defAdj);
 
     // 2) probability transform persona (THIS is the main new behavior)
@@ -1671,59 +1677,64 @@ function savePersona(){
     return randomChoice(keys);
   }
 
-  function listHands(map, mode){
-    const all = Object.keys(map);
+ function listHands(map, mode){
+  const all = Object.keys(map);
 
-    if(mode === "all") return all;
-    if(mode === "playable") return all.filter(h => map[h] !== "F");
+  const codeOf = (h) => handCodeFromMapVal(map[h]);
 
-    if(mode === "edge"){
-      // Try to focus on missed hands; if none, fallback to playable
-      const missedHands = session.missed
-        .map(x => x.split(": ")[1]?.split(" ")[0])
-        .filter(Boolean);
-      const uniq = [...new Set(missedHands)].filter(h => map[h]);
-      return uniq.length ? uniq : all.filter(h => map[h] !== "F");
-    }
+  if(mode === "all") return all;
 
-    if(mode === "smart"){
-      // Smart practice:
-      // - Mostly playable hands
-      // - Some folds (to keep discipline)
-      // - Extra weight for MIX and missed hands
-      const playable = all.filter(h => map[h] !== "F");
-      const folds = all.filter(h => map[h] === "F");
-
-      // Sample ~30% folds by taking a random subset
-      const foldCount = Math.min(Math.floor(playable.length * 0.45), Math.floor(folds.length * 0.35));
-      const foldSubset = [];
-      for(let i=0;i<foldCount;i++) foldSubset.push(randomChoice(folds));
-
-      // Weight list by duplicating entries
-      const weighted = [];
-      for(const h of playable){
-        const a = map[h];
-        let w = 1;
-        if(a === "M") w = 3;
-        else if(a === "C" || a === "R") w = 2;
-        for(let k=0;k<w;k++) weighted.push(h);
-      }
-      for(const h of foldSubset) weighted.push(h);
-
-      // Boost missed hands heavily
-      const missedHands = session.missed
-        .map(x => x.split(": ")[1]?.split(" ")[0])
-        .filter(Boolean);
-      const uniqMissed = [...new Set(missedHands)].filter(h => map[h]);
-      for(const h of uniqMissed){
-        for(let k=0;k<6;k++) weighted.push(h);
-      }
-
-      return weighted.length ? weighted : all;
-    }
-
-    return all;
+  if(mode === "playable"){
+    return all.filter(h => codeOf(h) !== "F");
   }
+
+  if(mode === "edge"){
+    const missedHands = session.missed
+      .map(x => x.split(": ")[1]?.split(" ")[0])
+      .filter(Boolean);
+
+    const uniq = [...new Set(missedHands)].filter(h => map[h]);
+    return uniq.length ? uniq : all.filter(h => codeOf(h) !== "F");
+  }
+
+  if(mode === "smart"){
+    const playable = all.filter(h => codeOf(h) !== "F");
+    const folds    = all.filter(h => codeOf(h) === "F");
+
+    const foldCount = Math.min(
+      Math.floor(playable.length * 0.45),
+      Math.floor(folds.length * 0.35)
+    );
+
+    const foldSubset = [];
+    for(let i=0;i<foldCount;i++) foldSubset.push(randomChoice(folds));
+
+    const weighted = [];
+    for(const h of playable){
+      const a = codeOf(h);
+      let w = 1;
+      if(a === "M") w = 3;
+      else if(a === "C" || a === "R") w = 2;
+      for(let k=0;k<w;k++) weighted.push(h);
+    }
+
+    for(const h of foldSubset) weighted.push(h);
+
+    const missedHands = session.missed
+      .map(x => x.split(": ")[1]?.split(" ")[0])
+      .filter(Boolean);
+
+    const uniqMissed = [...new Set(missedHands)].filter(h => map[h]);
+    for(const h of uniqMissed){
+      for(let k=0;k<6;k++) weighted.push(h);
+    }
+
+    return weighted.length ? weighted : all;
+  }
+
+  return all;
+}
+
 
   let current = { scenarioKey: null, hand: null, correct: null, prettyHand: null };
 
@@ -1979,8 +1990,10 @@ const ok = isCorrect(userAct, correctAct, current.correctRaw);
   trainerScenarioSel.addEventListener("change", ()=> startQuestion());
   trainerRandomness.addEventListener("change", ()=> startQuestion());
 
-  if (personaSel) {
+ if (personaSel) {
   personaSel.addEventListener("change", () => {
+    savePersona(); // <-- ADD THIS LINE
+
     // Clear cached ranges so persona changes take effect everywhere
     for (const k in cache) delete cache[k];
 
@@ -1991,6 +2004,7 @@ const ok = isCorrect(userAct, correctAct, current.correctRaw);
     if (trainerView.style.display !== "none") startQuestion();
   });
 }
+
 
   
 personaSel.addEventListener("change", () => {
@@ -2024,10 +2038,11 @@ personaSel.addEventListener("change", () => {
   });
 
   // Initial render
-  renderScenario(scenarioSel.value);
-  populateTrainerScenarios();
-  loadSession();
-  renderStats();
+loadPersona(); // <-- ADD THIS LINE (must be before renderScenario)
+renderScenario(scenarioSel.value);
+populateTrainerScenarios();
+loadSession();
+renderStats();
 
 </script>
 </body>
