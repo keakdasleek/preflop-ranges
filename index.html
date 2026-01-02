@@ -1999,9 +1999,10 @@ const ok = isCorrect(userAct, correctAct, current.correctRaw);
   trainerScenarioSel.addEventListener("change", ()=> startQuestion());
   trainerRandomness.addEventListener("change", ()=> startQuestion());
 
- if (personaSel) {
+// Persona change (single source of truth)
+if (personaSel) {
   personaSel.addEventListener("change", () => {
-    savePersona(); // <-- ADD THIS LINE
+    savePersona();
 
     // Clear cached ranges so persona changes take effect everywhere
     for (const k in cache) delete cache[k];
@@ -2014,12 +2015,6 @@ const ok = isCorrect(userAct, correctAct, current.correctRaw);
   });
 }
 
-  // Re-render current explorer scenario
-  renderScenario(scenarioSel.value);
-
-  // If trainer view is open, start a fresh question (optional but recommended)
-  if (trainerView.style.display !== "none") startQuestion();
-});
 
   
   btnRaise.addEventListener("click", ()=> submit("R"));
