@@ -1622,7 +1622,11 @@ renderDeltaLine(h, key);
     scenarioSel.appendChild(opt);
   }
   scenarioSel.value = scenarioEntries[0][0];
-  scenarioSel.addEventListener("change", ()=> renderScenario(scenarioSel.value));
+scenarioSel.addEventListener("change", () => {
+  resetSelectedHandUI();
+  renderScenario(scenarioSel.value);
+});
+
 
   // Toggle labels
   document.getElementById("toggleLabels").addEventListener("click", (e)=>{
@@ -2049,22 +2053,36 @@ const ok = isCorrect(userAct, correctAct, current.correctRaw);
     renderMiniMatrix(key, hand, ok ? "good" : "bad");
   }
 
-  function setMode(mode){
-    const isTrainer = mode === "trainer";
-    explorerView.style.display = isTrainer ? "none" : "grid";
-    trainerView.style.display  = isTrainer ? "grid" : "none";
-    modeBtn.textContent = isTrainer ? "Back to explorer" : "Trainer mode";
+function setMode(mode){
+  const isTrainer = mode === "trainer";
+  explorerView.style.display = isTrainer ? "none" : "grid";
+  trainerView.style.display  = isTrainer ? "grid" : "none";
+  modeBtn.textContent = isTrainer ? "Back to explorer" : "Trainer mode";
 
-    if(isTrainer){
-      startQuestion();
-    }
+  if(isTrainer){
+    startQuestion();
+  } else {
+    // We're switching back to explorer
+    resetSelectedHandUI();
+    renderScenario(scenarioSel.value);
   }
+}
 
   modeBtn.addEventListener("click", ()=>{
     const isTrainer = trainerView.style.display !== "none";
     setMode(isTrainer ? "explorer" : "trainer");
   });
 
+const selDelta = document.getElementById("selDelta");
+
+function resetSelectedHandUI(){
+  selHand.textContent = "—";
+  selAct.textContent = "—";
+  selNote.textContent = "Click a cell";
+  if (selDelta) selDelta.textContent = "—";
+}
+
+  
   function openHelp(){
     helpModal.style.display = "block";
     document.body.style.overflow = "hidden";
@@ -2099,6 +2117,9 @@ if (personaSel) {
     // Clear cached ranges so persona changes take effect everywhere
     for (const k in cache) delete cache[k];
 
+    // Clear selected-hand panel + delta so nothing stale persists
+    resetSelectedHandUI();
+
     // Re-render explorer
     renderScenario(scenarioSel.value);
 
@@ -2106,6 +2127,7 @@ if (personaSel) {
     if (trainerView.style.display !== "none") startQuestion();
   });
 }
+
 
 
   
