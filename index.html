@@ -371,7 +371,11 @@ select:focus{
     </div>
   </div>
 
+
+  <!-- TRAINER_VIEW_START -->
+
     <!-- Trainer View -->
+       <!-- Trainer View -->
     <div id="trainerView" class="gridWrap" style="display:none">
       <div class="card">
         <div class="cardHd">
@@ -407,20 +411,18 @@ select:focus{
               <button class="btnAct fold" id="btnFold">Fold</button>
             </div>
           </div>
-<div class="trainerResult" id="trainerResult" style="display:none">
-  <div class="trainerResultTop">
-    <div>
-      <div class="kicker">Result</div>
-      <div style="font-weight:900;font-size:16px" id="trainerResultTitle">—</div>
-    </div>
-    <div class="trainerBadge" id="trainerBadge">—</div>
-  </div>
 
-  <div class="trainerExplain" id="trainerChoiceLine" style="margin-top:8px">—</div>
-  <div class="trainerExplain" id="trainerExplain">—</div>
-</div>
+          <div class="trainerResult" id="trainerResult" style="display:none">
+            <div class="trainerResultTop">
+              <div>
+                <div class="kicker">Result</div>
+                <div style="font-weight:900;font-size:16px" id="trainerResultTitle">—</div>
+              </div>
+              <div class="trainerBadge" id="trainerBadge">—</div>
+            </div>
 
- 
+            <div class="trainerExplain" id="trainerChoiceLine" style="margin-top:8px">—</div>
+            <div class="trainerExplain" id="trainerExplain">—</div>
           </div>
         </div>
       </div>
@@ -437,7 +439,10 @@ select:focus{
             <div><div class="k">Total</div><div class="v" id="stTotal">0</div></div>
             <div><div class="k">Accuracy</div><div class="v" id="stAcc">0%</div></div>
             <div><div class="k">Streak</div><div class="v" id="stStreak">0</div></div>
-            <div style="grid-column:1 / -1"><div class="k">Missed hands (recent)</div><div class="v" id="stMissed" style="font-size:12px;font-weight:700;color:var(--muted);line-height:1.35">—</div></div>
+            <div style="grid-column:1 / -1">
+              <div class="k">Missed hands (recent)</div>
+              <div class="v" id="stMissed" style="font-size:12px;font-weight:700;color:var(--muted);line-height:1.35">—</div>
+            </div>
           </div>
         </div>
 
@@ -449,6 +454,10 @@ select:focus{
           </div>
         </div>
       </div>
+    </div>
+
+<!-- TRAINER_VIEW_END -->
+  
     </div>
 
   <div class="toast" id="toast"></div>
@@ -2004,12 +2013,6 @@ const ok = isCorrect(userAct, correctAct, current.correctRaw);
     if (trainerView.style.display !== "none") startQuestion();
   });
 }
-
-
-  
-personaSel.addEventListener("change", () => {
-  // Clear cached ranges so persona changes actually take effect everywhere
-  for (const k in cache) delete cache[k];
 
   // Re-render current explorer scenario
   renderScenario(scenarioSel.value);
