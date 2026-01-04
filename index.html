@@ -2323,10 +2323,11 @@ el.addEventListener("click", ()=>{
   // --- TEMP: postflop hand evaluation debug ---
  if(currentBoard){
   const evalResult = evaluateHandOnBoard(h, currentBoard);
-  const bStr = (typeof boardToInputString === "function")
-    ? boardToInputString(currentBoard)
-    : (boardInput?.value || "(board)");
+  const bStr = Array.isArray(currentBoard)
+    ? currentBoard.map(c => `${c.r}${c.suit}`).join(" ")
+    : "(board)";
   console.log("Hand eval:", h, "on", bStr, "→", evalResult);
+
 } else {
   console.log("Hand eval:", h, "(no board selected yet)");
 }
