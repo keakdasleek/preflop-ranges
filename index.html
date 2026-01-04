@@ -2263,7 +2263,16 @@ el.addEventListener("click", ()=>{
   selectedHandCode = h;
   updateSelectedHandPanel(key);
   toast(`${handLabel}: ${prettyAction(distToCode(d))}`);
+
+  // --- TEMP: postflop hand evaluation debug ---
+  if(currentBoard){
+    const evalResult = evaluateHandOnBoard(h, currentBoard);
+    console.log("Hand eval:", h, "on", boardToInputString(currentBoard), "→", evalResult);
+  } else {
+    console.log("Hand eval:", h, "(no board selected yet)");
+  }
 });
+
 
 
 
