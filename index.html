@@ -233,14 +233,57 @@ select:focus{
   padding: 8px 10px;
   font-size: 12px;
 }
+
+/* Board row: chips + controls. One line when it fits, stacks when it doesn't. */
 .boardRow{
-  display:flex;
-  gap:10px;
-  flex-wrap:nowrap;     /* <-- forces one row */
+  display:grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "chips controls";
+  gap: 10px;
   align-items:center;
 }
-.boardRow #boardChips{ flex: 1 1 auto; }
-.boardRow button{ white-space: nowrap; }
+
+.boardRow #boardChips{
+  grid-area: chips;
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  min-width: 0;          /* critical: allows shrink */
+}
+
+.boardControls{
+  grid-area: controls;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:nowrap;
+}
+
+.boardControls button{ white-space: nowrap; }
+
+/* If sidebar is too narrow, stack controls under chips */
+@media (max-width: 860px){
+  .boardRow{
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "chips"
+      "controls";
+  }
+  .boardControls{
+    justify-content:flex-start;
+    flex-wrap:wrap;      /* allow Apply/Pick to wrap if needed */
+  }
+}
+
+/* Compact input stays compact */
+.pfInput.compact{
+  width: 150px;
+  max-width: 150px;
+  min-width: 150px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
 
 /* On narrow screens, allow wrap (mobile) */
 @media (max-width: 520px){
@@ -514,12 +557,15 @@ select:focus{
 
       <div class="card side">
 <div class="boardRow">
-  <div id="boardChips" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+  <div id="boardChips"></div>
 
-  <input id="boardInput" class="pfInput compact" placeholder="Ah 7d 2c" />
-  <button id="boardApply">Apply</button>
-  <button id="boardPick">Pick board</button>
+  <div class="boardControls">
+    <input id="boardInput" class="pfInput compact" placeholder="Ah 7d 2c" />
+    <button id="boardApply">Apply</button>
+    <button id="boardPick">Pick board</button>
+  </div>
 </div>
+
 
 
         <div class="legend">
