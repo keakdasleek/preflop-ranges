@@ -335,6 +335,38 @@ select:focus{
   }
 }
 
+/* Selected flop chips inside the modal */
+#boardModalChips{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.pfChip{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:8px 10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.18);
+  font-weight:900;
+  cursor:pointer;
+  min-width:68px;
+}
+
+.pfChip.active{
+  outline:2px solid rgba(93,169,255,.95);
+  outline-offset:-2px;
+}
+
+/* Highlight cards that are currently selected (even beyond "disabled") */
+.pfCardBtn.selected{
+  outline: 2px solid rgba(93,169,255,.95);
+  outline-offset:-2px;
+  background: rgba(93,169,255,.10);
+}
 
 
 
@@ -599,6 +631,7 @@ select:focus{
       <div class="card side">
 <div class="boardRow">
   <div id="boardSlots" class="boardSlots"></div>
+  <div id="boardSummary" class="kicker" style="margin-top:8px">Flop: —</div>
 
   <div class="boardControls">
     <button id="boardPick">Pick board</button>
@@ -2555,10 +2588,11 @@ function renderBoardSlots(){
       slot.textContent = "—";
     }
 
-    slot.addEventListener("click", () => {
-      flopActive = i;
-      renderAllBoardUI();
-    });
+slot.addEventListener("click", () => {
+  flopActive = i;
+  openBoardModal();   // <-- open picker immediately
+});
+
 
     el.appendChild(slot);
   }
@@ -2592,6 +2626,7 @@ function renderCardGrid(){
       b.textContent = r + suit.label;
 
       if(used.has(code)) b.classList.add("disabled");
+        b.classList.add("selected");
 
       b.addEventListener("click", function(){
         if(used.has(code)) return;
@@ -2614,6 +2649,43 @@ function renderCardGrid(){
   }
 }
 
+function renderBoardModalChips(){
+  if(!boardModalChipsEl) return;
+
+  boardModalChipsEl.innerHTML = "";
+
+  for(let i=0;i<3;i++){
+    const chip = document.createElement("div");
+    chip.className = "pfChip" + (i === flopActive ? " active" : "");
+
+    if(flopSel[i]){
+      const r = flopSel[i][0];
+      const s = flopSel[i][1];
+      const suitObj = PF_SUITS.find(x => x.s === s);
+      chip.innerHTML = `${r}<span class="${suitObj?.cls || ""}">${suitObj?.label || ""}</span>`;
+    } else {
+      chip.textContent = "—";
+    }
+
+    // Clicking a chip sets the active slot (nice UX inside modal)
+    chip.addEventListener("click", () => {
+      flopActive = i;
+      renderAllBoardUI();
+    });
+
+    boardModalChipsEl.appendChild(chip);
+  }
+}
+
+function renderBoardSummary(){
+  const el = document.getElementById("boardSummary");
+  if(!el) return;
+
+  const txt = flopSel.every(Boolean) ? flopSel.join(" ") : "—";
+  el.textContent = `Flop: ${txt}`;
+}
+
+  
 function flopToInputString(){
   return flopSel.filter(Boolean).join(" ");
 }
@@ -2633,18 +2705,19 @@ function updateApplyButton(){
 
 function renderAllBoardUI(){
   renderBoardSlots();
+  renderBoardModalChips();   // <-- ADD THIS
   renderCardGrid();
+  renderBoardSummary();
 
-  // Enable + highlight "Use this flop" only when all 3 are selected
   const complete = flopSel.every(Boolean);
   if(boardUse){
     boardUse.disabled = !complete;
     boardUse.classList.toggle("pfPrimary", complete);
   }
 
-  // Sidebar Apply button state
   updateApplyButton();
 }
+
 
 
 
