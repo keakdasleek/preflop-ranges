@@ -804,8 +804,64 @@ select:focus{
         </div>
         <button id="helpClose">Close</button>
       </div>
-      <div class="modalBody">
-        <div class="gloss">
+<div class="modalBody">
+
+  <!-- Quick Start Onboarding -->
+  <div class="gloss" style="margin-bottom:14px">
+
+    <div class="gRow">
+      <div class="gKey">What is this?</div>
+      <div class="gVal">
+        This is an interactive training and exploration tool for learning practical, rake-aware poker strategy.
+        It helps you understand which hands to play, why they’re played, and how table dynamics change decisions.
+      </div>
+    </div>
+
+    <div class="gRow">
+      <div class="gKey">How to start</div>
+      <div class="gVal">
+        <ol style="margin:0; padding-left:18px">
+          <li>Select a scenario (top left).</li>
+          <li>(Optional) Choose a persona to model opponent tendencies.</li>
+          <li>Click hands in the grid to see recommended actions and explanations.</li>
+          <li>Switch to Trainer mode to test your instincts.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="gRow">
+      <div class="gKey">Explorer mode</div>
+      <div class="gVal">
+        Lets you inspect full ranges. Click any hand to see its action, reasoning, and how personas change it.
+      </div>
+    </div>
+
+    <div class="gRow">
+      <div class="gKey">Trainer mode</div>
+      <div class="gVal">
+        Shows you a random spot and hand. Choose Raise, Call, or Fold and get instant feedback.
+      </div>
+    </div>
+
+    <div class="gRow">
+      <div class="gKey">Personas</div>
+      <div class="gVal">
+        Personas represent different opponent pools (tight, loose, aggressive, passive) and shift frequencies accordingly.
+      </div>
+    </div>
+
+    <div class="gRow">
+      <div class="gKey">Postflop baseline</div>
+      <div class="gVal">
+        Pick a flop to see a high-level continuation betting plan based on board texture and opponent type.
+        This is guidance, not solver output.
+      </div>
+    </div>
+
+  </div>
+
+  <div class="gloss">
+
           <div class="gRow"><div class="gKey">RFI</div><div class="gVal"><b>Raise First In</b> — you are the first player to open the pot (no one has raised before you).</div></div>
           <div class="gRow"><div class="gKey">UTG</div><div class="gVal"><b>Under the Gun</b> — first position to act preflop (8-max).</div></div>
           <div class="gRow"><div class="gKey">UTG+1</div><div class="gVal">The next seat after UTG. In this app it’s grouped as <b>LJ / UTG+1</b> for 8-max.</div></div>
