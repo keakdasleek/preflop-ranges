@@ -175,6 +175,33 @@ select:focus{
   outline-offset: -2px;
 }
 
+.boardSlots{
+  display:flex;
+  gap:10px;
+}
+
+.boardSlot{
+  width:44px;
+  height:56px;
+  border-radius:10px;
+  background:rgba(255,255,255,0.05);
+  border:1px dashed rgba(255,255,255,0.25);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
+  font-size:18px;
+  cursor:pointer;
+}
+
+.boardSlot.red{ color:#ff6b6b; }
+.boardSlot.black{ color:#ddd; }
+
+.boardSlot.active{
+  outline:2px solid #5da9ff;
+}
+
+
 
 /* Optional tiny mix % badge in the cell */
 .cell .mixPct{
@@ -571,20 +598,14 @@ select:focus{
 
       <div class="card side">
 <div class="boardRow">
-  <!-- Row 1: always-horizontal flop chips + optional tiny input -->
-  <div class="boardTopRow">
-    <div id="boardChips" class="boardChips"></div>
+  <div id="boardSlots" class="boardSlots"></div>
 
-    <!-- OPTIONAL: keep text input, but tiny -->
-    <input id="boardInput" class="pfInput tiny" placeholder="Ah7d2c" />
-  </div>
-
-  <!-- Row 2: Pick board + Apply -->
-  <div class="boardBottomRow">
+  <div class="boardControls">
     <button id="boardPick">Pick board</button>
     <button id="boardApply">Apply</button>
   </div>
 </div>
+
 
 
 
@@ -2090,9 +2111,9 @@ function applyPersonaToBuiltRange(built, scenarioKey, personaCode){
   const selNote  = document.getElementById("selNote");
   const toastEl  = document.getElementById("toast");
   // Postflop UI elements
-  const boardInput  = document.getElementById("boardInput");
   const boardApply  = document.getElementById("boardApply");
   const postflopLine = document.getElementById("postflopLine");
+
 
   let currentBoard = null;
 
@@ -2503,31 +2524,35 @@ function chipParts(card){
   };
 }
 
-function renderFlopChips(targetEl, clickable){
-  if(!targetEl) return;
-  targetEl.innerHTML = "";
+function renderBoardSlots(){
+  const el = document.getElementById("boardSlots");
+  if(!el) return;
+
+  el.innerHTML = "";
 
   for(let i=0;i<3;i++){
-    const btn = document.createElement("div");
-    btn.className = "pfChip" + (i === flopActive ? " active" : "");
+    const slot = document.createElement("div");
+    slot.className = "boardSlot" + (i === flopActive ? " active" : "");
 
-    const p = chipParts(flopSel[i]);
-    const cardHtml = (p.rank === "—")
-      ? `<span>${p.rank}</span>`
-      : `<span>${p.rank}<span class="${p.suitCls}">${p.suitSym}</span></span>`;
-
-    btn.innerHTML = `${cardHtml} <span class="muted">Flop ${i+1}</span>`;
-
-    if(clickable){
-      btn.addEventListener("click", function(){
-        flopActive = i;
-        renderAllBoardUI();
-      });
+    if(flopSel[i]){
+      const r = flopSel[i][0];
+      const s = flopSel[i][1];
+      const suitObj = PF_SUITS.find(x => x.s === s);
+      slot.textContent = r + (suitObj?.label || s);
+      slot.classList.add(suitObj?.cls || "black");
+    } else {
+      slot.textContent = "—";
     }
 
-    targetEl.appendChild(btn);
+    slot.addEventListener("click", () => {
+      flopActive = i;
+      renderAllBoardUI();
+    });
+
+    el.appendChild(slot);
   }
 }
+
 
 
 function selectedSet(){
@@ -2582,9 +2607,21 @@ function flopToInputString(){
   return flopSel.filter(Boolean).join(" ");
 }
 
+function flopSelToBoard(){
+  // flopSel entries like "Ah", "7d", "2c"
+  if(!flopSel.every(Boolean)) return null;
+  return flopSel.map(cc => ({ r: cc[0].toUpperCase(), suit: cc[1] })); // suit stays lowercase
+}
+
+function updateApplyButton(){
+  if(!boardApplyBtn) return;
+  const ready = flopSel.every(Boolean);
+  boardApplyBtn.classList.toggle("pfPrimary", ready);
+  boardApplyBtn.disabled = !ready;
+}
+
 function renderAllBoardUI(){
-  renderFlopChips(boardChipsEl, true);
-  renderFlopChips(boardModalChipsEl, true);
+  renderBoardSlots();
   renderCardGrid();
 
   // Enable + highlight "Use this flop" only when all 3 are selected
@@ -2593,7 +2630,11 @@ function renderAllBoardUI(){
     boardUse.disabled = !complete;
     boardUse.classList.toggle("pfPrimary", complete);
   }
+
+  // Sidebar Apply button state
+  updateApplyButton();
 }
+
 
 
 function openBoardModal(){
@@ -2623,12 +2664,11 @@ if(boardClear){
 
 if(boardUse){
   boardUse.addEventListener("click", function(){
-    const txt = flopToInputString();
-    if(boardInputEl) boardInputEl.value = txt;
     closeBoardModal();
     if(boardApplyBtn) boardApplyBtn.click();
   });
 }
+
 
 // Initial render
 renderAllBoardUI();
@@ -3103,19 +3143,20 @@ if (personaSel) {
   btnCall.addEventListener("click", ()=> submit("C"));
   btnFold.addEventListener("click", ()=> submit("F"));
 
-  // Postflop board apply
-  if(boardApply){
-    boardApply.addEventListener("click", ()=>{
-      const cards = parseBoard(boardInput?.value || "");
-      if(!cards){
-        toast("Board not recognized. Try: A72r or Ah 7d 2c");
-        return;
-      }
-      currentBoard = cards;
-      toast("Board applied");
-      renderPostflopAdvice();
-    });
-  }
+// Postflop board apply (from selected flop slots)
+if(boardApplyBtn){
+  boardApplyBtn.addEventListener("click", ()=>{
+    const cards = flopSelToBoard();
+    if(!cards){
+      toast("Pick 3 cards first");
+      return;
+    }
+    currentBoard = cards;
+    toast("Board applied");
+    renderPostflopAdvice();
+  });
+}
+
 
   
   trainerReset.addEventListener("click", ()=>{
