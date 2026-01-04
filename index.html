@@ -912,6 +912,15 @@ function parseBoard(input){
     ];
   }
 
+function boardToInputString(cards){
+  if (!Array.isArray(cards)) return "";
+  return cards
+    .map(c => (c && c.r && c.suit) ? `${c.r}${String(c.suit).toLowerCase()}` : "")
+    .filter(Boolean)
+    .join(" ");
+}
+
+
   // Accept shorthand ranks with optional tone marker: A72R, T98SS, KQ7
   const sh = clean.match(/^([AKQJT98765432])([AKQJT98765432])([AKQJT98765432])(R|SS|TT)?$/);
   if(sh){
@@ -2183,12 +2192,16 @@ el.addEventListener("click", ()=>{
   toast(`${handLabel}: ${prettyAction(distToCode(d))}`);
 
   // --- TEMP: postflop hand evaluation debug ---
-  if(currentBoard){
-    const evalResult = evaluateHandOnBoard(h, currentBoard);
-    console.log("Hand eval:", h, "on", boardToInputString(currentBoard), "→", evalResult);
-  } else {
-    console.log("Hand eval:", h, "(no board selected yet)");
-  }
+ if(currentBoard){
+  const evalResult = evaluateHandOnBoard(h, currentBoard);
+  const bStr = (typeof boardToInputString === "function")
+    ? boardToInputString(currentBoard)
+    : (boardInput?.value || "(board)");
+  console.log("Hand eval:", h, "on", bStr, "→", evalResult);
+} else {
+  console.log("Hand eval:", h, "(no board selected yet)");
+}
+
 });
 
 
