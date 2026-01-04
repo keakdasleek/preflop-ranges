@@ -234,66 +234,80 @@ select:focus{
   font-size: 12px;
 }
 
-/* Board row: chips + controls. One line when it fits, stacks when it doesn't. */
+/* ===== Board sidebar: forced two-row layout ===== */
+
 .boardRow{
-  display:grid;
-  grid-template-columns: 1fr auto;
-  grid-template-areas: "chips controls";
-  gap: 10px;
-  align-items:center;
-}
-
-.boardRow #boardChips{
-  grid-area: chips;
   display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  min-width: 0;          /* critical: allows shrink */
-}
-
-.boardControls{
-  grid-area: controls;
-  display:flex;
+  flex-direction:column;
   gap:10px;
+}
+
+/* Row 1: chips (always one horizontal row) + optional tiny input */
+.boardTopRow{
+  display:flex;
   align-items:center;
-  flex-wrap:nowrap;
+  gap:10px;
+  width:100%;
+  min-width:0;
 }
 
-.boardControls button{ white-space: nowrap; }
-
-/* If sidebar is too narrow, stack controls under chips */
-@media (max-width: 860px){
-  .boardRow{
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "chips"
-      "controls";
-  }
-  .boardControls{
-    justify-content:flex-start;
-    flex-wrap:wrap;      /* allow Apply/Pick to wrap if needed */
-  }
+/* Hard rule: never wrap the 3 flop chips */
+.boardChips{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:nowrap;         /* KEY: prevents vertical stacking */
+  min-width:0;
+  overflow:hidden;          /* avoid pushing layout */
 }
 
-/* Compact input stays compact */
-.pfInput.compact{
-  width: 150px;
-  max-width: 150px;
-  min-width: 150px;
+/* If chips get tight, allow horizontal scroll instead of wrapping */
+.boardChips{
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.boardChips::-webkit-scrollbar{height:10px}
+.boardChips::-webkit-scrollbar-thumb{background: rgba(255,255,255,.10); border-radius:999px}
+
+/* Make each chip a fixed-ish width so they stay consistent */
+.pfChip{
+  flex: 0 0 auto;           /* KEY: chip never shrinks into wrap */
+}
+
+/* Tiny input (optional) */
+.pfInput.tiny{
+  flex: 0 0 auto;
+  width: 96px;
+  max-width: 96px;
+  min-width: 96px;
   padding: 8px 10px;
   font-size: 12px;
+  font-weight: 800;
 }
 
+/* Row 2: Pick board + Apply */
+.boardBottomRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  width:100%;
+}
 
-/* On narrow screens, allow wrap (mobile) */
+/* Mobile: allow Row 2 buttons to wrap, and make input full width if present */
 @media (max-width: 520px){
-  .boardRow{ flex-wrap:wrap; }
-  .pfInput.compact{
-    flex: 1 1 100%;
-    max-width: none;
-    min-width: 0;
+  .boardTopRow{
+    flex-wrap:wrap;
+  }
+  .pfInput.tiny{
+    width:100%;
+    max-width:none;
+    min-width:0;
+  }
+  .boardBottomRow{
+    flex-wrap:wrap;
   }
 }
+
 
 
 
@@ -557,14 +571,21 @@ select:focus{
 
       <div class="card side">
 <div class="boardRow">
-  <div id="boardChips"></div>
+  <!-- Row 1: always-horizontal flop chips + optional tiny input -->
+  <div class="boardTopRow">
+    <div id="boardChips" class="boardChips"></div>
 
-  <div class="boardControls">
-    <input id="boardInput" class="pfInput compact" placeholder="Ah 7d 2c" />
-    <button id="boardApply">Apply</button>
+    <!-- OPTIONAL: keep text input, but tiny -->
+    <input id="boardInput" class="pfInput tiny" placeholder="Ah7d2c" />
+  </div>
+
+  <!-- Row 2: Pick board + Apply -->
+  <div class="boardBottomRow">
     <button id="boardPick">Pick board</button>
+    <button id="boardApply">Apply</button>
   </div>
 </div>
+
 
 
 
