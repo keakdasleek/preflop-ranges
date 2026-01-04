@@ -322,6 +322,53 @@ select:focus{
       .gVal{font-size:12px}
     }
 
+    /* ===== Postflop Board Picker ===== */
+    .pfCardRow{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:10px 0 14px}
+    .pfCard{
+      width:72px; height:96px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.22);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position:relative;
+      cursor:pointer;
+      user-select:none;
+      box-shadow: 0 10px 20px rgba(0,0,0,.25);
+    }
+    .pfCard.active{outline: 3px solid rgba(255,255,255,.85); outline-offset:-2px}
+    .pfCard .pfRank{font-size:24px; font-weight:950; letter-spacing:.4px}
+    .pfCard .pfSuit{
+      position:absolute;
+      right:10px; bottom:10px;
+      font-size:20px;
+      opacity:.95;
+    }
+    .pfSuitRed{color: rgba(255,77,90,.95)}
+    .pfSuitBlk{color: rgba(231,236,255,.95)}
+    .pfPickerGrid{display:grid; gap:12px}
+    .pfPickerSection{padding:10px; border-radius:14px; border:1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03)}
+    .pfPickerTitle{font-size:12px; color:var(--muted); font-weight:950; letter-spacing:.3px; margin-bottom:8px}
+    .pfBtnGrid{display:flex; flex-wrap:wrap; gap:8px}
+    .pfBtn{
+      min-width:40px;
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      color:var(--text);
+      font-weight:900;
+      cursor:pointer;
+    }
+    .pfBtn:hover{filter:brightness(1.08)}
+    .pfBtn.sel{outline:2px solid rgba(255,255,255,.8); outline-offset:-2px}
+    .pfBtn.suit{min-width:48px; font-size:18px; padding:6px 10px}
+    .pfPickerActions{display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; margin-top:10px}
+    /* ===== /Postflop Board Picker ===== */
+
+
+    
 </style>
 </head>
 <body>
@@ -415,6 +462,7 @@ select:focus{
       <div class="k">Board</div>
       <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
         <input id="boardInput" class="pfInput" placeholder="e.g. A72r or Ah 7d 2c" />
+        <button id="boardPick">Pick board</button>
         <button id="boardApply">Apply</button>
       </div>
     </div>
@@ -566,6 +614,52 @@ select:focus{
     </div>
   </div>
 
+  <!-- Postflop Board Picker Modal -->
+  <div id="boardModal" class="modal" style="display:none">
+    <div class="modalBackdrop" id="boardBackdrop"></div>
+    <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="boardTitle">
+      <div class="modalHd">
+        <div>
+          <div id="boardTitle" style="font-weight:950">Pick a flop board</div>
+          <div class="kicker">Tap a card slot, then choose rank + suit.</div>
+        </div>
+        <button id="boardClose">Close</button>
+      </div>
+
+      <div class="modalBody">
+        <div class="pfPickerGrid">
+
+          <div class="pfPickerSection">
+            <div class="pfPickerTitle">Board</div>
+            <div class="pfCardRow" id="pfCardRow">
+              <!-- JS renders 3 cards here -->
+            </div>
+            <div class="kicker" id="pfBoardPreview" style="margin-top:6px">—</div>
+          </div>
+
+          <div class="pfPickerSection">
+            <div class="pfPickerTitle">Rank</div>
+            <div class="pfBtnGrid" id="pfRankGrid"></div>
+          </div>
+
+          <div class="pfPickerSection">
+            <div class="pfPickerTitle">Suit</div>
+            <div class="pfBtnGrid" id="pfSuitGrid"></div>
+          </div>
+
+          <div class="pfPickerActions">
+            <button id="pfClearOne">Clear selected</button>
+            <button id="pfClearAll">Clear all</button>
+            <button id="pfUseBoard">Use board</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- /Postflop Board Picker Modal -->
+
+  
 <script>
   const ranks = ["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
 
@@ -1743,6 +1837,36 @@ function applyPersonaToBuiltRange(built, scenarioKey, personaCode){
 
   let currentBoard = null;
 
+  // Board picker modal elements
+  const boardPick    = document.getElementById("boardPick");
+  const boardModal   = document.getElementById("boardModal");
+  const boardBackdrop= document.getElementById("boardBackdrop");
+  const boardClose   = document.getElementById("boardClose");
+
+  const pfCardRow    = document.getElementById("pfCardRow");
+  const pfBoardPreview = document.getElementById("pfBoardPreview");
+  const pfRankGrid   = document.getElementById("pfRankGrid");
+  const pfSuitGrid   = document.getElementById("pfSuitGrid");
+  const pfUseBoard   = document.getElementById("pfUseBoard");
+  const pfClearOne   = document.getElementById("pfClearOne");
+  const pfClearAll   = document.getElementById("pfClearAll");
+
+  const SUITS = [
+    { code:"S", sym:"♠", cls:"pfSuitBlk" },
+    { code:"H", sym:"♥", cls:"pfSuitRed" },
+    { code:"D", sym:"♦", cls:"pfSuitRed" },
+    { code:"C", sym:"♣", cls:"pfSuitBlk" }
+  ];
+
+  let pfPick = {
+    activeIndex: 0,
+    cards: [
+      { r:null, suit:null },
+      { r:null, suit:null },
+      { r:null, suit:null },
+    ]
+  };
+
 
   let showLabels = true;
   let selectedHandCode = null; // currently-selected hand in Explorer
@@ -1790,6 +1914,135 @@ function applyPersonaToBuiltRange(built, scenarioKey, personaCode){
 
     postflopLine.textContent = "Unsupported spot for postflop foundation (for now).";
   }
+
+    function suitSym(code){
+    const s = SUITS.find(x=>x.code===code);
+    return s ? s.sym : "•";
+  }
+  function suitClass(code){
+    const s = SUITS.find(x=>x.code===code);
+    return s ? s.cls : "pfSuitBlk";
+  }
+
+  function cardToText(c){
+    if(!c || !c.r || !c.suit) return null;
+    return `${c.r}${c.suit.toLowerCase()}`; // e.g. "Ah"
+  }
+
+  function boardToInputString(cards){
+    const parts = cards.map(cardToText).filter(Boolean);
+    return parts.join(" ");
+  }
+
+  function updateBoardPreview(){
+    if(!pfBoardPreview) return;
+    const txt = boardToInputString(pfPick.cards);
+    pfBoardPreview.textContent = txt && txt.trim().length ? txt : "—";
+  }
+
+  function renderPfCards(){
+    if(!pfCardRow) return;
+    pfCardRow.innerHTML = "";
+
+    pfPick.cards.forEach((c, idx)=>{
+      const el = document.createElement("div");
+      el.className = "pfCard" + (idx === pfPick.activeIndex ? " active" : "");
+      const r = c.r || "—";
+      const su = c.suit ? suitSym(c.suit) : "•";
+      const suCls = c.suit ? suitClass(c.suit) : "pfSuitBlk";
+
+      el.innerHTML = `<div class="pfRank">${r}</div><div class="pfSuit ${suCls}">${su}</div>`;
+      el.addEventListener("click", ()=>{
+        pfPick.activeIndex = idx;
+        renderPfCards();
+        renderPfRankSuitSelected();
+      });
+      pfCardRow.appendChild(el);
+    });
+
+    updateBoardPreview();
+  }
+
+  function renderPfRankSuitSelected(){
+    // highlight selected rank/suit buttons for active card
+    const c = pfPick.cards[pfPick.activeIndex];
+
+    if(pfRankGrid){
+      Array.from(pfRankGrid.querySelectorAll(".pfBtn")).forEach(btn=>{
+        btn.classList.toggle("sel", btn.dataset.rank === (c.r || ""));
+      });
+    }
+    if(pfSuitGrid){
+      Array.from(pfSuitGrid.querySelectorAll(".pfBtn")).forEach(btn=>{
+        btn.classList.toggle("sel", btn.dataset.suit === (c.suit || ""));
+      });
+    }
+  }
+
+  function buildPfRankGrid(){
+    if(!pfRankGrid) return;
+    pfRankGrid.innerHTML = "";
+    ranks.forEach(r=>{
+      const b = document.createElement("button");
+      b.className = "pfBtn";
+      b.textContent = r;
+      b.dataset.rank = r;
+      b.addEventListener("click", ()=>{
+        pfPick.cards[pfPick.activeIndex].r = r;
+        renderPfCards();
+        renderPfRankSuitSelected();
+      });
+      pfRankGrid.appendChild(b);
+    });
+  }
+
+  function buildPfSuitGrid(){
+    if(!pfSuitGrid) return;
+    pfSuitGrid.innerHTML = "";
+    SUITS.forEach(s=>{
+      const b = document.createElement("button");
+      b.className = "pfBtn suit " + s.cls;
+      b.textContent = s.sym;
+      b.dataset.suit = s.code;
+      b.addEventListener("click", ()=>{
+        pfPick.cards[pfPick.activeIndex].suit = s.code;
+        renderPfCards();
+        renderPfRankSuitSelected();
+      });
+      pfSuitGrid.appendChild(b);
+    });
+  }
+
+  function openBoardPicker(){
+    if(!boardModal) return;
+
+    // If currentBoard exists, prefill modal from it
+    if(currentBoard && Array.isArray(currentBoard) && currentBoard.length === 3){
+      pfPick.cards = currentBoard.map(c=>({ r:(c.r||null), suit:(c.suit||null) }));
+    } else {
+      pfPick.cards = [
+        { r:null, suit:null },
+        { r:null, suit:null },
+        { r:null, suit:null },
+      ];
+    }
+    pfPick.activeIndex = 0;
+
+    buildPfRankGrid();
+    buildPfSuitGrid();
+    renderPfCards();
+    renderPfRankSuitSelected();
+
+    boardModal.style.display = "block";
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeBoardPicker(){
+    if(!boardModal) return;
+    boardModal.style.display = "none";
+    document.body.style.overflow = "";
+  }
+
 
 
   function handForCell(rowRank, colRank){
@@ -2566,6 +2819,63 @@ if (personaSel) {
       currentBoard = cards;
       toast("Board applied");
       renderPostflopAdvice();
+    });
+  }
+
+  // Board picker modal wiring
+  if(boardPick) boardPick.addEventListener("click", openBoardPicker);
+  if(boardClose) boardClose.addEventListener("click", closeBoardPicker);
+  if(boardBackdrop) boardBackdrop.addEventListener("click", closeBoardPicker);
+
+  window.addEventListener("keydown", (e)=>{
+    if(e.key === "Escape" && boardModal && boardModal.style.display !== "none"){
+      closeBoardPicker();
+    }
+  });
+
+  if(pfClearOne){
+    pfClearOne.addEventListener("click", ()=>{
+      pfPick.cards[pfPick.activeIndex] = { r:null, suit:null };
+      renderPfCards();
+      renderPfRankSuitSelected();
+    });
+  }
+
+  if(pfClearAll){
+    pfClearAll.addEventListener("click", ()=>{
+      pfPick.cards = [
+        { r:null, suit:null },
+        { r:null, suit:null },
+        { r:null, suit:null },
+      ];
+      pfPick.activeIndex = 0;
+      renderPfCards();
+      renderPfRankSuitSelected();
+    });
+  }
+
+  if(pfUseBoard){
+    pfUseBoard.addEventListener("click", ()=>{
+      const txt = boardToInputString(pfPick.cards);
+      if(!txt || txt.split(" ").length !== 3){
+        toast("Pick 3 cards (rank + suit) first");
+        return;
+      }
+
+      // Write into the existing text input for transparency/debugging
+      if(boardInput) boardInput.value = txt;
+
+      // Parse & apply using your existing logic
+      const cards = parseBoard(txt);
+      if(!cards){
+        toast("Board not recognized (unexpected). Try again.");
+        return;
+      }
+
+      currentBoard = cards;
+      renderPostflopAdvice();
+      closeBoardPicker();
+      toast("Board applied");
     });
   }
 
