@@ -251,6 +251,12 @@ select:focus{
     .trainerBadge.bad{background: rgba(255,77,90,.12);border-color: rgba(255,77,90,.35)}
     .trainerBadge.mix{background: rgba(246,196,69,.12);border-color: rgba(246,196,69,.42)}
     .trainerExplain{margin-top:8px;color:var(--muted);font-size:12px;line-height:1.45;font-weight:700}
+    #trainerPersonaLine{
+  margin-top:6px;
+  font-style: italic;
+  opacity:.9;
+}
+
 
 
     .matrixScroll{overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:6px}
@@ -443,8 +449,10 @@ select:focus{
               <div class="trainerBadge" id="trainerBadge">—</div>
             </div>
 
-            <div class="trainerExplain" id="trainerChoiceLine" style="margin-top:8px">—</div>
-            <div class="trainerExplain" id="trainerExplain">—</div>
+           <div class="trainerExplain" id="trainerChoiceLine" style="margin-top:8px">—</div>
+<div class="trainerExplain" id="trainerPersonaLine">—</div>
+<div class="trainerExplain" id="trainerExplain">—</div>
+
           </div>
         </div>
       </div>
@@ -507,6 +515,13 @@ select:focus{
           <div class="gRow"><div class="gKey">Why so tight early?</div><div class="gVal">This game has big antes and a rake cap that hits fast. Marginal, dominated hands (especially offsuit) lose money without initiative.</div></div>
         </div>
         <div class="kicker" style="margin-top:12px">Tip: On mobile, open this Help from the top bar whenever a label isn’t intuitive.</div>
+        <div class="gRow"><div class="gKey">Persona</div><div class="gVal"><b>Opponent profile</b> — Personas shift the baseline strategy to reflect different table dynamics and tendencies.</div></div>
+<div class="gRow"><div class="gKey">Standard</div><div class="gVal">Baseline, “solid regs + normal pool.” Balanced, rake-aware ranges.</div></div>
+<div class="gRow"><div class="gKey">Tight</div><div class="gVal">Opponents defend less and apply less pressure. You can value-bet more, but don’t overbluff. Some marginal opens/defends tighten up.</div></div>
+<div class="gRow"><div class="gKey">Loose</div><div class="gVal">Opponents continue too wide and make more postflop mistakes. You can defend a bit wider and prioritize hands with good equity realization.</div></div>
+<div class="gRow"><div class="gKey">Aggro 3bettor</div><div class="gVal">Players 3-bet more and apply pressure. You tighten marginal opens, and some playable continues shift toward raise/3-bet to avoid getting squeezed.</div></div>
+<div class="gRow"><div class="gKey">Limper</div><div class="gVal">Passive pool tendency (calls more, raises less). Opens get called more often. Prefer hands that realize equity well; less need for bluff-3-betting.</div></div>
+
       </div>
     </div>
   </div>
@@ -585,6 +600,38 @@ function codeLabelFromDist(d){
   return `MIX (${distPretty(dd)})`;
 }
 
+function formatDistShort(d){
+  d = normalizeDist(d);
+  if(isMix(d)){
+    const r = Math.round(d.R*100);
+    const c = Math.round(d.C*100);
+    const f = Math.round(d.F*100);
+    // Only show non-zero components to keep it clean
+    const parts = [];
+    if(r) parts.push(`R${r}`);
+    if(c) parts.push(`C${c}`);
+    if(f) parts.push(`F${f}`);
+    return `Mix (${parts.join("/")})`;
+  }
+  return prettyAction(distToCode(d)); // R/C/F label
+}
+
+function buildTrainerPersonaDeltaText(hand, scenarioKey){
+  const personaName = personaSel?.value || "Standard";
+  const { baseDist, personaDist } = getBaseAndPersonaDistsForHand(hand, scenarioKey);
+
+  const stdShort = formatDistShort(baseDist);
+  const pShort   = formatDistShort(personaDist);
+
+  // Always show scenario + persona; show delta only if meaningful
+  if(stdShort === pShort){
+    return `Persona: ${personaName} • (Same as Standard for this hand)`;
+  }
+
+  return `Persona: ${personaName} • Standard: ${stdShort} → ${personaName}: ${pShort}`;
+}
+
+  
 function getBaseAndPersonaDistsForHand(hand, scenarioKey){
   // BASE (Standard)
   const baseBuilt = buildRange(applyPersona(scenarios[scenarioKey].def, scenarioKey, "Standard"));
@@ -646,7 +693,39 @@ function renderDeltaLine(hand, scenarioKey){
   deltaEl.textContent = `${baseLine}\n${personaLine}\n${why}`;
   deltaEl.style.whiteSpace = "pre-line";
 }
-  
+
+function updateSelectedHandPanel(scenarioKey){
+  if(!selectedHandCode) return;
+
+  const { map, notes, mixWeights } = getScenarioData(scenarioKey);
+  const h = selectedHandCode;
+
+  // If somehow missing, just clear
+  if(!map || !map[h]){
+    resetSelectedHandUI();
+    return;
+  }
+
+  const aRaw = map[h];
+  const d = (typeof aRaw === "string")
+    ? actionToDist(h, aRaw, mixWeights)
+    : normalizeDist(aRaw || dist("F", 1));
+
+  const code = distToCode(d);
+  selHand.textContent = h;
+
+  if(code === "M"){
+    selAct.textContent = `MIX (${distPretty(d)})`;
+    const base = (notes && notes[h]) || defaultNoteFor("M", h, scenarioKey);
+    selNote.textContent = `${base} Preferred: ${primaryAction(d)} • ${distPretty(d)}.`;
+  } else {
+    selAct.textContent = prettyAction(code);
+    selNote.textContent = (notes && notes[h]) || defaultNoteFor(code, h, scenarioKey);
+  }
+
+  renderDeltaLine(h, scenarioKey);
+}
+
   
   // --- Helper: expand shorthand specs into a 169-hand action map ---
   // We store rules as arrays of tokens:
@@ -1470,6 +1549,11 @@ function rangeText(map){
   return `Raise: ${fmt(groups.R)}\n\nCall: ${fmt(groups.C)}\n\nMix: ${fmt(groups.M)}`;
 }
 
+function rangeTextWithContext(scenarioKey, personaLabel, map){
+  const scName = scenarios[scenarioKey]?.name || scenarioKey;
+  return `Scenario: ${scName}\nPersona: ${personaLabel}\n\n${rangeText(map)}`;
+}
+
 
 
   async function copyToClipboard(text){
@@ -1523,6 +1607,11 @@ el.style.setProperty("--f", (d.F * 100).toFixed(0));
 // Add a mixed marker if it’s not a pure 100% action
 if(isMix(d)) el.classList.add("isMixed");
 
+if(selectedHandCode && h === selectedHandCode){
+  el.classList.add("sel");
+}
+
+
 
   if(a === "M"){
   const w = mixWeights?.[h] || { R: d.R, C: d.C }; // prefer scenario weights if present
@@ -1532,22 +1621,13 @@ if(isMix(d)) el.classList.add("isMixed");
         
         const handLabel = displayHandLabel(rRow, rCol);
         el.innerHTML = `<div class="hand">${handLabel}</div>${showLabels ? `<div class="act">${a}</div>` : ""}`;
-        el.addEventListener("click", ()=>{
-  selHand.textContent = handLabel;
 
-  if(a === "M"){
-    selAct.textContent = `MIX (${distPretty(d)})`;
-    const base = notes[h] || defaultNoteFor(a, h, key);
-    selNote.textContent = `${base} Preferred: ${primaryAction(d)} • ${distPretty(d)}.`;
-    toast(`${handLabel}: MIX (${distPretty(d)})`);
-  } else {
-    selAct.textContent = prettyAction(a);
-    const n = notes[h] || defaultNoteFor(a, h, key);
-    selNote.textContent = n;
-    toast(`${handLabel}: ${prettyAction(a)}`);
-  }
-renderDeltaLine(h, key);
+el.addEventListener("click", ()=>{
+  selectedHandCode = h;
+  updateSelectedHandPanel(key);
+  toast(`${handLabel}: ${prettyAction(distToCode(d))}`);
 });
+
 
 
         matrixEl.appendChild(el);
@@ -1571,7 +1651,20 @@ renderDeltaLine(h, key);
     rangePct.textContent = `${pct}% of hands playable`;
 
     // Wire copy button
-    document.getElementById("copy").onclick = ()=> copyToClipboard(rangeText(map));
+   document.getElementById("copy").onclick = ()=> {
+  const personaLabel = personaSel?.value || "Standard";
+  copyToClipboard(rangeTextWithContext(key, personaLabel, map));
+};
+
+document.getElementById("copy").onclick = ()=> {
+  const personaLabel = personaSel?.value || "Standard";
+  const activeKey = (trainerView.style.display !== "none" && current?.scenarioKey)
+    ? current.scenarioKey
+    : scenarioSel.value;
+
+  const { map } = getScenarioData(activeKey);
+  copyToClipboard(rangeTextWithContext(activeKey, personaLabel, map));
+};
 
 
   }
@@ -1622,10 +1715,12 @@ renderDeltaLine(h, key);
     scenarioSel.appendChild(opt);
   }
   scenarioSel.value = scenarioEntries[0][0];
+
 scenarioSel.addEventListener("change", () => {
-  resetSelectedHandUI();
   renderScenario(scenarioSel.value);
+  updateSelectedHandPanel(scenarioSel.value);
 });
+
 
 
   // Toggle labels
@@ -1658,6 +1753,8 @@ scenarioSel.addEventListener("change", () => {
   const trainerBadge       = document.getElementById("trainerBadge");
   const trainerExplain     = document.getElementById("trainerExplain");
   const trainerChoiceLine  = document.getElementById("trainerChoiceLine");
+  const trainerPersonaLine = document.getElementById("trainerPersonaLine");
+
 
 
   const btnRaise = document.getElementById("btnRaise");
@@ -2027,6 +2124,11 @@ const ok = isCorrect(userAct, correctAct, current.correctRaw);
   trainerChoiceLine.textContent = `You chose: ${prettyAction(userAct)} • Correct: ${prettyAction(correctAct)}`;
 }
 
+if(trainerPersonaLine){
+  trainerPersonaLine.textContent = buildTrainerPersonaDeltaText(hand, key);
+}
+
+
 
     if(ok){
       trainerResultTitle.textContent = "Correct";
@@ -2063,8 +2165,8 @@ function setMode(mode){
     startQuestion();
   } else {
     // We're switching back to explorer
-    resetSelectedHandUI();
-    renderScenario(scenarioSel.value);
+renderScenario(scenarioSel.value);
+updateSelectedHandPanel(scenarioSel.value);
   }
 }
 
