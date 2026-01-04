@@ -907,6 +907,71 @@ function parseBoard(input){
   return null;
 }
 
+// ===== Hand vs Board Evaluation =====
+
+function evaluateHandOnBoard(handCode, board){
+  if(!handCode || !board || board.length !== 3) return null;
+
+  const ranksMap = {"2":2,"3":3,"4":4,"5":5,"6":6,"7":7,"8":8,"9":9,"T":10,"J":11,"Q":12,"K":13,"A":14};
+
+  const hr1 = handCode[0];
+  const hr2 = handCode[1];
+  const hs = handCode.length === 3 ? handCode[2] : null;
+
+  const handRanks = [ranksMap[hr1], ranksMap[hr2]].sort((a,b)=>b-a);
+
+  const boardRanks = board.map(c=>ranksMap[c.r]).sort((a,b)=>b-a);
+  const boardSuits = board.map(c=>c.suit);
+
+  const topBoard = boardRanks[0];
+  const midBoard = boardRanks[1];
+  const lowBoard = boardRanks[2];
+
+  const isPair = hr1 === hr2;
+  const isSuited = handCode.length === 3 && handCode[2] === "s";
+
+  const pairOnBoard = boardRanks.includes(handRanks[0]) || boardRanks.includes(handRanks[1]);
+
+  // --- Pair classification ---
+  if(isPair){
+    if(handRanks[0] > topBoard) return { type:"Overpair" };
+    if(handRanks[0] === topBoard) return { type:"Top set" };
+    if(handRanks[0] === midBoard) return { type:"Middle set" };
+    if(handRanks[0] === lowBoard) return { type:"Bottom set" };
+  }
+
+  if(pairOnBoard){
+    const pairRank = handRanks.find(r => boardRanks.includes(r));
+    const kicker = handRanks.find(r => !boardRanks.includes(r)) || 0;
+
+    if(pairRank === topBoard){
+      return kicker >= 12 ? { type:"Top pair (good kicker)" } : { type:"Top pair (weak kicker)" };
+    }
+    if(pairRank === midBoard) return { type:"Middle pair" };
+    if(pairRank === lowBoard) return { type:"Bottom pair" };
+  }
+
+  // --- Draw detection ---
+  let flushDraw = false;
+  if(isSuited){
+    const suitCount = boardSuits.filter(s => s === hs.toUpperCase()).length;
+    if(suitCount === 2) flushDraw = true;
+  }
+
+  const allRanks = [...new Set([...handRanks, ...boardRanks])].sort((a,b)=>a-b);
+  let straightDraw = false;
+  for(let i=0;i<allRanks.length-3;i++){
+    const window = allRanks.slice(i,i+4);
+    if(window[3] - window[0] === 3) straightDraw = true;
+  }
+
+  if(flushDraw && straightDraw) return { type:"Strong draw" };
+  if(flushDraw || straightDraw) return { type:"Weak draw" };
+
+  return { type:"Air" };
+}
+
+
 function boardTexture(cards){
   if(!cards || cards.length !== 3) return null;
 
@@ -1911,6 +1976,12 @@ function applyPersonaToBuiltRange(built, scenarioKey, personaCode){
       postflopLine.textContent = "3-bet pot logic is a separate ruleset — foundation comes after SRP.";
       return;
     }
+
+    if(current && current.hand){
+  const evalResult = evaluateHandOnBoard(current.hand, currentBoard);
+  console.log("Hand eval:", current.hand, "→", evalResult);
+}
+
 
     postflopLine.textContent = "Unsupported spot for postflop foundation (for now).";
   }
