@@ -431,6 +431,7 @@ select:focus{
 
 
 
+       
         <div class="footerNote">
           These are practical, rake-aware ranges (not solver-perfect). We can add more scenarios (ISO vs limps, 4-bets, squeeze, BB vs 4x, etc.) once you like the look/feel.
         </div>
@@ -895,52 +896,109 @@ function spotTypeFromScenario(scenarioKey){
   return { type:"UNKNOWN" };
 }
 
-function cbetPlanSRP(texture){
+function bumpFreq(label, delta){
+  const order = ["Low", "Medium", "High"];
+  let i = order.indexOf(label);
+  if(i < 0) i = 1;
+  i = Math.max(0, Math.min(order.length - 1, i + delta));
+  return order[i];
+}
+
+function bumpSize(label, delta){
+  const order = ["Small", "Medium", "Large"];
+  let i = order.indexOf(label);
+  if(i < 0) i = 1;
+  i = Math.max(0, Math.min(order.length - 1, i + delta));
+  return order[i];
+}
+
+  
+
+function cbetPlanSRP(texture, personaCode){
   if(!texture) return null;
+
+  // --- Base plan from texture ---
+  let plan;
 
   // Paired/dry boards => high small
   if((texture.paired || texture.trips) && texture.wetness <= 20){
-    return {
+    plan = {
       freqLabel: "High",
       sizeLabel: "Small",
       why: "Paired/dry boards miss most ranges — range-bet small at high frequency."
     };
   }
-
   // Very dry rainbow/unconnected => high small
-  if(texture.rainbow && !texture.straighty && texture.wetness <= 18){
-    return {
+  else if(texture.rainbow && !texture.straighty && texture.wetness <= 18){
+    plan = {
       freqLabel: "High",
       sizeLabel: "Small",
       why: "Dry rainbow boards favor the preflop raiser — small c-bets win often."
     };
   }
-
   // Monotone => lower freq, small size
-  if(texture.monotone){
-    return {
+  else if(texture.monotone){
+    plan = {
       freqLabel: "Low",
       sizeLabel: "Small",
       why: "Monotone boards reduce fold equity — bet less often and keep size small."
     };
   }
-
   // Very wet/connected => lower freq, larger size when betting
-  if(texture.wetness >= 45 || texture.straighty){
-    return {
+  else if(texture.wetness >= 45 || texture.straighty){
+    plan = {
       freqLabel: "Low",
       sizeLabel: "Large",
       why: "Wet/connected boards hit defenders — check more; when betting, go more polarized."
     };
   }
-
   // Middle textures
-  return {
-    freqLabel: "Medium",
-    sizeLabel: (texture.twoTone ? "Medium" : "Small"),
-    why: "Mixed texture — mix bets and checks; size up a bit if draw-heavy."
-  };
+  else {
+    plan = {
+      freqLabel: "Medium",
+      sizeLabel: (texture.twoTone ? "Medium" : "Small"),
+      why: "Mixed texture — mix bets and checks; size up a bit if draw-heavy."
+    };
+  }
+
+  // --- Persona adjustment (light, practical) ---
+  // Interpret persona as opponent tendencies in this spot.
+  // Tight: overfolds / under-defends -> bet more, smaller
+  // Loose: calls wider -> bet less, bigger when you do
+  // Aggro3B: fights back / floats/raises -> bet less, more polarized
+  // Limper: passive/cally -> bet more on dry; not much on wet
+  const p = personaCode || "STD";
+
+  if(p === "TIGHT"){
+    plan.freqLabel = bumpFreq(plan.freqLabel, +1);
+    plan.sizeLabel = bumpSize(plan.sizeLabel, -1);
+    plan.why += " vs Tight: more fold equity → c-bet a bit more, keep it small.";
+
+  } else if(p === "LOOSE"){
+    plan.freqLabel = bumpFreq(plan.freqLabel, -1);
+    plan.sizeLabel = bumpSize(plan.sizeLabel, +1);
+    plan.why += " vs Loose: gets called wider → c-bet a bit less; when betting, size up.";
+
+  } else if(p === "AGGRO3B"){
+    plan.freqLabel = bumpFreq(plan.freqLabel, -1);
+    plan.sizeLabel = bumpSize(plan.sizeLabel, +1);
+    plan.why += " vs Aggro: more resistance → check more; bets trend more polarized.";
+
+  } else if(p === "LIMPER"){
+    // Only boost frequency on drier boards; don’t force it on wet textures
+    if(texture.wetness <= 30){
+      plan.freqLabel = bumpFreq(plan.freqLabel, +1);
+      plan.sizeLabel = bumpSize(plan.sizeLabel, -1);
+      plan.why += " vs Passive: take stabs on dry boards; keep sizing small.";
+    } else {
+      plan.why += " vs Passive: still respect wet boards—don’t auto-stab into strong continues.";
+    }
+  }
+
+  return plan;
 }
+
+  
 // ===== /Postflop foundation =====
 
 
@@ -1714,7 +1772,8 @@ function applyPersonaToBuiltRange(built, scenarioKey, personaCode){
     }
 
     if(spot.type === "SRP_RAISED_PF"){
-      const plan = cbetPlanSRP(tex);
+      const personaCode = PERSONA_CODE[personaSel?.value || "Standard"] || "STD";
+      const plan = cbetPlanSRP(tex, personaCode);
       postflopLine.textContent = `C-bet: ${plan.freqLabel} frequency • Size: ${plan.sizeLabel}. ${plan.why}`;
       return;
     }
@@ -1971,9 +2030,11 @@ document.getElementById("copy").onclick = ()=> {
   scenarioSel.value = scenarioEntries[0][0];
 
 scenarioSel.addEventListener("change", () => {
+  resetSelectedHandUI();
   renderScenario(scenarioSel.value);
-  updateSelectedHandPanel(scenarioSel.value);
+  renderPostflopAdvice(); // <-- ADD THIS
 });
+
 
 
 
@@ -2479,7 +2540,9 @@ if (personaSel) {
 
     // Re-render explorer
     renderScenario(scenarioSel.value);
+    renderPostflopAdvice(); // <-- ADD THIS
 
+    
     // Refresh trainer question if trainer is open
     if (trainerView.style.display !== "none") startQuestion();
   });
