@@ -322,6 +322,65 @@ select:focus{
       .gVal{font-size:12px}
     }
 
+   /* Postflop board picker UI */
+.pfChip{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:8px 10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.18);
+  font-weight:900;
+  cursor:pointer;
+  min-width:68px;
+}
+.pfChip.active{
+  outline:2px solid rgba(255,255,255,.85);
+  outline-offset:-2px;
+}
+.pfChip .muted{ color:var(--muted); font-weight:800; font-size:11px; }
+
+.pfCardGrid{
+  display:grid;
+  gap:10px;
+}
+.pfSuitRow{
+  display:grid;
+  grid-template-columns: 38px repeat(13, 1fr);
+  gap:6px;
+  align-items:center;
+}
+.pfSuitLabel{
+  text-align:center;
+  font-weight:950;
+  color:var(--muted);
+  border:1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.03);
+  border-radius:10px;
+  padding:8px 0;
+}
+.pfCardBtn{
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+  padding:8px 0;
+  font-weight:950;
+  cursor:pointer;
+  text-align:center;
+  user-select:none;
+}
+.pfCardBtn:hover{ filter:brightness(1.08); }
+.pfCardBtn.disabled{
+  opacity:.35;
+  cursor:not-allowed;
+  filter:none;
+}
+.pfRed{ color:#ff7b86; }
+.pfBlack{ color:#e7ecff; }
+
+    
     /* ===== Postflop Board Picker ===== */
     .pfCardRow{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:10px 0 14px}
     .pfCard{
@@ -412,10 +471,16 @@ select:focus{
       </div>
 
       <div class="card side">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-          <div style="font-weight:900">Legend</div>
-          <div class="kicker" id="rangePct">—</div>
-        </div>
+<div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+  <div id="boardChips" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+
+  <!-- Keep input as optional power-user override -->
+  <input id="boardInput" class="pfInput" placeholder="(optional) e.g. Ah 7d 2c" style="flex:1; min-width:180px;" />
+  <button id="boardApply">Apply</button>
+
+  <button id="boardPick">Pick board</button>
+</div>
+
         <div class="legend">
           <div class="pill"><div style="display:flex;align-items:center;gap:10px"><div class="dot raise"></div><b>Raise</b></div><span id="cntRaise">—</span></div>
           <div class="pill"><div style="display:flex;align-items:center;gap:10px"><div class="dot call"></div><b>Call</b></div><span id="cntCall">—</span></div>
@@ -658,6 +723,32 @@ select:focus{
     </div>
   </div>
   <!-- /Postflop Board Picker Modal -->
+
+<!-- Board Picker Modal -->
+<div id="boardModal" class="modal" style="display:none">
+  <div class="modalBackdrop" id="boardBackdrop"></div>
+  <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="boardTitle">
+    <div class="modalHd">
+      <div>
+        <div id="boardTitle" style="font-weight:950">Pick a flop</div>
+        <div class="kicker">Click cards to fill Flop 1 → Flop 2 → Flop 3 (auto-advances).</div>
+      </div>
+      <button id="boardClose">Close</button>
+    </div>
+    <div class="modalBody">
+      <div class="info" style="margin:0 0 12px 0">
+        <div class="k" style="color:var(--muted); font-size:11px; font-weight:900; margin-bottom:8px;">Selected flop</div>
+        <div id="boardModalChips" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+        <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+          <button id="boardClear">Clear</button>
+          <button id="boardUse">Use this flop</button>
+        </div>
+      </div>
+
+      <div id="boardCardGrid" class="pfCardGrid"></div>
+    </div>
+  </div>
+</div>
 
   
 <script>
@@ -2472,6 +2563,155 @@ scenarioSel.addEventListener("change", () => {
   const trainerReset = document.getElementById("trainerReset");
   const trainerClearHistory = document.getElementById("trainerClearHistory");
 
+// ===== Postflop Board Picker (52-card grid, auto-advance) =====
+const boardPickBtn = document.getElementById("boardPick");
+const boardModal = document.getElementById("boardModal");
+const boardBackdrop = document.getElementById("boardBackdrop");
+const boardClose = document.getElementById("boardClose");
+const boardClear = document.getElementById("boardClear");
+const boardUse = document.getElementById("boardUse");
+
+const boardChipsEl = document.getElementById("boardChips");
+const boardModalChipsEl = document.getElementById("boardModalChips");
+const boardCardGridEl = document.getElementById("boardCardGrid");
+const boardInputEl = document.getElementById("boardInput");
+const boardApplyBtn = document.getElementById("boardApply");
+
+const PF_SUITS = [
+  { s:"h", label:"♥", cls:"pfRed" },
+  { s:"d", label:"♦", cls:"pfRed" },
+  { s:"c", label:"♣", cls:"pfBlack" },
+  { s:"s", label:"♠", cls:"pfBlack" }
+];
+const PF_RANKS = ["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
+
+let flopSel = [null, null, null]; // each is like "Ah"
+let flopActive = 0;               // 0..2
+
+function chipLabel(card){
+  if(!card) return "—";
+  const r = card[0];
+  const s = card[1];
+  const suitObj = PF_SUITS.find(x => x.s === s);
+  return suitObj ? (r + suitObj.label) : card;
+}
+
+function renderFlopChips(targetEl, clickable){
+  if(!targetEl) return;
+  targetEl.innerHTML = "";
+
+  for(let i=0;i<3;i++){
+    const btn = document.createElement("div");
+    btn.className = "pfChip" + (i === flopActive ? " active" : "");
+    btn.innerHTML = "<span>" + chipLabel(flopSel[i]) + "</span> <span class='muted'>Flop " + (i+1) + "</span>";
+
+    if(clickable){
+      btn.addEventListener("click", function(){
+        flopActive = i;
+        renderAllBoardUI();
+      });
+    }
+
+    targetEl.appendChild(btn);
+  }
+}
+
+function selectedSet(){
+  return new Set(flopSel.filter(Boolean));
+}
+
+function renderCardGrid(){
+  if(!boardCardGridEl) return;
+
+  const used = selectedSet();
+  boardCardGridEl.innerHTML = "";
+
+  for(const suit of PF_SUITS){
+    const row = document.createElement("div");
+    row.className = "pfSuitRow";
+
+    const suitLabel = document.createElement("div");
+    suitLabel.className = "pfSuitLabel " + suit.cls;
+    suitLabel.textContent = suit.label;
+    row.appendChild(suitLabel);
+
+    for(const r of PF_RANKS){
+      const code = r + suit.s; // e.g. "Ah"
+      const b = document.createElement("div");
+      b.className = "pfCardBtn " + suit.cls;
+      b.textContent = r + suit.label;
+
+      if(used.has(code)) b.classList.add("disabled");
+
+      b.addEventListener("click", function(){
+        if(used.has(code)) return;
+
+        flopSel[flopActive] = code;
+
+        const nextEmpty = flopSel.findIndex(function(x, idx){
+          return !x && idx > flopActive;
+        });
+        if(nextEmpty !== -1) flopActive = nextEmpty;
+        else flopActive = Math.min(2, flopActive + 1);
+
+        renderAllBoardUI();
+      });
+
+      row.appendChild(b);
+    }
+
+    boardCardGridEl.appendChild(row);
+  }
+}
+
+function flopToInputString(){
+  return flopSel.filter(Boolean).join(" ");
+}
+
+function renderAllBoardUI(){
+  renderFlopChips(boardChipsEl, true);
+  renderFlopChips(boardModalChipsEl, true);
+  renderCardGrid();
+}
+
+function openBoardModal(){
+  if(!boardModal) return;
+  boardModal.style.display = "block";
+  document.body.style.overflow = "hidden";
+  renderAllBoardUI();
+}
+
+function closeBoardModal(){
+  if(!boardModal) return;
+  boardModal.style.display = "none";
+  document.body.style.overflow = "";
+}
+
+if(boardPickBtn) boardPickBtn.addEventListener("click", openBoardModal);
+if(boardClose) boardClose.addEventListener("click", closeBoardModal);
+if(boardBackdrop) boardBackdrop.addEventListener("click", closeBoardModal);
+
+if(boardClear){
+  boardClear.addEventListener("click", function(){
+    flopSel = [null,null,null];
+    flopActive = 0;
+    renderAllBoardUI();
+  });
+}
+
+if(boardUse){
+  boardUse.addEventListener("click", function(){
+    const txt = flopToInputString();
+    if(boardInputEl) boardInputEl.value = txt;
+    closeBoardModal();
+    if(boardApplyBtn) boardApplyBtn.click();
+  });
+}
+
+// Initial render
+renderAllBoardUI();
+
+  
 const cache = {}; // cacheKey -> {map, notes, mixWeights}
 
 function getScenarioData(key){
