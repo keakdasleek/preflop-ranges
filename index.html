@@ -225,6 +225,34 @@ select:focus{
       outline:none;
     }
 
+    /* Compact board input so the whole row stays on one line */
+.pfInput.compact{
+  flex: 0 0 170px;     /* fixed-ish width */
+  max-width: 170px;
+  min-width: 170px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+.boardRow{
+  display:flex;
+  gap:10px;
+  flex-wrap:nowrap;     /* <-- forces one row */
+  align-items:center;
+}
+.boardRow #boardChips{ flex: 1 1 auto; }
+.boardRow button{ white-space: nowrap; }
+
+/* On narrow screens, allow wrap (mobile) */
+@media (max-width: 520px){
+  .boardRow{ flex-wrap:wrap; }
+  .pfInput.compact{
+    flex: 1 1 100%;
+    max-width: none;
+    min-width: 0;
+  }
+}
+
+
 
     .toast{
       position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
@@ -248,6 +276,20 @@ select:focus{
       color: var(--muted);
       font-size:11px;font-weight:800;
     }
+
+    /* Board modal primary action when flop is complete */
+.pfPrimary{
+  background: rgba(36,194,106,.18);
+  border-color: rgba(36,194,106,.55);
+  font-weight: 950;
+}
+.pfPrimary:hover{ filter:brightness(1.10); }
+.pfPrimary:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+  filter:none;
+}
+
 
     /* Trainer */
     .trainerPrompt{padding:12px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.08);background: rgba(255,255,255,.03);font-weight:800;line-height:1.35}
@@ -471,15 +513,14 @@ select:focus{
       </div>
 
       <div class="card side">
-<div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+<div class="boardRow">
   <div id="boardChips" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
 
-  <!-- Keep input as optional power-user override -->
-  <input id="boardInput" class="pfInput" placeholder="(optional) e.g. Ah 7d 2c" style="flex:1; min-width:180px;" />
+  <input id="boardInput" class="pfInput compact" placeholder="Ah 7d 2c" />
   <button id="boardApply">Apply</button>
-
   <button id="boardPick">Pick board</button>
 </div>
+
 
         <div class="legend">
           <div class="pill"><div style="display:flex;align-items:center;gap:10px"><div class="dot raise"></div><b>Raise</b></div><span id="cntRaise">—</span></div>
@@ -2383,6 +2424,18 @@ function chipLabel(card){
   return suitObj ? (r + suitObj.label) : card;
 }
 
+function chipParts(card){
+  if(!card) return { rank:"—", suitSym:"", suitCls:"" };
+  const r = card[0];
+  const s = card[1];
+  const suitObj = PF_SUITS.find(x => x.s === s);
+  return {
+    rank: r,
+    suitSym: suitObj ? suitObj.label : "",
+    suitCls: suitObj ? suitObj.cls : ""
+  };
+}
+
 function renderFlopChips(targetEl, clickable){
   if(!targetEl) return;
   targetEl.innerHTML = "";
@@ -2390,7 +2443,13 @@ function renderFlopChips(targetEl, clickable){
   for(let i=0;i<3;i++){
     const btn = document.createElement("div");
     btn.className = "pfChip" + (i === flopActive ? " active" : "");
-    btn.innerHTML = "<span>" + chipLabel(flopSel[i]) + "</span> <span class='muted'>Flop " + (i+1) + "</span>";
+
+    const p = chipParts(flopSel[i]);
+    const cardHtml = (p.rank === "—")
+      ? `<span>${p.rank}</span>`
+      : `<span>${p.rank}<span class="${p.suitCls}">${p.suitSym}</span></span>`;
+
+    btn.innerHTML = `${cardHtml} <span class="muted">Flop ${i+1}</span>`;
 
     if(clickable){
       btn.addEventListener("click", function(){
@@ -2402,6 +2461,7 @@ function renderFlopChips(targetEl, clickable){
     targetEl.appendChild(btn);
   }
 }
+
 
 function selectedSet(){
   return new Set(flopSel.filter(Boolean));
@@ -2459,7 +2519,15 @@ function renderAllBoardUI(){
   renderFlopChips(boardChipsEl, true);
   renderFlopChips(boardModalChipsEl, true);
   renderCardGrid();
+
+  // Enable + highlight "Use this flop" only when all 3 are selected
+  const complete = flopSel.every(Boolean);
+  if(boardUse){
+    boardUse.disabled = !complete;
+    boardUse.classList.toggle("pfPrimary", complete);
+  }
 }
+
 
 function openBoardModal(){
   if(!boardModal) return;
