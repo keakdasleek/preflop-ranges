@@ -1472,6 +1472,8 @@ function applyPersonaToBuiltRange(built, scenarioKey, personaCode){
   const toastEl  = document.getElementById("toast");
 
   let showLabels = true;
+  let selectedHandCode = null; // currently-selected hand in Explorer
+
 
   function toast(msg){
     toastEl.textContent = msg;
