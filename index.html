@@ -2504,6 +2504,15 @@ const PF_RANKS = ["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
 let flopSel = [null, null, null]; // each is like "Ah"
 let flopActive = 0;               // 0..2
 
+function flopSelToBoard(){
+  const complete = Array.isArray(flopSel) && flopSel.length === 3 && flopSel.every(Boolean);
+  if(!complete) return null;
+
+  const txt = flopToInputString(); // e.g. "Ah 7d 2c"
+  const cards = parseBoard(txt);
+  return cards || null;
+}
+
 function chipLabel(card){
   if(!card) return "—";
   const r = card[0];
@@ -2511,6 +2520,7 @@ function chipLabel(card){
   const suitObj = PF_SUITS.find(x => x.s === s);
   return suitObj ? (r + suitObj.label) : card;
 }
+
 
 function chipParts(card){
   if(!card) return { rank:"—", suitSym:"", suitCls:"" };
