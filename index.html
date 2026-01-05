@@ -3102,17 +3102,16 @@ const defAdj = applyPersona(scenarios[key].def, key, personaLabel); // safe even
 const LS_LOGGER = "handLogger_v0";
 
 let loggerState = {
-  sessions: [],          // [{id, createdAt, stakes, ante, straddle, maxPlayers, hands:[]}]
-  activeSessionId: null, // session.id
+  sessions: [],
+  activeSessionId: null,
 
   table: {
     maxPlayers: 8,
-    heroSeat: 0,   // 0 = Hero at 6 o'clock (we'll render seats around from there)
-    btnSeat: 3     // arbitrary default
-  },
-
-  tableEditMode: "hero" // "hero" | "btn"
+    heroSeat: 0,
+    btnSeat: 5
+  }
 };
+
 
 
 function saveLogger(){
@@ -3145,47 +3144,58 @@ function seatAngleDeg(i, n){
   return 90 + (360 / n) * i;
 }
 
+function renderLoggerTable(){function prevClockwiseSeat(i, n){
+  // Seat indices increase counter-clockwise in our renderer,
+  // so clockwise movement is index - 1.
+  return (i - 1 + n) % n;
+}
+
+function buildSeatPositionsFromButton(btnSeat, n){
+  // Walking clockwise from BTN gives positions:
+  // BTN, SB, BB, UTG, UTG+1, LJ, HJ, CO (8-max)
+  const posNames = ["BTN","SB","BB","UTG","UTG+1","LJ","HJ","CO"];
+
+  const posBySeat = {};
+  let seat = btnSeat;
+
+  for(let k = 0; k < n; k++){
+    posBySeat[seat] = posNames[k] || `P${k+1}`;
+    seat = prevClockwiseSeat(seat, n);
+  }
+  return posBySeat;
+}
+
 function renderLoggerTable(){
   const mount = document.getElementById("loggerTableMount");
   if(!mount) return;
 
-  const n = loggerState?.table?.maxPlayers || 8;
-  const heroSeat = Number(loggerState?.table?.heroSeat ?? 0);
-  const btnSeat  = Number(loggerState?.table?.btnSeat ?? 3);
-  const mode = loggerState?.tableEditMode || "hero";
+  const n = Number(loggerState?.table?.maxPlayers || 8);
+
+  // Hard lock: hero is always at 6 o’clock (seat index 0)
+  loggerState.table.heroSeat = 0;
+
+  const heroSeat = 0;
+  const btnSeat = Number(loggerState?.table?.btnSeat ?? 5);
+
+  const posBySeat = buildSeatPositionsFromButton(btnSeat, n);
 
   mount.innerHTML = "";
 
   const wrap = document.createElement("div");
   wrap.className = "loggerTableWrap";
 
-  // Controls row
+  // Controls row (only Set Button)
   const controls = document.createElement("div");
   controls.className = "loggerTableControls";
 
-  const heroBtn = document.createElement("button");
-  heroBtn.textContent = "Set Hero seat";
-  heroBtn.className = (mode === "hero") ? "pfPrimary" : "";
-  heroBtn.addEventListener("click", ()=>{
-    loggerState.tableEditMode = "hero";
-    saveLogger();
-    renderLoggerTable();
-  });
-
   const btnBtn = document.createElement("button");
   btnBtn.textContent = "Set Button";
-  btnBtn.className = (mode === "btn") ? "pfPrimary" : "";
-  btnBtn.addEventListener("click", ()=>{
-    loggerState.tableEditMode = "btn";
-    saveLogger();
-    renderLoggerTable();
-  });
+  btnBtn.className = "pfPrimary";
 
   const modePill = document.createElement("div");
   modePill.className = "loggerModePill on";
-  modePill.textContent = (mode === "hero") ? "Click a seat to set HERO" : "Click a seat to set BUTTON";
+  modePill.textContent = "Click a seat to set BUTTON (Hero is always bottom)";
 
-  controls.appendChild(heroBtn);
   controls.appendChild(btnBtn);
   controls.appendChild(modePill);
 
@@ -3193,11 +3203,10 @@ function renderLoggerTable(){
   const table = document.createElement("div");
   table.className = "loggerTable";
 
-  // Seat positions (radius)
   const cx = 50, cy = 50;
-  const r = 42; // percent radius from center
+  const r = 42;
 
-  for(let i=0;i<n;i++){
+  for(let i = 0; i < n; i++){
     const ang = seatAngleDeg(i, n) * Math.PI / 180;
     const x = cx + r * Math.cos(ang);
     const y = cy + r * Math.sin(ang);
@@ -3210,10 +3219,11 @@ function renderLoggerTable(){
     if(i === heroSeat) seat.classList.add("hero");
     if(i === btnSeat) seat.classList.add("btn");
 
-    // Seat label: we’ll show seat # for now; positions come next step
     const lbl = document.createElement("div");
     lbl.className = "lbl";
-    lbl.textContent = `Seat ${i+1}`;
+
+    const pos = posBySeat[i] || `Seat ${i+1}`;
+    lbl.textContent = `${pos}`;
 
     seat.appendChild(lbl);
 
@@ -3223,6 +3233,7 @@ function renderLoggerTable(){
       t.textContent = "HERO";
       seat.appendChild(t);
     }
+
     if(i === btnSeat){
       const t = document.createElement("span");
       t.className = "tag";
@@ -3230,34 +3241,24 @@ function renderLoggerTable(){
       seat.appendChild(t);
     }
 
+    // Click always sets BUTTON (and we DO allow BTN to be on HERO)
     seat.addEventListener("click", ()=>{
-      if(loggerState.tableEditMode === "hero"){
-        loggerState.table.heroSeat = i;
-        // nice behavior: if BTN collides with HERO, push BTN one seat clockwise
-        if(loggerState.table.btnSeat === i){
-          loggerState.table.btnSeat = (i + 1) % n;
-        }
-      } else {
-        loggerState.table.btnSeat = i;
-        // if BTN collides with HERO, push HERO one seat clockwise
-        if(loggerState.table.heroSeat === i){
-          loggerState.table.heroSeat = (i + 1) % n;
-        }
-      }
+      loggerState.table.btnSeat = i;
       saveLogger();
       renderLoggerTable();
+      renderLoggerSessionSummary();
+      toast("Button set");
     });
 
     table.appendChild(seat);
   }
 
-  // Legend
   const legend = document.createElement("div");
   legend.className = "loggerTableLegend";
   legend.innerHTML =
     `<span><span class="loggerLegendDot hero"></span> Hero</span>` +
     `<span><span class="loggerLegendDot btn"></span> Button</span>` +
-    `<span>• (Positions will auto-label next)</span>`;
+    `<span>• Positions auto-populate from Button</span>`;
 
   wrap.appendChild(controls);
   wrap.appendChild(table);
@@ -3265,6 +3266,7 @@ function renderLoggerTable(){
 
   mount.appendChild(wrap);
 }
+
 // ===== /Hand Logger: Table UI (v0) =====
 
 
@@ -3639,6 +3641,10 @@ function renderLoggerSessions(){
     }
   }
 
+  renderLoggerSessionSummary();
+  renderLoggerHandsList();
+  renderLoggerHandEditor(null);
+
   saveLogger();
 }
 
@@ -3656,10 +3662,144 @@ function createLoggerSession(){
   loggerState.activeSessionId = s.id;
   saveLogger();
   renderLoggerSessions();
+  renderLoggerSessionSummary();
+  renderLoggerHandsList();
+  renderLoggerHandEditor(null);
+
   toast("New session created");
 }
 
+function renderLoggerSessionSummary(){
+  const active = getActiveSession();
+  if(!loggerSessionSummary) return;
 
+  if(!active){
+    loggerSessionSummary.textContent = "No session selected.";
+    return;
+  }
+
+  const created = new Date(active.createdAt || Date.now()).toLocaleString();
+  const handsCount = (active.hands || []).length;
+
+  loggerSessionSummary.textContent =
+    `Active session created ${created} • Hands: ${handsCount} • Button seat: ${Number(loggerState.table.btnSeat) + 1}`;
+}
+
+function renderLoggerHandsList(){
+  const el = document.getElementById("loggerHandsList");
+  if(!el) return;
+
+  const active = getActiveSession();
+  if(!active){
+    el.textContent = "—";
+    return;
+  }
+
+  const hands = active.hands || [];
+  if(!hands.length){
+    el.textContent = "No hands yet. Click “Log new hand”.";
+    return;
+  }
+
+  const lines = hands.map((h, idx)=>{
+    const dt = new Date(h.createdAt || Date.now()).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+    return `Hand ${idx + 1} • ${dt} • BTN seat ${Number(h.btnSeat) + 1}`;
+  });
+
+  el.textContent = lines.slice(0, 30).join("\n");
+  el.style.whiteSpace = "pre-line";
+}
+
+function renderLoggerHandEditor(hand){
+  const mount = document.getElementById("loggerHandEditor");
+  if(!mount) return;
+
+  const active = getActiveSession();
+  if(!active){
+    mount.textContent = "Select a session and click “Log new hand”.";
+    return;
+  }
+
+  if(!hand){
+    mount.textContent = "Click “Log new hand” to begin.";
+    return;
+  }
+
+  const n = Number(loggerState?.table?.maxPlayers || 8);
+  const posBySeat = buildSeatPositionsFromButton(Number(hand.btnSeat), n);
+  const heroPos = posBySeat[0] || "HERO";
+
+  mount.innerHTML = "";
+
+  const top = document.createElement("div");
+  top.style.display = "grid";
+  top.style.gap = "10px";
+
+  const title = document.createElement("div");
+  title.style.fontWeight = "950";
+  title.textContent = `Editing hand • Hero position: ${heroPos}`;
+
+  const meta = document.createElement("div");
+  meta.className = "kicker";
+  meta.style.color = "var(--muted)";
+  meta.textContent = `BTN seat: ${Number(hand.btnSeat) + 1} • Hero seat: 1 • Players: ${n}`;
+
+  const notesLabel = document.createElement("div");
+  notesLabel.className = "kicker";
+  notesLabel.textContent = "Notes (optional)";
+
+  const notes = document.createElement("textarea");
+  notes.style.width = "100%";
+  notes.style.minHeight = "110px";
+  notes.style.borderRadius = "12px";
+  notes.style.border = "1px solid rgba(255,255,255,.10)";
+  notes.style.background = "rgba(0,0,0,.18)";
+  notes.style.color = "var(--text)";
+  notes.style.padding = "10px 12px";
+  notes.style.fontWeight = "700";
+  notes.value = hand.notes || "";
+
+  notes.addEventListener("input", ()=>{
+    hand.notes = notes.value;
+    saveLogger();
+  });
+
+  top.appendChild(title);
+  top.appendChild(meta);
+  top.appendChild(notesLabel);
+  top.appendChild(notes);
+
+  mount.appendChild(top);
+}
+
+function createLoggerHand(){
+  const active = getActiveSession();
+  if(!active){
+    toast("Create/select a session first");
+    return;
+  }
+
+  const hand = {
+    id: uid(),
+    createdAt: Date.now(),
+    maxPlayers: Number(loggerState?.table?.maxPlayers || 8),
+    heroSeat: 0,
+    btnSeat: Number(loggerState.table.btnSeat),
+    notes: ""
+  };
+
+  active.hands = active.hands || [];
+  active.hands.unshift(hand);
+
+  saveLogger();
+  renderLoggerSessionSummary();
+  renderLoggerHandsList();
+  renderLoggerHandEditor(hand);
+
+  toast("Hand created");
+}
+
+                             
 function setMode(mode){
   const isExplorer = mode === "explorer";
   const isTrainer  = mode === "trainer";
@@ -3673,6 +3813,9 @@ function setMode(mode){
   modeBtn.textContent = isTrainer ? "Back to explorer" : "Trainer mode";
   if(loggerBtn) loggerBtn.textContent = isLogger ? "Back to explorer" : "Hand logger";
 
+  setTopControlsForMode(mode);
+
+  
   if(isTrainer){
     startQuestion();
   }
@@ -3684,12 +3827,39 @@ function setMode(mode){
   }
 
   if(isLogger){
+    renderLoggerSessions();
     renderLoggerTable();
+    renderLoggerHandsList();
+    renderLoggerHandEditor(null);
   }
+
 
 }
 
+function setTopControlsForMode(mode){
+  const scenarioEl = document.getElementById("scenario");
+  const personaEl = document.getElementById("persona");
+  const toggleLabelsBtn = document.getElementById("toggleLabels");
+  const copyBtn = document.getElementById("copy");
 
+  const isLogger = mode === "logger";
+
+  if(scenarioEl) scenarioEl.style.display = isLogger ? "none" : "";
+  if(personaEl) personaEl.style.display = isLogger ? "none" : "";
+  if(toggleLabelsBtn) toggleLabelsBtn.style.display = isLogger ? "none" : "";
+  if(copyBtn) copyBtn.style.display = isLogger ? "none" : "";
+
+  // Ensure nav order: Back to Explorer leftmost, then Trainer, then Help
+  const controlsWrap = document.querySelector(".controls");
+  if(controlsWrap && loggerBtn && modeBtn && helpBtn){
+    controlsWrap.appendChild(loggerBtn);
+    controlsWrap.appendChild(modeBtn);
+    controlsWrap.appendChild(helpBtn);
+  }
+}
+
+
+                             
   modeBtn.addEventListener("click", ()=>{
     const isTrainer = trainerView.style.display !== "none";
     setMode(isTrainer ? "explorer" : "trainer");
@@ -3716,7 +3886,15 @@ if(loggerSessionSel){
   });
 }
 
+const loggerNewHandBtn = document.getElementById("loggerNewHand");
 
+if(loggerNewHandBtn){
+  loggerNewHandBtn.addEventListener("click", ()=>{
+    createLoggerHand();
+  });
+}
+
+                             
 const selDelta = document.getElementById("selDelta");
 
 function resetSelectedHandUI(){
