@@ -612,6 +612,7 @@ select:focus{
         <button id="toggleLabels">Hide action labels</button>
         <button id="copy">Copy current range as text</button>
         <button id="modeBtn">Trainer mode</button>
+        <button id="loggerBtn">Hand logger</button>
         <button id="helpBtn" title="Help / definitions">Help</button>
       </div>
     </div>
@@ -791,6 +792,65 @@ select:focus{
   
     </div>
 
+<!-- LOGGER_VIEW_START -->
+<div id="loggerView" class="gridWrap" style="display:none">
+  <div class="card">
+    <div class="cardHd">
+      <div>
+        <div style="font-weight:900">Hand Logger</div>
+        <div class="kicker">Create sessions, then log hands street-by-street.</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button id="loggerNewSession">New session</button>
+        <select id="loggerSessionSel"></select>
+        <button id="loggerNewHand">Log new hand</button>
+      </div>
+    </div>
+
+    <div style="padding:16px;display:grid;gap:14px">
+      <div class="info" style="margin:0">
+        <h3>Session</h3>
+        <div id="loggerSessionSummary" class="kicker" style="color:var(--muted);font-size:12px;line-height:1.45;font-weight:700">
+          No session selected.
+        </div>
+      </div>
+
+      <div class="info" style="margin:0">
+        <h3>Table</h3>
+        <div id="loggerTableMount" class="kicker" style="color:var(--muted)">
+          (Table UI goes here — player always at 6 o’clock.)
+        </div>
+      </div>
+
+      <div class="info" style="margin:0">
+        <h3>Hand</h3>
+        <div id="loggerHandEditor" class="kicker" style="color:var(--muted)">
+          Select a session and click “Log new hand”.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card side">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <div style="font-weight:900">Hands</div>
+      <div class="kicker">This session</div>
+    </div>
+
+    <div class="info" style="margin-top:10px">
+      <div id="loggerHandsList" class="kicker" style="color:var(--muted);font-size:12px;line-height:1.45;font-weight:700">
+        —
+      </div>
+    </div>
+
+    <div class="footerNote">
+      v1 goal: fast logging flow (positions auto-populate from hero seat).
+    </div>
+  </div>
+</div>
+<!-- LOGGER_VIEW_END -->
+
+  
   <div class="toast" id="toast"></div>
 
   <!-- Help Modal (mobile-friendly) -->
@@ -2917,6 +2977,36 @@ const defAdj = applyPersona(scenarios[key].def, key, personaLabel); // safe even
 
   const LS_PERSONA = "preflopPersona_v1";
 
+// ===== Hand Logger: data model (v0) =====
+const LS_LOGGER = "handLogger_v0";
+
+let loggerState = {
+  sessions: [],          // [{id, createdAt, stakes, ante, straddle, maxPlayers, hands:[]}]
+  activeSessionId: null, // session.id
+};
+
+function saveLogger(){
+  try{ localStorage.setItem(LS_LOGGER, JSON.stringify(loggerState)); }catch(e){}
+}
+function loadLogger(){
+  try{
+    const raw = localStorage.getItem(LS_LOGGER);
+    if(!raw) return;
+    const obj = JSON.parse(raw);
+    if(obj && Array.isArray(obj.sessions)) loggerState.sessions = obj.sessions;
+    if(obj && (obj.activeSessionId || obj.activeSessionId === null)) loggerState.activeSessionId = obj.activeSessionId;
+  }catch(e){}
+}
+
+function uid(){
+  return Math.random().toString(16).slice(2) + Date.now().toString(16);
+}
+
+function getActiveSession(){
+  return loggerState.sessions.find(s => s.id === loggerState.activeSessionId) || null;
+}
+
+
   function loadSession(){
     try{
       const raw = localStorage.getItem(LS_KEY);
@@ -3247,25 +3337,122 @@ if(trainerPersonaLine){
     renderMiniMatrix(key, hand, ok ? "good" : "bad");
   }
 
+const loggerView  = document.getElementById("loggerView");
+const loggerBtn   = document.getElementById("loggerBtn");
+const loggerNewSessionBtn = document.getElementById("loggerNewSession");
+const loggerSessionSel    = document.getElementById("loggerSessionSel");
+const loggerSessionSummary= document.getElementById("loggerSessionSummary");
+
+function renderLoggerSessions(){
+  if(!loggerSessionSel) return;
+
+  loggerSessionSel.innerHTML = "";
+
+  if(!loggerState.sessions.length){
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "No sessions";
+    loggerSessionSel.appendChild(opt);
+    if(loggerSessionSummary) loggerSessionSummary.textContent = "No session selected.";
+    return;
+  }
+
+  for(const s of loggerState.sessions){
+    const opt = document.createElement("option");
+    opt.value = s.id;
+    const dt = new Date(s.createdAt || Date.now());
+    opt.textContent = `${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}`;
+    loggerSessionSel.appendChild(opt);
+  }
+
+  loggerSessionSel.value = loggerState.activeSessionId || loggerState.sessions[0].id;
+  loggerState.activeSessionId = loggerSessionSel.value;
+
+  const active = getActiveSession();
+  if(loggerSessionSummary){
+    if(active){
+      loggerSessionSummary.textContent = `Active session created ${new Date(active.createdAt).toLocaleString()} • Hands: ${(active.hands||[]).length}`;
+    } else {
+      loggerSessionSummary.textContent = "No session selected.";
+    }
+  }
+
+  saveLogger();
+}
+
+function createLoggerSession(){
+  const s = {
+    id: uid(),
+    createdAt: Date.now(),
+    stakes: "$0.05/$0.10",
+    ante: "$0.05",
+    straddle: false,
+    maxPlayers: 8,
+    hands: [],
+  };
+  loggerState.sessions.unshift(s);
+  loggerState.activeSessionId = s.id;
+  saveLogger();
+  renderLoggerSessions();
+  toast("New session created");
+}
+
+
 function setMode(mode){
-  const isTrainer = mode === "trainer";
-  explorerView.style.display = isTrainer ? "none" : "grid";
-  trainerView.style.display  = isTrainer ? "grid" : "none";
+  const isExplorer = mode === "explorer";
+  const isTrainer  = mode === "trainer";
+  const isLogger   = mode === "logger";
+
+  explorerView.style.display = isExplorer ? "grid" : "none";
+  trainerView.style.display  = isTrainer  ? "grid" : "none";
+  if(loggerView) loggerView.style.display = isLogger ? "grid" : "none";
+
+  // Button labels
   modeBtn.textContent = isTrainer ? "Back to explorer" : "Trainer mode";
+  if(loggerBtn) loggerBtn.textContent = isLogger ? "Back to explorer" : "Hand logger";
 
   if(isTrainer){
     startQuestion();
-  } else {
-    // We're switching back to explorer
-renderScenario(scenarioSel.value);
-updateSelectedHandPanel(scenarioSel.value);
+  }
+
+  if(isExplorer){
+    renderScenario(scenarioSel.value);
+    updateSelectedHandPanel(scenarioSel.value);
+    renderPostflopAdvice();
+  }
+
+  if(isLogger){
+    renderLoggerSessions();
   }
 }
+
 
   modeBtn.addEventListener("click", ()=>{
     const isTrainer = trainerView.style.display !== "none";
     setMode(isTrainer ? "explorer" : "trainer");
   });
+
+if(loggerBtn){
+  loggerBtn.addEventListener("click", ()=>{
+    const isLogger = loggerView && loggerView.style.display !== "none";
+    setMode(isLogger ? "explorer" : "logger");
+  });
+}
+
+if(loggerNewSessionBtn){
+  loggerNewSessionBtn.addEventListener("click", ()=>{
+    createLoggerSession();
+  });
+}
+
+if(loggerSessionSel){
+  loggerSessionSel.addEventListener("change", ()=>{
+    loggerState.activeSessionId = loggerSessionSel.value || null;
+    saveLogger();
+    renderLoggerSessions();
+  });
+}
+
 
 const selDelta = document.getElementById("selDelta");
 
@@ -3367,6 +3554,7 @@ renderScenario(scenarioSel.value);
 renderPostflopAdvice();
 populateTrainerScenarios();
 loadSession();
+loadLogger();
 renderStats();
 
 </script>
