@@ -3137,21 +3137,17 @@ function getActiveSession(){
 
 // ===== Hand Logger: Table UI (v0) =====
 function seatAngleDeg(i, n){
-  // Seat 0 is Hero at 6 o’clock (bottom).
-  // Then go counter-clockwise around the table.
-  // 6 o'clock = 90deg in our math if we use sin/cos? We'll compute using standard unit circle:
-  // We'll use: angle = 90deg + (360/n)*i  -> i=0 bottom, i=2 left-ish, etc.
+  // Seat 0 is Hero at 6 o’clock (bottom). Then counter-clockwise.
   return 90 + (360 / n) * i;
 }
 
-function renderLoggerTable(){function prevClockwiseSeat(i, n){
-  // Seat indices increase counter-clockwise in our renderer,
-  // so clockwise movement is index - 1.
+function prevClockwiseSeat(i, n){
+  // Renderer increases CCW, so clockwise is -1
   return (i - 1 + n) % n;
 }
 
 function buildSeatPositionsFromButton(btnSeat, n){
-  // Walking clockwise from BTN gives positions:
+  // Walking clockwise from BTN gives:
   // BTN, SB, BB, UTG, UTG+1, LJ, HJ, CO (8-max)
   const posNames = ["BTN","SB","BB","UTG","UTG+1","LJ","HJ","CO"];
 
@@ -3171,7 +3167,7 @@ function renderLoggerTable(){
 
   const n = Number(loggerState?.table?.maxPlayers || 8);
 
-  // Hard lock: hero is always at 6 o’clock (seat index 0)
+  // Hard lock: hero always bottom (seat index 0)
   loggerState.table.heroSeat = 0;
 
   const heroSeat = 0;
@@ -3215,16 +3211,14 @@ function renderLoggerTable(){
     seat.className = "loggerSeat";
     seat.style.left = x + "%";
     seat.style.top  = y + "%";
+    seat.style.transform = "translate(-50%, -50%)";
 
     if(i === heroSeat) seat.classList.add("hero");
-    if(i === btnSeat) seat.classList.add("btn");
+    if(i === btnSeat)  seat.classList.add("btn");
 
     const lbl = document.createElement("div");
     lbl.className = "lbl";
-
-    const pos = posBySeat[i] || `Seat ${i+1}`;
-    lbl.textContent = `${pos}`;
-
+    lbl.textContent = posBySeat[i] || `Seat ${i+1}`;
     seat.appendChild(lbl);
 
     if(i === heroSeat){
@@ -3241,12 +3235,12 @@ function renderLoggerTable(){
       seat.appendChild(t);
     }
 
-    // Click always sets BUTTON (and we DO allow BTN to be on HERO)
+    // Click sets BUTTON (BTN can be on HERO)
     seat.addEventListener("click", ()=>{
       loggerState.table.btnSeat = i;
       saveLogger();
       renderLoggerTable();
-      renderLoggerSessionSummary();
+      renderLoggerSessionSummary?.();
       toast("Button set");
     });
 
@@ -3266,8 +3260,8 @@ function renderLoggerTable(){
 
   mount.appendChild(wrap);
 }
-
 // ===== /Hand Logger: Table UI (v0) =====
+
 
 
 
@@ -3607,6 +3601,12 @@ const loggerNewSessionBtn = document.getElementById("loggerNewSession");
 const loggerSessionSel    = document.getElementById("loggerSessionSel");
 const loggerSessionSummary= document.getElementById("loggerSessionSummary");
 
+function refreshLoggerUI(){
+  renderLoggerSessionSummary();
+  renderLoggerHandsList();
+  renderLoggerHandEditor(null);
+}
+
 function renderLoggerSessions(){
   if(!loggerSessionSel) return;
 
@@ -3629,24 +3629,19 @@ function renderLoggerSessions(){
     loggerSessionSel.appendChild(opt);
   }
 
-  loggerSessionSel.value = loggerState.activeSessionId || loggerState.sessions[0].id;
-  loggerState.activeSessionId = loggerSessionSel.value;
+  const nextId = loggerState.activeSessionId || loggerState.sessions[0].id;
+  loggerSessionSel.value = nextId;
+  loggerState.activeSessionId = nextId;
 
+  // Summary line (lightweight)
   const active = getActiveSession();
   if(loggerSessionSummary){
-    if(active){
-      loggerSessionSummary.textContent = `Active session created ${new Date(active.createdAt).toLocaleString()} • Hands: ${(active.hands||[]).length}`;
-    } else {
-      loggerSessionSummary.textContent = "No session selected.";
-    }
+    loggerSessionSummary.textContent = active
+      ? `Active session created ${new Date(active.createdAt).toLocaleString()} • Hands: ${(active.hands||[]).length}`
+      : "No session selected.";
   }
-
-  renderLoggerSessionSummary();
-  renderLoggerHandsList();
-  renderLoggerHandEditor(null);
-
-  saveLogger();
 }
+
 
 function createLoggerSession(){
   const s = {
@@ -3660,11 +3655,11 @@ function createLoggerSession(){
   };
   loggerState.sessions.unshift(s);
   loggerState.activeSessionId = s.id;
-  saveLogger();
-  renderLoggerSessions();
-  renderLoggerSessionSummary();
-  renderLoggerHandsList();
-  renderLoggerHandEditor(null);
+saveLogger();
+renderLoggerSessions();
+refreshLoggerUI();
+renderLoggerTable();
+toast("New session created");
 
   toast("New session created");
 }
@@ -3826,12 +3821,12 @@ function setMode(mode){
     renderPostflopAdvice();
   }
 
-  if(isLogger){
-    renderLoggerSessions();
-    renderLoggerTable();
-    renderLoggerHandsList();
-    renderLoggerHandEditor(null);
-  }
+if(isLogger){
+  renderLoggerSessions();
+  refreshLoggerUI();
+  renderLoggerTable();
+}
+
 
 
 }
@@ -3883,8 +3878,11 @@ if(loggerSessionSel){
     loggerState.activeSessionId = loggerSessionSel.value || null;
     saveLogger();
     renderLoggerSessions();
+    refreshLoggerUI();
+    renderLoggerTable();
   });
 }
+
 
 const loggerNewHandBtn = document.getElementById("loggerNewHand");
 
