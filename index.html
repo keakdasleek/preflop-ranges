@@ -463,7 +463,127 @@ select:focus{
     .cell.sel.good{outline-color: rgba(36,194,106,.95)}
     .cell.sel.bad{outline-color: rgba(255,77,90,.95)}
 
+/* ===== Hand Logger: Table UI ===== */
+.loggerTableWrap{
+  display:grid;
+  gap:12px;
+}
 
+.loggerTableControls{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.loggerModePill{
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  font-size:11px;
+  font-weight:950;
+  letter-spacing:.3px;
+  color: var(--muted);
+}
+
+.loggerModePill.on{
+  color: var(--text);
+  border-color: rgba(93,169,255,.55);
+  background: rgba(93,169,255,.10);
+}
+
+.loggerTable{
+  position:relative;
+  width:min(520px, 100%);
+  aspect-ratio: 1 / 1;
+  margin:0 auto;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.10);
+  background: radial-gradient(60% 60% at 50% 35%, rgba(255,255,255,.05), rgba(0,0,0,.22));
+  box-shadow: 0 14px 30px rgba(0,0,0,.30);
+  overflow:hidden;
+}
+
+.loggerTable::before{
+  content:"";
+  position:absolute;
+  inset:12%;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.12);
+}
+
+.loggerSeat{
+  position:absolute;
+  width:72px;
+  height:46px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.22);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  font-weight:950;
+  cursor:pointer;
+  user-select:none;
+  transform: translate(-50%, -50%);
+}
+
+.loggerSeat:hover{ filter:brightness(1.08); }
+
+.loggerSeat .lbl{
+  font-size:12px;
+  color: var(--muted);
+  font-weight:900;
+}
+
+.loggerSeat .tag{
+  padding:3px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  font-size:10px;
+  font-weight:950;
+  color: var(--text);
+}
+
+.loggerSeat.hero{
+  border-color: rgba(36,194,106,.55);
+  background: rgba(36,194,106,.12);
+}
+
+.loggerSeat.btn{
+  border-color: rgba(246,196,69,.55);
+  background: rgba(246,196,69,.10);
+}
+
+.loggerSeat.hero .tag{ border-color: rgba(36,194,106,.55); background: rgba(36,194,106,.14); }
+.loggerSeat.btn  .tag{ border-color: rgba(246,196,69,.55); background: rgba(246,196,69,.14); }
+
+.loggerTableLegend{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+  color: var(--muted);
+  font-size:12px;
+  font-weight:800;
+}
+
+.loggerLegendDot{
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  display:inline-block;
+}
+
+.loggerLegendDot.hero{ background: var(--raise); } /* using your green */
+.loggerLegendDot.btn{ background: var(--mix); }    /* using your yellow */
+/* ===== /Hand Logger: Table UI ===== */
+
+    
     /* Modal */
     .modal{position:fixed;inset:0;z-index:50}
     .modalBackdrop{position:absolute;inset:0;background:rgba(0,0,0,.55)}
@@ -2985,6 +3105,23 @@ let loggerState = {
   activeSessionId: null, // session.id
 };
 
+// ===== Hand Logger: data model (v0) =====
+const LS_LOGGER = "handLogger_v0";
+
+let loggerState = {
+  sessions: [],          // [{id, createdAt, stakes, ante, straddle, maxPlayers, hands:[]}]
+  activeSessionId: null, // session.id
+
+  table: {
+    maxPlayers: 8,
+    heroSeat: 0,   // 0 = Hero at 6 o'clock (we'll render seats around from there)
+    btnSeat: 3     // arbitrary default
+  },
+
+  tableEditMode: "hero" // "hero" | "btn"
+};
+
+
 function saveLogger(){
   try{ localStorage.setItem(LS_LOGGER, JSON.stringify(loggerState)); }catch(e){}
 }
@@ -3005,6 +3142,138 @@ function uid(){
 function getActiveSession(){
   return loggerState.sessions.find(s => s.id === loggerState.activeSessionId) || null;
 }
+
+// ===== Hand Logger: Table UI (v0) =====
+function seatAngleDeg(i, n){
+  // Seat 0 is Hero at 6 o’clock (bottom).
+  // Then go counter-clockwise around the table.
+  // 6 o'clock = 90deg in our math if we use sin/cos? We'll compute using standard unit circle:
+  // We'll use: angle = 90deg + (360/n)*i  -> i=0 bottom, i=2 left-ish, etc.
+  return 90 + (360 / n) * i;
+}
+
+function renderLoggerTable(){
+  const mount = document.getElementById("loggerTableMount");
+  if(!mount) return;
+
+  const n = loggerState?.table?.maxPlayers || 8;
+  const heroSeat = Number(loggerState?.table?.heroSeat ?? 0);
+  const btnSeat  = Number(loggerState?.table?.btnSeat ?? 3);
+  const mode = loggerState?.tableEditMode || "hero";
+
+  mount.innerHTML = "";
+
+  const wrap = document.createElement("div");
+  wrap.className = "loggerTableWrap";
+
+  // Controls row
+  const controls = document.createElement("div");
+  controls.className = "loggerTableControls";
+
+  const heroBtn = document.createElement("button");
+  heroBtn.textContent = "Set Hero seat";
+  heroBtn.className = (mode === "hero") ? "pfPrimary" : "";
+  heroBtn.addEventListener("click", ()=>{
+    loggerState.tableEditMode = "hero";
+    saveLogger();
+    renderLoggerTable();
+  });
+
+  const btnBtn = document.createElement("button");
+  btnBtn.textContent = "Set Button";
+  btnBtn.className = (mode === "btn") ? "pfPrimary" : "";
+  btnBtn.addEventListener("click", ()=>{
+    loggerState.tableEditMode = "btn";
+    saveLogger();
+    renderLoggerTable();
+  });
+
+  const modePill = document.createElement("div");
+  modePill.className = "loggerModePill on";
+  modePill.textContent = (mode === "hero") ? "Click a seat to set HERO" : "Click a seat to set BUTTON";
+
+  controls.appendChild(heroBtn);
+  controls.appendChild(btnBtn);
+  controls.appendChild(modePill);
+
+  // Table
+  const table = document.createElement("div");
+  table.className = "loggerTable";
+
+  // Seat positions (radius)
+  const cx = 50, cy = 50;
+  const r = 42; // percent radius from center
+
+  for(let i=0;i<n;i++){
+    const ang = seatAngleDeg(i, n) * Math.PI / 180;
+    const x = cx + r * Math.cos(ang);
+    const y = cy + r * Math.sin(ang);
+
+    const seat = document.createElement("div");
+    seat.className = "loggerSeat";
+    seat.style.left = x + "%";
+    seat.style.top  = y + "%";
+
+    if(i === heroSeat) seat.classList.add("hero");
+    if(i === btnSeat) seat.classList.add("btn");
+
+    // Seat label: we’ll show seat # for now; positions come next step
+    const lbl = document.createElement("div");
+    lbl.className = "lbl";
+    lbl.textContent = `Seat ${i+1}`;
+
+    seat.appendChild(lbl);
+
+    if(i === heroSeat){
+      const t = document.createElement("span");
+      t.className = "tag";
+      t.textContent = "HERO";
+      seat.appendChild(t);
+    }
+    if(i === btnSeat){
+      const t = document.createElement("span");
+      t.className = "tag";
+      t.textContent = "BTN";
+      seat.appendChild(t);
+    }
+
+    seat.addEventListener("click", ()=>{
+      if(loggerState.tableEditMode === "hero"){
+        loggerState.table.heroSeat = i;
+        // nice behavior: if BTN collides with HERO, push BTN one seat clockwise
+        if(loggerState.table.btnSeat === i){
+          loggerState.table.btnSeat = (i + 1) % n;
+        }
+      } else {
+        loggerState.table.btnSeat = i;
+        // if BTN collides with HERO, push HERO one seat clockwise
+        if(loggerState.table.heroSeat === i){
+          loggerState.table.heroSeat = (i + 1) % n;
+        }
+      }
+      saveLogger();
+      renderLoggerTable();
+    });
+
+    table.appendChild(seat);
+  }
+
+  // Legend
+  const legend = document.createElement("div");
+  legend.className = "loggerTableLegend";
+  legend.innerHTML =
+    `<span><span class="loggerLegendDot hero"></span> Hero</span>` +
+    `<span><span class="loggerLegendDot btn"></span> Button</span>` +
+    `<span>• (Positions will auto-label next)</span>`;
+
+  wrap.appendChild(controls);
+  wrap.appendChild(table);
+  wrap.appendChild(legend);
+
+  mount.appendChild(wrap);
+}
+// ===== /Hand Logger: Table UI (v0) =====
+
 
 
   function loadSession(){
@@ -3422,8 +3691,9 @@ function setMode(mode){
   }
 
   if(isLogger){
-    renderLoggerSessions();
+    renderLoggerTable();
   }
+
 }
 
 
@@ -3548,14 +3818,20 @@ if(boardApplyBtn){
     toast("Missed list cleared");
   });
 
-  // Initial render
-loadPersona(); // <-- ADD THIS LINE (must be before renderScenario)
+// Initial render
+loadPersona(); // must be before renderScenario
+loadLogger();  // <-- ADD THIS
 renderScenario(scenarioSel.value);
 renderPostflopAdvice();
 populateTrainerScenarios();
 loadSession();
-loadLogger();
 renderStats();
+
+// If you refresh while in logger (rare), you can re-render it safely
+if(loggerView && loggerView.style.display !== "none"){
+  renderLoggerTable();
+}
+
 
 </script>
 </body>
