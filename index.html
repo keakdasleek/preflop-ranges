@@ -1300,7 +1300,15 @@ function updateSelectedHandPanel(scenarioKey){
 
   function rankIndex(r){ return ranks.indexOf(r); }
 
-// ===== Postflop foundation: board parsing + texture classification =====
+function boardToInputString(cards){
+  if (!Array.isArray(cards)) return "";
+  return cards
+    .map(c => (c && c.r && c.suit) ? `${c.r}${String(c.suit).toLowerCase()}` : "")
+    .filter(Boolean)
+    .join(" ");
+}
+  
+  // ===== Postflop foundation: board parsing + texture classification =====
 
 function parseBoard(input){
   if(!input) return null;
@@ -1317,14 +1325,6 @@ function parseBoard(input){
       { r:m[5], suit:m[6] },
     ];
   }
-
-function boardToInputString(cards){
-  if (!Array.isArray(cards)) return "";
-  return cards
-    .map(c => (c && c.r && c.suit) ? `${c.r}${String(c.suit).toLowerCase()}` : "")
-    .filter(Boolean)
-    .join(" ");
-}
 
 
   // Accept shorthand ranks with optional tone marker: A72R, T98SS, KQ7
@@ -2673,10 +2673,6 @@ el.addEventListener("click", ()=>{
     if (rangePct) rangePct.textContent = `${pct}% of hands playable`;
 
     // Wire copy button
-   document.getElementById("copy").onclick = ()=> {
-  const personaLabel = personaSel?.value || "Standard";
-  copyToClipboard(rangeTextWithContext(key, personaLabel, map));
-};
 
 document.getElementById("copy").onclick = ()=> {
   const personaLabel = personaSel?.value || "Standard";
@@ -2820,14 +2816,6 @@ const PF_RANKS = ["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
 let flopSel = [null, null, null]; // each is like "Ah"
 let flopActive = 0;               // 0..2
 
-function flopSelToBoard(){
-  const complete = Array.isArray(flopSel) && flopSel.length === 3 && flopSel.every(Boolean);
-  if(!complete) return null;
-
-  const txt = flopToInputString(); // e.g. "Ah 7d 2c"
-  const cards = parseBoard(txt);
-  return cards || null;
-}
 
 function chipLabel(card){
   if(!card) return "—";
@@ -3036,7 +3024,20 @@ if(boardUse){
   });
 }
 
+if(boardApplyBtn){
+  boardApplyBtn.addEventListener("click", function(){
+    const board = flopSelToBoard();
+    if(!board){
+      toast("Pick 3 cards first");
+      return;
+    }
 
+    currentBoard = board;
+    renderPostflopAdvice();
+    toast("Flop applied");
+  });
+}
+  
 // Initial render
 renderAllBoardUI();
 
