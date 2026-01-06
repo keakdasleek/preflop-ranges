@@ -1017,6 +1017,39 @@ select:focus{
   
   <div class="toast" id="toast"></div>
 
+  <!-- Logger Card Picker Modal -->
+<div id="loggerCardModal" class="modal" style="display:none">
+  <div class="modalBackdrop" id="loggerCardBackdrop"></div>
+  <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="loggerCardTitle">
+    <div class="modalHd">
+      <div>
+        <div id="loggerCardTitle" style="font-weight:950">Pick cards</div>
+        <div class="kicker" id="loggerCardSub">Select cards for this hand.</div>
+      </div>
+      <button id="loggerCardClose">Close</button>
+    </div>
+
+    <div class="modalBody">
+      <div class="kicker" style="margin-bottom:10px">
+        Click a slot, then click a card. Click the slot again to clear it.
+      </div>
+
+      <div id="loggerCardSlots" class="pfCardRow"></div>
+
+      <div class="info" style="margin-top:10px">
+        <h3 style="margin:0 0 8px">Deck</h3>
+        <div id="loggerCardGrid" class="pfCardGrid"></div>
+      </div>
+
+      <div class="pfPickerActions">
+        <button id="loggerCardClearAll">Clear all</button>
+        <button id="loggerCardSave" class="pfPrimary">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  
   <!-- Help Modal (mobile-friendly) -->
   <div id="helpModal" class="modal" style="display:none">
     <div class="modalBackdrop" id="helpBackdrop"></div>
@@ -3231,6 +3264,178 @@ function buildSeatPositionsFromButton(btnSeat, n){
   return posBySeat;
 }
 
+// ===== Logger Card Picker (Hero + Board) =====
+const PF_RANKS = ["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
+const PF_SUITS = [
+  {key:"s", sym:"♠", cls:"pfBlack"},
+  {key:"h", sym:"♥", cls:"pfRed"},
+  {key:"d", sym:"♦", cls:"pfRed"},
+  {key:"c", sym:"♣", cls:"pfBlack"}
+];
+
+let loggerCardPicker = {
+  mode: null,              // "hero" or "board"
+  handId: null,
+  slots: [],               // array of card strings or null
+  activeIdx: 0,
+  onSave: null
+};
+
+function isRedSuit(suitKey){ return suitKey === "h" || suitKey === "d"; }
+
+function cardToPretty(card){
+  if(!card) return "—";
+  const r = card[0];
+  const s = card[1];
+  const suit = PF_SUITS.find(x=>x.key===s);
+  const sym = suit ? suit.sym : s;
+  return r + sym;
+}
+
+function normalizeCard(card){
+  if(!card) return null;
+  const c = String(card).trim();
+  if(c.length < 2) return null;
+  const r = c[0].toUpperCase();
+  const s = c[1].toLowerCase();
+  if(!PF_RANKS.includes(r)) return null;
+  if(!["s","h","d","c"].includes(s)) return null;
+  return r + s;
+}
+
+function allPickedCards(slots){
+  return slots.filter(Boolean);
+}
+
+function renderLoggerCardSlots(){
+  if(!loggerCardSlots) return;
+  loggerCardSlots.innerHTML = "";
+
+  loggerCardPicker.slots.forEach((card, idx)=>{
+    const slot = document.createElement("div");
+    slot.className = "pfCard" + (idx === loggerCardPicker.activeIdx ? " active" : "");
+
+    const pretty = cardToPretty(card);
+
+    const rank = document.createElement("div");
+    rank.className = "pfRank";
+    rank.textContent = pretty === "—" ? "—" : pretty[0];
+
+    const suit = document.createElement("div");
+    suit.className = "pfSuit " + (pretty === "—" ? "pfSuitBlk" : (isRedSuit(card[1]) ? "pfSuitRed" : "pfSuitBlk"));
+    suit.textContent = pretty === "—" ? "" : pretty.slice(1);
+
+    slot.appendChild(rank);
+    slot.appendChild(suit);
+
+    slot.addEventListener("click", ()=>{
+      // clicking active slot clears it
+      if(loggerCardPicker.activeIdx === idx){
+        loggerCardPicker.slots[idx] = null;
+        renderLoggerCardSlots();
+        renderLoggerCardGrid();
+        return;
+      }
+      loggerCardPicker.activeIdx = idx;
+      renderLoggerCardSlots();
+    });
+
+    loggerCardSlots.appendChild(slot);
+  });
+}
+
+function renderLoggerCardGrid(){
+  if(!loggerCardGrid) return;
+  loggerCardGrid.innerHTML = "";
+
+  const picked = new Set(allPickedCards(loggerCardPicker.slots));
+
+  PF_SUITS.forEach(suit=>{
+    const row = document.createElement("div");
+    row.className = "pfSuitRow";
+
+    const lab = document.createElement("div");
+    lab.className = "pfSuitLabel " + suit.cls;
+    lab.textContent = suit.sym;
+    row.appendChild(lab);
+
+    PF_RANKS.forEach(r=>{
+      const card = normalizeCard(r + suit.key);
+      const btn = document.createElement("div");
+      btn.className = "pfCardBtn " + suit.cls;
+      btn.textContent = r;
+
+      const isAlreadyPicked = picked.has(card);
+      if(isAlreadyPicked){
+        btn.classList.add("selected");
+      }
+
+      btn.addEventListener("click", ()=>{
+        // if this card is already in another slot, move it to active slot
+        const existingIdx = loggerCardPicker.slots.findIndex(x=>x === card);
+        if(existingIdx !== -1){
+          loggerCardPicker.slots[existingIdx] = null;
+        }
+        loggerCardPicker.slots[loggerCardPicker.activeIdx] = card;
+
+        // advance to next empty slot if possible
+        const nextEmpty = loggerCardPicker.slots.findIndex((x, i)=>!x && i !== loggerCardPicker.activeIdx);
+        if(nextEmpty !== -1) loggerCardPicker.activeIdx = nextEmpty;
+
+        renderLoggerCardSlots();
+        renderLoggerCardGrid();
+      });
+
+      row.appendChild(btn);
+    });
+
+    loggerCardGrid.appendChild(row);
+  });
+}
+
+function openLoggerCardPicker({title, sub, slots, onSave}){
+  loggerCardPicker.mode = title;
+  loggerCardPicker.handId = null;
+  loggerCardPicker.slots = slots.map(normalizeCard);
+  loggerCardPicker.activeIdx = Math.max(0, loggerCardPicker.slots.findIndex(x=>!x));
+  if(loggerCardPicker.activeIdx === -1) loggerCardPicker.activeIdx = 0;
+  loggerCardPicker.onSave = onSave;
+
+  if(loggerCardTitle) loggerCardTitle.textContent = title;
+  if(loggerCardSub) loggerCardSub.textContent = sub;
+
+  renderLoggerCardSlots();
+  renderLoggerCardGrid();
+
+  if(loggerCardModal) loggerCardModal.style.display = "block";
+}
+
+function closeLoggerCardPicker(){
+  if(loggerCardModal) loggerCardModal.style.display = "none";
+  loggerCardPicker.onSave = null;
+}
+
+if(loggerCardBackdrop) loggerCardBackdrop.addEventListener("click", closeLoggerCardPicker);
+if(loggerCardClose) loggerCardClose.addEventListener("click", closeLoggerCardPicker);
+
+if(loggerCardClearAll){
+  loggerCardClearAll.addEventListener("click", ()=>{
+    loggerCardPicker.slots = loggerCardPicker.slots.map(()=>null);
+    loggerCardPicker.activeIdx = 0;
+    renderLoggerCardSlots();
+    renderLoggerCardGrid();
+  });
+}
+
+if(loggerCardSave){
+  loggerCardSave.addEventListener("click", ()=>{
+    if(typeof loggerCardPicker.onSave === "function"){
+      loggerCardPicker.onSave(loggerCardPicker.slots.slice());
+    }
+    closeLoggerCardPicker();
+  });
+}
+
 
 
 function renderLoggerTable(){
@@ -3673,6 +3878,16 @@ const loggerNewSessionBtn = document.getElementById("loggerNewSession");
 const loggerSessionSel    = document.getElementById("loggerSessionSel");
 const loggerSessionSummary= document.getElementById("loggerSessionSummary");
 const loggerSessionSettings = document.getElementById("loggerSessionSettings");
+const loggerCardModal      = document.getElementById("loggerCardModal");
+const loggerCardBackdrop   = document.getElementById("loggerCardBackdrop");
+const loggerCardClose      = document.getElementById("loggerCardClose");
+const loggerCardSlots      = document.getElementById("loggerCardSlots");
+const loggerCardGrid       = document.getElementById("loggerCardGrid");
+const loggerCardClearAll   = document.getElementById("loggerCardClearAll");
+const loggerCardSave       = document.getElementById("loggerCardSave");
+const loggerCardTitle      = document.getElementById("loggerCardTitle");
+const loggerCardSub        = document.getElementById("loggerCardSub");
+
 
 
 function refreshLoggerUI(){
@@ -4056,6 +4271,100 @@ function renderLoggerHandEditor(hand){
   notesLabel.className = "kicker";
   notesLabel.textContent = "Notes (optional)";
 
+  const heroLine = document.createElement("div");
+heroLine.style.display = "flex";
+heroLine.style.gap = "10px";
+heroLine.style.flexWrap = "wrap";
+heroLine.style.alignItems = "center";
+
+const heroLabel = document.createElement("div");
+heroLabel.style.fontWeight = "950";
+heroLabel.textContent = "Hero cards";
+
+const heroVal = document.createElement("div");
+heroVal.className = "kicker";
+heroVal.style.fontWeight = "900";
+heroVal.textContent = hand.heroCards && hand.heroCards.length === 2
+  ? `${cardToPretty(hand.heroCards[0])} ${cardToPretty(hand.heroCards[1])}`
+  : "—";
+
+const heroBtn = document.createElement("button");
+heroBtn.textContent = "Pick hero cards";
+heroBtn.addEventListener("click", ()=>{
+  const slots = (hand.heroCards && hand.heroCards.length === 2) ? hand.heroCards.slice() : [null,null];
+  openLoggerCardPicker({
+    title: "Pick hero cards",
+    sub: "Select exactly 2 cards.",
+    slots,
+    onSave: (newSlots)=>{
+      hand.heroCards = [newSlots[0] || null, newSlots[1] || null];
+      saveLoggerState();
+      renderLoggerHandEditor(hand);
+      renderLoggerHandsList();
+    }
+  });
+});
+
+heroLine.appendChild(heroLabel);
+heroLine.appendChild(heroVal);
+heroLine.appendChild(heroBtn);
+top.appendChild(heroLine);
+
+
+// Board block
+const boardLine = document.createElement("div");
+boardLine.style.display = "flex";
+boardLine.style.gap = "10px";
+boardLine.style.flexWrap = "wrap";
+boardLine.style.alignItems = "center";
+
+const boardLabel = document.createElement("div");
+boardLabel.style.fontWeight = "950";
+boardLabel.textContent = "Board";
+
+const b = hand.board || {flop:[null,null,null], turn:null, river:null};
+const boardPretty =
+  `${cardToPretty(b.flop?.[0])} ${cardToPretty(b.flop?.[1])} ${cardToPretty(b.flop?.[2])}  |  ${cardToPretty(b.turn)}  |  ${cardToPretty(b.river)}`;
+
+const boardVal = document.createElement("div");
+boardVal.className = "kicker";
+boardVal.style.fontWeight = "900";
+boardVal.textContent = boardPretty;
+
+const boardBtn = document.createElement("button");
+boardBtn.textContent = "Pick board";
+boardBtn.addEventListener("click", ()=>{
+  const cur = hand.board || {flop:[null,null,null], turn:null, river:null};
+  const slots = [
+    cur.flop?.[0] || null,
+    cur.flop?.[1] || null,
+    cur.flop?.[2] || null,
+    cur.turn || null,
+    cur.river || null
+  ];
+  openLoggerCardPicker({
+    title: "Pick board",
+    sub: "Pick flop (3), then turn (1), then river (1).",
+    slots,
+    onSave: (newSlots)=>{
+      hand.board = {
+        flop: [newSlots[0]||null, newSlots[1]||null, newSlots[2]||null],
+        turn: newSlots[3]||null,
+        river: newSlots[4]||null
+      };
+      saveLoggerState();
+      renderLoggerHandEditor(hand);
+      renderLoggerHandsList();
+    }
+  });
+});
+
+boardLine.appendChild(boardLabel);
+boardLine.appendChild(boardVal);
+boardLine.appendChild(boardBtn);
+top.appendChild(boardLine);
+
+  
   const notes = document.createElement("textarea");
   notes.style.width = "100%";
   notes.style.minHeight = "110px";
@@ -4094,6 +4403,13 @@ function createLoggerHand(){
     heroSeat: 0,
     btnSeat: Number(loggerState.table.btnSeat),
     notes: ""
+    heroCards: [null, null],           // exactly 2
+    board: {
+    flop: [null, null, null],        // exactly 3
+    turn: null,                      // 1
+    river: null                      // 1
+},
+
   };
 
   active.hands = active.hands || [];
