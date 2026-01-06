@@ -3464,13 +3464,14 @@ function initLoggerCardPickerEls(){
 
 
   
-  function openLoggerCardPicker({title, sub, slots, onSave}){
+  function openLoggerCardPicker({title, sub, slots, onSave, exclude}){
   initLoggerCardPickerEls();
   loggerCardPicker.mode = title;
   loggerCardPicker.handId = null;
   loggerCardPicker.slots = slots.map(normalizeCard);
   loggerCardPicker.activeIdx = Math.max(0, loggerCardPicker.slots.findIndex(x=>!x));
-  loggerCardPicker.exclude = opts.exclude || new Set();
+  loggerCardPicker.exclude = exclude || new Set();
+
 
   if(loggerCardPicker.activeIdx === -1) loggerCardPicker.activeIdx = 0;
   loggerCardPicker.onSave = onSave;
