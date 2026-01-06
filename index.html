@@ -3351,7 +3351,7 @@ function renderLoggerCardGrid(){
   loggerCardGrid.innerHTML = "";
 
   const picked = new Set(allPickedCards(loggerCardPicker.slots));
-  const excluded = loggerCardPicker.exclude || new Set();
+  const excluded = loggerCardPicker.exclude instanceof Set ? loggerCardPicker.exclude : new Set();
 
 
   LOGGER_SUITS.forEach(suit=>{
@@ -3365,6 +3365,7 @@ function renderLoggerCardGrid(){
 
     LOGGER_RANKS.forEach(r=>{
       const card = normalizeCard(r + suit.key);
+      const isExcluded = excluded.has(card);
       const btn = document.createElement("div");
       btn.className = "pfCardBtn " + suit.cls;
       btn.textContent = r;
@@ -3373,6 +3374,13 @@ function renderLoggerCardGrid(){
       if(isAlreadyPicked){
         btn.classList.add("selected");
       }
+
+      if(isExcluded){
+      btn.style.opacity = "0.25";
+      btn.style.cursor = "not-allowed";
+      btn.title = "Card already in use";
+      }
+
 
       const isExcluded = excluded.has(card);
       if(isExcluded){
@@ -3383,6 +3391,7 @@ function renderLoggerCardGrid(){
 
       btn.addEventListener("click", ()=>{
         // if this card is already in another slot, move it to active slot
+        if(isExcluded) return;
         const existingIdx = loggerCardPicker.slots.findIndex(x=>x === card);
         if((loggerCardPicker.exclude || new Set()).has(card)) return;
         if(existingIdx !== -1){
@@ -3464,13 +3473,14 @@ function initLoggerCardPickerEls(){
 
 
   
-  function openLoggerCardPicker({title, sub, slots, onSave, exclude}){
+  function openLoggerCardPicker({title, sub, slots, onSave, opts}){
   initLoggerCardPickerEls();
   loggerCardPicker.mode = title;
   loggerCardPicker.handId = null;
   loggerCardPicker.slots = slots.map(normalizeCard);
   loggerCardPicker.activeIdx = Math.max(0, loggerCardPicker.slots.findIndex(x=>!x));
-  loggerCardPicker.exclude = exclude || new Set();
+  const _opts = opts || {};
+  loggerCardPicker.exclude = (_opts.exclude instanceof Set) ? _opts.exclude : new Set();
 
 
   if(loggerCardPicker.activeIdx === -1) loggerCardPicker.activeIdx = 0;
@@ -4455,16 +4465,24 @@ boardBtn.addEventListener("click", ()=>{
     sub: "Pick flop (3), then turn (1), then river (1).",
     slots,
     exclude: new Set((hand.heroCards || []).filter(Boolean)),
-    onSave: (newSlots)=>{
-      hand.board = {
-        flop: [newSlots[0]||null, newSlots[1]||null, newSlots[2]||null],
-        turn: newSlots[3]||null,
-        river: newSlots[4]||null
-      };
-      saveLogger();
-      renderLoggerHandEditor(hand);
-      renderLoggerHandsList();
-    }
+onSave: (newSlots)=>{
+  hand.board = {
+    flop: [newSlots[0]||null, newSlots[1]||null, newSlots[2]||null],
+    turn: newSlots[3]||null,
+    river: newSlots[4]||null
+  };
+
+  const f = hand.board.flop || [];
+  const flopComplete = f.length === 3 && f[0] && f[1] && f[2];
+  if(flopComplete){
+    setLoggerActiveStreet("flop");
+  }
+
+  saveLogger();
+  renderLoggerHandEditor(hand);
+  renderLoggerHandsList();
+}
+
   });
 });
 
