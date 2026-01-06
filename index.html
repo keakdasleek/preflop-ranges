@@ -3266,12 +3266,13 @@ function buildSeatPositionsFromButton(btnSeat, n){
 
 // ===== Logger Card Picker (Hero + Board) =====
 const LOGGER_RANKS = ["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
-const PF_SUITS = [
+const LOGGER_SUITS = [
   {key:"s", sym:"♠", cls:"pfBlack"},
   {key:"h", sym:"♥", cls:"pfRed"},
   {key:"d", sym:"♦", cls:"pfRed"},
   {key:"c", sym:"♣", cls:"pfBlack"}
 ];
+
 
 let loggerCardPicker = {
   mode: null,              // "hero" or "board"
@@ -3287,7 +3288,7 @@ function cardToPretty(card){
   if(!card) return "—";
   const r = card[0];
   const s = card[1];
-  const suit = PF_SUITS.find(x=>x.key===s);
+  const suit = LOGGER_SUITS.find(x=>x.key===s);
   const sym = suit ? suit.sym : s;
   return r + sym;
 }
@@ -3298,7 +3299,7 @@ function normalizeCard(card){
   if(c.length < 2) return null;
   const r = c[0].toUpperCase();
   const s = c[1].toLowerCase();
-  if(!PF_RANKS.includes(r)) return null;
+  if(!LOGGER_RANKS.includes(r)) return null;
   if(!["s","h","d","c"].includes(s)) return null;
   return r + s;
 }
@@ -3350,7 +3351,7 @@ function renderLoggerCardGrid(){
 
   const picked = new Set(allPickedCards(loggerCardPicker.slots));
 
-  PF_SUITS.forEach(suit=>{
+  LOGGER_SUITS.forEach(suit=>{
     const row = document.createElement("div");
     row.className = "pfSuitRow";
 
