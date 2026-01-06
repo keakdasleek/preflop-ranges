@@ -46,6 +46,7 @@ button{
   outline:none;
   cursor:pointer;
 }
+  
 button:hover{filter:brightness(1.08)}
 
 /* Selects (dark themed with arrow) */
@@ -937,12 +938,15 @@ select:focus{
     </div>
 
     <div style="padding:16px;display:grid;gap:14px">
-      <div class="info" style="margin:0">
-        <h3>Session</h3>
-        <div id="loggerSessionSummary" class="kicker" style="color:var(--muted);font-size:12px;line-height:1.45;font-weight:700">
-          No session selected.
-        </div>
-      </div>
+     <div class="info">
+  <h3>Session</h3>
+  <div id="loggerSessionSummary" class="kicker">
+    No session selected.
+  </div>
+
+  <div id="loggerSessionSettings" style="margin-top:10px"></div>
+</div>
+
 
       <div class="info" style="margin:0">
         <h3>Table</h3>
@@ -3126,15 +3130,28 @@ let loggerState = {
 function saveLogger(){
   try{ localStorage.setItem(LS_LOGGER, JSON.stringify(loggerState)); }catch(e){}
 }
+
 function loadLogger(){
   try{
     const raw = localStorage.getItem(LS_LOGGER);
     if(!raw) return;
+
     const obj = JSON.parse(raw);
-    if(obj && Array.isArray(obj.sessions)) loggerState.sessions = obj.sessions;
-    if(obj && (obj.activeSessionId || obj.activeSessionId === null)) loggerState.activeSessionId = obj.activeSessionId;
+    if(!obj) return;
+
+    // sessions + active id
+    if(Array.isArray(obj.sessions)) loggerState.sessions = obj.sessions;
+    if(("activeSessionId" in obj)) loggerState.activeSessionId = obj.activeSessionId;
+
+    // table settings (merge defaults)
+    if(obj.table && typeof obj.table === "object"){
+      loggerState.table.maxPlayers = Number(obj.table.maxPlayers ?? loggerState.table.maxPlayers);
+      loggerState.table.heroSeat   = Number(obj.table.heroSeat   ?? loggerState.table.heroSeat);
+      loggerState.table.btnSeat    = Number(obj.table.btnSeat    ?? loggerState.table.btnSeat);
+    }
   }catch(e){}
 }
+
 
 function uid(){
   return Math.random().toString(16).slice(2) + Date.now().toString(16);
@@ -3623,15 +3640,16 @@ const loggerBtn   = document.getElementById("loggerBtn");
 const loggerNewSessionBtn = document.getElementById("loggerNewSession");
 const loggerSessionSel    = document.getElementById("loggerSessionSel");
 const loggerSessionSummary= document.getElementById("loggerSessionSummary");
+const loggerSessionSettings = document.getElementById("loggerSessionSettings");
+
 
 function refreshLoggerUI(){
   renderLoggerSessionSummary();
+  renderLoggerSessionSettings();   // <-- ADD
   renderLoggerHandsList();
-
-  const active = getActiveSession();
-  const mostRecent = active?.hands?.[0] || null;
-  renderLoggerHandEditor(mostRecent);
+  renderLoggerHandEditor(null);
 }
+
 
 
 function renderLoggerSessions(){
@@ -3674,12 +3692,39 @@ function createLoggerSession(){
   };
   loggerState.sessions.unshift(s);
   loggerState.activeSessionId = s.id;
+  if(!loggerState.table) loggerState.table = {};
+  loggerState.table.maxPlayers = s.maxPlayers;
+
 saveLogger();
 renderLoggerSessions();
 refreshLoggerUI();
 renderLoggerTable();
 toast("New session created");
 }
+
+function parseStakes(stakesStr){
+  // Accepts strings like "$0.05/$0.10", "0.05/0.10", "€0.5/1"
+  const s = String(stakesStr || "").trim();
+
+  // Grab leading currency symbol if present
+  const curMatch = s.match(/^[^\d\s]+/);
+  const currency = curMatch ? curMatch[0] : "$";
+
+  // Extract the first two numbers
+  const nums = s.match(/(\d+(\.\d+)?)/g) || [];
+  const sb = nums.length >= 1 ? Number(nums[0]) : 0;
+  const bb = nums.length >= 2 ? Number(nums[1]) : 0;
+
+  return { currency, sb, bb };
+}
+
+function fmtMoney(currency, amt){
+  const n = Number(amt || 0);
+  if(!isFinite(n)) return `${currency}0`;
+  // Keep it simple; you can refine later
+  return `${currency}${n.toFixed(n < 1 ? 2 : 0)}`;
+}
+
 
 function renderLoggerSessionSummary(){
   const active = getActiveSession();
@@ -3698,6 +3743,180 @@ function renderLoggerSessionSummary(){
     `Active session created ${created} • Hands: ${handsCount} • Button seat: ${Number(loggerState.table.btnSeat) + 1}`;
 }
 
+function renderLoggerSessionSettings(){
+  if(!loggerSessionSettings) return;
+
+  const active = getActiveSession();
+  if(!active){
+    loggerSessionSettings.innerHTML = "";
+    return;
+  }
+
+  // Defaults (in case older sessions exist)
+  if(active.stakes == null) active.stakes = "$0.05/$0.10";
+  if(active.ante == null) active.ante = "$0.00";
+  if(active.straddle == null) active.straddle = false;
+  if(active.maxPlayers == null) active.maxPlayers = 8;
+
+  const parsed = parseStakes(active.stakes);
+  const bbAmt = parsed.bb || 0;
+
+  loggerSessionSettings.innerHTML = "";
+
+  const wrap = document.createElement("div");
+  wrap.style.display = "grid";
+  wrap.style.gap = "10px";
+  wrap.style.paddingTop = "6px";
+
+  const title = document.createElement("div");
+  title.className = "kicker";
+  title.style.color = "var(--muted)";
+  title.style.fontWeight = "800";
+  title.textContent = "Session settings";
+
+  const grid = document.createElement("div");
+  grid.style.display = "grid";
+  grid.style.gridTemplateColumns = "repeat(2, minmax(0, 1fr))";
+  grid.style.gap = "10px";
+
+  // Stakes
+  const stakesBox = document.createElement("div");
+  const stakesLabel = document.createElement("div");
+  stakesLabel.className = "kicker";
+  stakesLabel.textContent = "Stakes (SB/BB)";
+  const stakesInput = document.createElement("input");
+  stakesInput.type = "text";
+  stakesInput.value = active.stakes || "";
+  stakesInput.placeholder = "$0.05/$0.10";
+  stakesInput.style.width = "100%";
+  stakesInput.style.borderRadius = "12px";
+  stakesInput.style.border = "1px solid rgba(255,255,255,.10)";
+  stakesInput.style.background = "rgba(0,0,0,.18)";
+  stakesInput.style.color = "var(--text)";
+  stakesInput.style.padding = "10px 12px";
+  stakesInput.style.fontWeight = "800";
+
+  stakesInput.addEventListener("change", ()=>{
+    active.stakes = stakesInput.value.trim();
+    saveLogger();
+    renderLoggerSessionSummary();
+    renderLoggerSessionSettings(); // refresh derived BB display
+  });
+
+  stakesBox.appendChild(stakesLabel);
+  stakesBox.appendChild(stakesInput);
+
+  // Ante
+  const anteBox = document.createElement("div");
+  const anteLabel = document.createElement("div");
+  anteLabel.className = "kicker";
+  anteLabel.textContent = "Ante";
+  const anteInput = document.createElement("input");
+  anteInput.type = "text";
+  anteInput.value = active.ante || "";
+  anteInput.placeholder = "$0.00";
+  anteInput.style.width = "100%";
+  anteInput.style.borderRadius = "12px";
+  anteInput.style.border = "1px solid rgba(255,255,255,.10)";
+  anteInput.style.background = "rgba(0,0,0,.18)";
+  anteInput.style.color = "var(--text)";
+  anteInput.style.padding = "10px 12px";
+  anteInput.style.fontWeight = "800";
+
+  anteInput.addEventListener("change", ()=>{
+    active.ante = anteInput.value.trim();
+    saveLogger();
+    renderLoggerSessionSummary();
+  });
+
+  anteBox.appendChild(anteLabel);
+  anteBox.appendChild(anteInput);
+
+  // Straddle
+  const straddleBox = document.createElement("div");
+  straddleBox.style.display = "flex";
+  straddleBox.style.alignItems = "center";
+  straddleBox.style.gap = "10px";
+  straddleBox.style.paddingTop = "18px";
+
+  const straddleInput = document.createElement("input");
+  straddleInput.type = "checkbox";
+  straddleInput.checked = !!active.straddle;
+
+  const straddleLabel = document.createElement("div");
+  straddleLabel.className = "kicker";
+  straddleLabel.textContent = "Straddle on";
+
+  straddleInput.addEventListener("change", ()=>{
+    active.straddle = !!straddleInput.checked;
+    saveLogger();
+    renderLoggerSessionSummary();
+  });
+
+  straddleBox.appendChild(straddleInput);
+  straddleBox.appendChild(straddleLabel);
+
+  // Max Players
+  const maxBox = document.createElement("div");
+  const maxLabel = document.createElement("div");
+  maxLabel.className = "kicker";
+  maxLabel.textContent = "Max players";
+  const maxSel = document.createElement("select");
+  maxSel.style.width = "100%";
+  maxSel.style.borderRadius = "12px";
+  maxSel.style.border = "1px solid rgba(255,255,255,.10)";
+  maxSel.style.background = "rgba(0,0,0,.18)";
+  maxSel.style.color = "var(--text)";
+  maxSel.style.padding = "10px 12px";
+  maxSel.style.fontWeight = "800";
+
+  for(let n=2; n<=10; n++){
+    const opt = document.createElement("option");
+    opt.value = String(n);
+    opt.textContent = String(n);
+    maxSel.appendChild(opt);
+  }
+  maxSel.value = String(Number(active.maxPlayers || 8));
+
+  maxSel.addEventListener("change", ()=>{
+    const next = Number(maxSel.value);
+    active.maxPlayers = next;
+
+    // Keep the table UI in sync (since you use loggerState.table.maxPlayers elsewhere)
+    if(!loggerState.table) loggerState.table = {};
+    loggerState.table.maxPlayers = next;
+
+    saveLogger();
+    renderLoggerSessionSummary();
+    renderLoggerTable();      // re-layout seats
+    renderLoggerHandsList();  // hands show updated "Players: n" in editor/meta
+  });
+
+  maxBox.appendChild(maxLabel);
+  maxBox.appendChild(maxSel);
+
+  grid.appendChild(stakesBox);
+  grid.appendChild(anteBox);
+  grid.appendChild(straddleBox);
+  grid.appendChild(maxBox);
+
+  // Derived line (BB)
+  const derived = document.createElement("div");
+  derived.className = "kicker";
+  derived.style.color = "var(--muted)";
+  derived.style.fontWeight = "750";
+  derived.textContent = bbAmt
+    ? `Derived BB = ${fmtMoney(parsed.currency, bbAmt)} (used for BB-based bet entry later)`
+    : `Derived BB = — (enter stakes like $0.05/$0.10)`;
+
+  wrap.appendChild(title);
+  wrap.appendChild(grid);
+  wrap.appendChild(derived);
+
+  loggerSessionSettings.appendChild(wrap);
+}
+
+  
 function renderLoggerHandsList(){
   const el = document.getElementById("loggerHandsList");
   if(!el) return;
