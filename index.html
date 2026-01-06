@@ -3360,7 +3360,7 @@ function renderLoggerCardGrid(){
     lab.textContent = suit.sym;
     row.appendChild(lab);
 
-    PF_RANKS.forEach(r=>{
+    LOGGER_RANKS.forEach(r=>{
       const card = normalizeCard(r + suit.key);
       const btn = document.createElement("div");
       btn.className = "pfCardBtn " + suit.cls;
@@ -3395,7 +3395,8 @@ function renderLoggerCardGrid(){
 }
 
 let loggerCardBackdrop, loggerCardModal, loggerCardTitle, loggerCardSub,
-    loggerCardSlots, loggerCardGrid, loggerCardSave, loggerCardCancel;
+    loggerCardSlots, loggerCardGrid, loggerCardSave,
+    loggerCardClose, loggerCardClearAll;
 
 function initLoggerCardPickerEls(){
   if(loggerCardBackdrop) return; // already initialized
@@ -3407,11 +3408,13 @@ function initLoggerCardPickerEls(){
   loggerCardSlots    = document.getElementById("loggerCardSlots");
   loggerCardGrid     = document.getElementById("loggerCardGrid");
   loggerCardSave     = document.getElementById("loggerCardSave");
-  loggerCardCancel   = document.getElementById("loggerCardCancel");
+  loggerCardClose    = document.getElementById("loggerCardClose");
+  loggerCardClearAll = document.getElementById("loggerCardClearAll");
 }
 
   
   function openLoggerCardPicker({title, sub, slots, onSave}){
+  initLoggerCardPickerEls();
   loggerCardPicker.mode = title;
   loggerCardPicker.handId = null;
   loggerCardPicker.slots = slots.map(normalizeCard);
