@@ -3411,12 +3411,55 @@ function initLoggerCardPickerEls(){
   loggerCardClose    = document.getElementById("loggerCardClose");
   loggerCardClearAll = document.getElementById("loggerCardClearAll");
 
-  // bind listeners once
-  if(loggerCardPickerBound) return;
+// bind listeners once
+if(loggerCardPickerBound) return;
+loggerCardPickerBound = true;
 
-  if(loggerCardBackdrop) loggerCardBackdrop.addEventListener("click", closeLoggerCardPicker);
-  loggerCardPickerBound = true;
+// Backdrop closes
+if(loggerCardBackdrop){
+  loggerCardBackdrop.addEventListener("click", ()=> closeLoggerCardPicker());
 }
+
+// Prevent clicks inside modal panel from bubbling to backdrop
+if(loggerCardModal){
+  const panel = loggerCardModal.querySelector(".modalPanel");
+  if(panel){
+    panel.addEventListener("click", (e)=> e.stopPropagation());
+  }
+}
+
+// Close button
+if(loggerCardClose){
+  loggerCardClose.addEventListener("click", ()=> closeLoggerCardPicker());
+}
+
+// Clear All button
+if(loggerCardClearAll){
+  loggerCardClearAll.addEventListener("click", ()=>{
+    loggerCardPicker.slots = (loggerCardPicker.slots || []).map(()=> null);
+    loggerCardPicker.activeIdx = 0;
+    renderLoggerCardSlots();
+    renderLoggerCardGrid();
+  });
+}
+
+// Save button
+if(loggerCardSave){
+  loggerCardSave.addEventListener("click", ()=>{
+    if(typeof loggerCardPicker?.onSave === "function"){
+      loggerCardPicker.onSave((loggerCardPicker.slots || []).slice());
+    }
+    closeLoggerCardPicker();
+  });
+}
+
+// Escape closes
+window.addEventListener("keydown", (e)=>{
+  if(e.key === "Escape" && loggerCardModal && loggerCardModal.style.display !== "none"){
+    closeLoggerCardPicker();
+  }
+});
+
 
 
   
