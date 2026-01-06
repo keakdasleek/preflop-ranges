@@ -3277,6 +3277,7 @@ const LOGGER_SUITS = [
 let loggerCardPicker = {
   mode: null,              // "hero" or "board"
   handId: null,
+  exclude: new Set(),
   slots: [],               // array of card strings or null
   activeIdx: 0,
   onSave: null
@@ -3350,6 +3351,8 @@ function renderLoggerCardGrid(){
   loggerCardGrid.innerHTML = "";
 
   const picked = new Set(allPickedCards(loggerCardPicker.slots));
+  const excluded = loggerCardPicker.exclude || new Set();
+
 
   LOGGER_SUITS.forEach(suit=>{
     const row = document.createElement("div");
@@ -3371,9 +3374,17 @@ function renderLoggerCardGrid(){
         btn.classList.add("selected");
       }
 
+      const isExcluded = excluded.has(card);
+      if(isExcluded){
+        btn.style.opacity = "0.25";
+        btn.style.pointerEvents = "none";
+}
+
+
       btn.addEventListener("click", ()=>{
         // if this card is already in another slot, move it to active slot
         const existingIdx = loggerCardPicker.slots.findIndex(x=>x === card);
+        if((loggerCardPicker.exclude || new Set()).has(card)) return;
         if(existingIdx !== -1){
           loggerCardPicker.slots[existingIdx] = null;
         }
@@ -3459,6 +3470,8 @@ function initLoggerCardPickerEls(){
   loggerCardPicker.handId = null;
   loggerCardPicker.slots = slots.map(normalizeCard);
   loggerCardPicker.activeIdx = Math.max(0, loggerCardPicker.slots.findIndex(x=>!x));
+  loggerCardPicker.exclude = opts.exclude || new Set();
+
   if(loggerCardPicker.activeIdx === -1) loggerCardPicker.activeIdx = 0;
   loggerCardPicker.onSave = onSave;
 
@@ -4384,6 +4397,12 @@ heroBtn.addEventListener("click", ()=>{
     title: "Pick hero cards",
     sub: "Select exactly 2 cards.",
     slots,
+    exclude: new Set([
+    ...(hand.board?.flop || []),
+    hand.board?.turn || null,
+    hand.board?.river || null
+    ].filter(Boolean)),
+
     onSave: (newSlots)=>{
       hand.heroCards = [newSlots[0] || null, newSlots[1] || null];
       saveLogger();
@@ -4434,6 +4453,7 @@ boardBtn.addEventListener("click", ()=>{
     title: "Pick board",
     sub: "Pick flop (3), then turn (1), then river (1).",
     slots,
+    exclude: new Set((hand.heroCards || []).filter(Boolean)),
     onSave: (newSlots)=>{
       hand.board = {
         flop: [newSlots[0]||null, newSlots[1]||null, newSlots[2]||null],
@@ -4749,6 +4769,25 @@ actions: [] // [{id, street, actorPos, action, amt, unit, toCall, note, createdA
       renderLoggerSessionSummary();
       renderLoggerHandsList();
       renderLoggerHandEditor(hand);
+
+      // Auto-open hero card picker for new hands
+      openLoggerCardPicker({
+        title: "Pick hero cards",
+        sub: "Select exactly 2 cards.",
+        slots: hand.heroCards.slice(),
+        exclude: new Set([
+          ...(hand.board?.flop || []),
+          hand.board?.turn || null,
+          hand.board?.river || null
+        ].filter(Boolean)),
+        onSave: (newSlots)=>{
+          hand.heroCards = [newSlots[0] || null, newSlots[1] || null];
+          saveLogger();
+          renderLoggerHandEditor(hand);
+          renderLoggerHandsList();
+        }
+      });
+
     
       toast("Hand created");
 }
