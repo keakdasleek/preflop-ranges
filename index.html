@@ -4023,7 +4023,44 @@ function fmtMoney(currency, amt){
   return `${currency}${n.toFixed(n < 1 ? 2 : 0)}`;
 }
 
+function uidShort(){
+  return Math.random().toString(16).slice(2, 8);
+}
 
+function getActiveSessionMeta(){
+  const active = getActiveSession();
+  const parsed = active ? parseStakes(active.stakes) : { currency: "$", sb: 0, bb: 0 };
+  const anteParsed = active ? parseStakes(active.ante || "").currency : parsed.currency;
+  return {
+    currency: parsed.currency || "$",
+    sb: Number(parsed.sb || 0),
+    bb: Number(parsed.bb || 0),
+    ante: active?.ante || "",
+    straddle: !!active?.straddle,
+    maxPlayers: Number(active?.maxPlayers || 8)
+  };
+}
+
+function bbToMoney(bb, bbSize){
+  const n = Number(bb || 0);
+  const b = Number(bbSize || 0);
+  if(!isFinite(n) || !isFinite(b)) return 0;
+  return n * b;
+}
+
+function moneyToBb(money, bbSize){
+  const n = Number(money || 0);
+  const b = Number(bbSize || 0);
+  if(!isFinite(n) || !isFinite(b) || b === 0) return 0;
+  return n / b;
+}
+
+function ensureHandActions(hand){
+  if(!hand.actions) hand.actions = [];
+  return hand.actions;
+}
+
+  
 function renderLoggerSessionSummary(){
   const active = getActiveSession();
   if(!loggerSessionSummary) return;
@@ -4415,6 +4452,241 @@ boardLine.appendChild(boardVal);
 boardLine.appendChild(boardBtn);
 top.appendChild(boardLine);
 
+// Actions block
+const actionsWrap = document.createElement("div");
+actionsWrap.style.display = "grid";
+actionsWrap.style.gap = "10px";
+actionsWrap.style.marginTop = "8px";
+
+const actionsTitle = document.createElement("div");
+actionsTitle.className = "kicker";
+actionsTitle.style.color = "var(--muted)";
+actionsTitle.style.fontWeight = "900";
+actionsTitle.textContent = "Actions (street-by-street)";
+
+const form = document.createElement("div");
+form.style.display = "grid";
+form.style.gridTemplateColumns = "repeat(6, minmax(0, 1fr))";
+form.style.gap = "8px";
+form.style.alignItems = "end";
+
+function mkSelect(options, value){
+  const s = document.createElement("select");
+  s.style.width = "100%";
+  s.style.borderRadius = "12px";
+  s.style.border = "1px solid rgba(255,255,255,.10)";
+  s.style.background = "rgba(0,0,0,.18)";
+  s.style.color = "var(--text)";
+  s.style.padding = "10px 12px";
+  s.style.fontWeight = "800";
+  for(const opt of options){
+    const o = document.createElement("option");
+    o.value = opt.value;
+    o.textContent = opt.label;
+    s.appendChild(o);
+  }
+  s.value = value;
+  return s;
+}
+
+function mkInput(placeholder, value){
+  const i = document.createElement("input");
+  i.type = "text";
+  i.placeholder = placeholder || "";
+  i.value = value || "";
+  i.style.width = "100%";
+  i.style.borderRadius = "12px";
+  i.style.border = "1px solid rgba(255,255,255,.10)";
+  i.style.background = "rgba(0,0,0,.18)";
+  i.style.color = "var(--text)";
+  i.style.padding = "10px 12px";
+  i.style.fontWeight = "800";
+  return i;
+}
+
+const nPlayers = Number(loggerState?.table?.maxPlayers || 8);
+const posBySeatLocal = buildSeatPositionsFromButton(Number(hand.btnSeat), nPlayers);
+
+// Build list of positions in seat order (seat 0 = Hero)
+const posOptions = [];
+for(let seat = 0; seat < nPlayers; seat++){
+  const pos = posBySeatLocal[seat] || `P${seat+1}`;
+  const label = seat === 0 ? `${pos} (Hero)` : pos;
+  posOptions.push({ value: pos, label });
+}
+
+// Form controls
+const streetSel = mkSelect(
+  [
+    {value:"PREFLOP", label:"Preflop"},
+    {value:"FLOP", label:"Flop"},
+    {value:"TURN", label:"Turn"},
+    {value:"RIVER", label:"River"}
+  ],
+  "PREFLOP"
+);
+
+const actorSel = mkSelect(posOptions, posOptions[0]?.value || "HERO");
+
+const actionSel = mkSelect(
+  [
+    {value:"FOLD", label:"Fold"},
+    {value:"CHECK", label:"Check"},
+    {value:"CALL", label:"Call"},
+    {value:"BET", label:"Bet"},
+    {value:"RAISE", label:"Raise"},
+    {value:"ALLIN", label:"All-in"}
+  ],
+  "RAISE"
+);
+
+const amtInput = mkInput("Amount", "");
+const unitSel = mkSelect(
+  [
+    {value:"BB", label:"BB"},
+    {value:"MONEY", label:getActiveSessionMeta().currency || "$"}
+  ],
+  "BB"
+);
+
+const noteInput = mkInput("Note (optional)", "");
+
+// Add button
+const addBtn = document.createElement("button");
+addBtn.textContent = "Add";
+addBtn.style.width = "100%";
+
+addBtn.addEventListener("click", ()=>{
+  const meta = getActiveSessionMeta();
+  const unit = unitSel.value;
+  const rawAmt = String(amtInput.value || "").trim();
+
+  const amtNum = rawAmt === "" ? 0 : Number(rawAmt);
+  if(rawAmt !== "" && !isFinite(amtNum)){
+    toast("Amount must be a number");
+    return;
+  }
+
+  const actions = ensureHandActions(hand);
+
+  actions.push({
+    id: uidShort(),
+    createdAt: Date.now(),
+    street: streetSel.value,
+    actorPos: actorSel.value,
+    action: actionSel.value,
+    unit,
+    amt: amtNum,
+    note: String(noteInput.value || "").trim()
+  });
+
+  saveLogger();
+  renderLoggerHandEditor(hand);
+  renderLoggerHandsList();
+});
+
+form.appendChild(streetSel);
+form.appendChild(actorSel);
+form.appendChild(actionSel);
+form.appendChild(amtInput);
+form.appendChild(unitSel);
+form.appendChild(addBtn);
+
+// Actions list
+const list = document.createElement("div");
+list.style.display = "flex";
+list.style.flexDirection = "column";
+list.style.gap = "6px";
+
+function renderActionsList(){
+  list.innerHTML = "";
+  const meta = getActiveSessionMeta();
+  const actions = ensureHandActions(hand);
+
+  if(!actions.length){
+    const empty = document.createElement("div");
+    empty.className = "kicker";
+    empty.style.color = "var(--muted)";
+    empty.textContent = "No actions yet. Add preflop actions first (open, 3bet, fold, etc.).";
+    list.appendChild(empty);
+    return;
+  }
+
+  actions.forEach((a, idx)=>{
+    const row = document.createElement("div");
+    row.style.display = "grid";
+    row.style.gridTemplateColumns = "1.2fr 1.2fr 1fr 1fr 2fr 70px";
+    row.style.gap = "8px";
+    row.style.alignItems = "center";
+    row.style.padding = "8px 10px";
+    row.style.borderRadius = "12px";
+    row.style.border = "1px solid rgba(255,255,255,.08)";
+    row.style.background = "rgba(255,255,255,.03)";
+
+    const street = document.createElement("div");
+    street.className = "kicker";
+    street.style.fontWeight = "900";
+    street.textContent = a.street;
+
+    const who = document.createElement("div");
+    who.className = "kicker";
+    who.style.fontWeight = "900";
+    who.textContent = a.actorPos;
+
+    const act = document.createElement("div");
+    act.className = "kicker";
+    act.style.fontWeight = "900";
+    act.textContent = a.action;
+
+    const amt = document.createElement("div");
+    amt.className = "kicker";
+    amt.style.fontWeight = "900";
+
+    if(a.amt && a.amt !== 0){
+      if(a.unit === "MONEY"){
+        amt.textContent = fmtMoney(meta.currency, a.amt);
+      }else{
+        amt.textContent = `${a.amt}bb`;
+      }
+    }else{
+      amt.textContent = "—";
+    }
+
+    const note = document.createElement("div");
+    note.className = "kicker";
+    note.style.color = "var(--muted)";
+    note.textContent = a.note ? a.note : "";
+
+    const del = document.createElement("button");
+    del.textContent = "Del";
+    del.style.padding = "8px 10px";
+    del.addEventListener("click", ()=>{
+      actions.splice(idx, 1);
+      saveLogger();
+      renderLoggerHandEditor(hand);
+      renderLoggerHandsList();
+    });
+
+    row.appendChild(street);
+    row.appendChild(who);
+    row.appendChild(act);
+    row.appendChild(amt);
+    row.appendChild(note);
+    row.appendChild(del);
+
+    list.appendChild(row);
+  });
+}
+
+renderActionsList();
+
+actionsWrap.appendChild(actionsTitle);
+actionsWrap.appendChild(form);
+actionsWrap.appendChild(list);
+
+// Add this block into your editor UI
+mount.appendChild(actionsWrap);
+
   
   const notes = document.createElement("textarea");
   notes.style.width = "100%";
@@ -4458,6 +4730,7 @@ function createLoggerHand(){
       // NEW
       heroCards: [null, null], // exactly 2
       board: {
+        actions: [] // [{id, street, actorPos, action, amt, unit, toCall, note, createdAt}]
         flop: [null, null, null], // exactly 3
         turn: null,               // 1
         river: null               // 1
