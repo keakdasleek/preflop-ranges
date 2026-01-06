@@ -4299,7 +4299,7 @@ heroBtn.addEventListener("click", ()=>{
     slots,
     onSave: (newSlots)=>{
       hand.heroCards = [newSlots[0] || null, newSlots[1] || null];
-      saveLoggerState();
+      saveLogger();
       renderLoggerHandEditor(hand);
       renderLoggerHandsList();
     }
@@ -4353,7 +4353,7 @@ boardBtn.addEventListener("click", ()=>{
         turn: newSlots[3]||null,
         river: newSlots[4]||null
       };
-      saveLoggerState();
+      saveLogger();
       renderLoggerHandEditor(hand);
       renderLoggerHandsList();
     }
@@ -4397,32 +4397,34 @@ function createLoggerHand(){
     return;
   }
 
-  const hand = {
-    id: uid(),
-    createdAt: Date.now(),
-    maxPlayers: Number(loggerState?.table?.maxPlayers || 8),
-    heroSeat: 0,
-    btnSeat: Number(loggerState.table.btnSeat),
-    notes: ""
-    heroCards: [null, null],           // exactly 2
-    board: {
-    flop: [null, null, null],        // exactly 3
-    turn: null,                      // 1
-    river: null                      // 1
-},
-
-  };
-
-  active.hands = active.hands || [];
-  active.hands.unshift(hand);
-  loggerSelectedHandId = hand.id;
-
-  saveLogger();
-  renderLoggerSessionSummary();
-  renderLoggerHandsList();
-  renderLoggerHandEditor(hand);
-
-  toast("Hand created");
+      const hand = {
+      id: uid(),
+      createdAt: Date.now(),
+      maxPlayers: Number(loggerState?.table?.maxPlayers || 8),
+      heroSeat: 0,
+      btnSeat: Number(loggerState.table.btnSeat),
+      notes: "",
+    
+      // NEW
+      heroCards: [null, null], // exactly 2
+      board: {
+        flop: [null, null, null], // exactly 3
+        turn: null,               // 1
+        river: null               // 1
+      }
+    };
+    
+    
+      active.hands = active.hands || [];
+      active.hands.unshift(hand);
+      loggerSelectedHandId = hand.id;
+    
+      saveLogger();
+      renderLoggerSessionSummary();
+      renderLoggerHandsList();
+      renderLoggerHandEditor(hand);
+    
+      toast("Hand created");
 }
 
                              
