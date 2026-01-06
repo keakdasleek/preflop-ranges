@@ -3163,22 +3163,25 @@ function nextCounterClockwiseSeat(i, n){
 }
 
 
-
 function buildSeatPositionsFromButton(btnSeat, n){
-  // Labels should progress in the same direction as the UI seat layout (counter-clockwise).
-  // Starting at BTN and moving counter-clockwise around the table:
-  // BTN, CO, HJ, LJ, UTG+1, UTG, BB, SB
-  const posNames = ["BTN","CO","HJ","LJ","UTG+1","UTG","BB","SB"];
+  // Starting at BTN and moving counter-clockwise around the table (UI "leftward"):
+  // BTN, SB, BB, UTG, UTG+1, LJ, HJ, CO  (8-max)
+  const posNames8 = ["BTN","SB","BB","UTG","UTG+1","LJ","HJ","CO"];
 
   const posBySeat = {};
   let seat = btnSeat;
 
   for(let k = 0; k < n; k++){
-    posBySeat[seat] = posNames[k] || `P${k+1}`;
-    seat = nextCounterClockwiseSeat(seat, n);
+    posBySeat[seat] = posNames8[k] || `P${k+1}`;
+
+    // Move counter-clockwise one seat.
+    // IMPORTANT: With your current seat indexing/orientation, CCW is "-1".
+    seat = (seat - 1 + n) % n;
   }
+
   return posBySeat;
 }
+
 
 
 function renderLoggerTable(){
