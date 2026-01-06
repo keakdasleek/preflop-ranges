@@ -3395,12 +3395,12 @@ function renderLoggerCardGrid(){
 }
 
 let loggerCardBackdrop, loggerCardModal, loggerCardTitle, loggerCardSub,
-    loggerCardSlots, loggerCardGrid, loggerCardSave,
-    loggerCardClose, loggerCardClearAll;
+    loggerCardSlots, loggerCardGrid, loggerCardSave, loggerCardClose, loggerCardClearAll;
+
+let loggerCardPickerBound = false;
 
 function initLoggerCardPickerEls(){
-  if(loggerCardBackdrop) return; // already initialized
-
+  // grab elements (safe to call repeatedly)
   loggerCardBackdrop = document.getElementById("loggerCardBackdrop");
   loggerCardModal    = document.getElementById("loggerCardModal");
   loggerCardTitle    = document.getElementById("loggerCardTitle");
@@ -3410,7 +3410,14 @@ function initLoggerCardPickerEls(){
   loggerCardSave     = document.getElementById("loggerCardSave");
   loggerCardClose    = document.getElementById("loggerCardClose");
   loggerCardClearAll = document.getElementById("loggerCardClearAll");
+
+  // bind listeners once
+  if(loggerCardPickerBound) return;
+
+  if(loggerCardBackdrop) loggerCardBackdrop.addEventListener("click", closeLoggerCardPicker);
+  loggerCardPickerBound = true;
 }
+
 
   
   function openLoggerCardPicker({title, sub, slots, onSave}){
