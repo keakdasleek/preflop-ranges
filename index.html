@@ -3376,24 +3376,17 @@ function renderLoggerCardGrid(){
       }
 
       if(isExcluded){
-      btn.style.opacity = "0.25";
-      btn.style.cursor = "not-allowed";
-      btn.title = "Card already in use";
-      }
-
-
-      const isExcluded = excluded.has(card);
-      if(isExcluded){
         btn.style.opacity = "0.25";
+        btn.style.cursor = "not-allowed";
         btn.style.pointerEvents = "none";
-}
+        btn.title = "Card already in use";
+      }
 
 
       btn.addEventListener("click", ()=>{
         // if this card is already in another slot, move it to active slot
         if(isExcluded) return;
         const existingIdx = loggerCardPicker.slots.findIndex(x=>x === card);
-        if((loggerCardPicker.exclude || new Set()).has(card)) return;
         if(existingIdx !== -1){
           loggerCardPicker.slots[existingIdx] = null;
         }
