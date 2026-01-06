@@ -592,6 +592,37 @@ select:focus{
 .loggerLegendDot.btn{ background: var(--mix); }    /* using your yellow */
 /* ===== /Hand Logger: Table UI ===== */
 
+/* ===== Hand Logger: Hands sidebar rows should never wrap ===== */
+#loggerHandsList .loggerHandRow,
+#loggerHandsList .loggerHandItem,
+#loggerHandsList button{
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* If your rows are flex containers (recommended) */
+#loggerHandsList .loggerHandRow{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+#loggerHandsList .loggerHandRow .left{
+  min-width: 0;          /* critical for ellipsis inside flex */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#loggerHandsList .loggerHandRow .right{
+  flex: 0 0 auto;
+  white-space: nowrap;
+  opacity: 0.95;
+}
+
+
     
     /* Modal */
     .modal{position:fixed;inset:0;z-index:50}
@@ -3945,12 +3976,36 @@ function renderLoggerHandsList(){
     row.style.borderRadius = "8px";
     row.style.cursor = "pointer";
     row.style.fontWeight = "800";
+    row.style.whiteSpace = "nowrap";
+    row.style.overflow = "hidden";
+    row.style.textOverflow = "ellipsis";
     row.style.background = (h.id === loggerSelectedHandId) ? "rgba(255,255,255,.08)" : "transparent";
 
     const dt = new Date(h.createdAt || Date.now()).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
     const label = idx === 0 ? "Most recent" : `Hand ${idx + 1}`;
 
-    row.textContent = `${label} • ${dt} • BTN seat ${Number(h.btnSeat) + 1}`;
+row.style.display = "flex";
+row.style.alignItems = "center";
+row.style.justifyContent = "space-between";
+row.style.gap = "10px";
+
+const left = document.createElement("span");
+left.textContent = label;
+left.style.minWidth = "0";
+left.style.overflow = "hidden";
+left.style.textOverflow = "ellipsis";
+left.style.whiteSpace = "nowrap";
+
+const right = document.createElement("span");
+right.textContent = `${dt} • BTN ${Number(h.btnSeat) + 1}`;
+right.style.whiteSpace = "nowrap";
+right.style.opacity = "0.95";
+right.style.fontWeight = "800";
+
+row.appendChild(left);
+row.appendChild(right);
+
+
 
     row.addEventListener("click", ()=>{
       loggerSelectedHandId = h.id;
