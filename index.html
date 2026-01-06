@@ -3394,7 +3394,24 @@ function renderLoggerCardGrid(){
   });
 }
 
-function openLoggerCardPicker({title, sub, slots, onSave}){
+let loggerCardBackdrop, loggerCardModal, loggerCardTitle, loggerCardSub,
+    loggerCardSlots, loggerCardGrid, loggerCardSave, loggerCardCancel;
+
+function initLoggerCardPickerEls(){
+  if(loggerCardBackdrop) return; // already initialized
+
+  loggerCardBackdrop = document.getElementById("loggerCardBackdrop");
+  loggerCardModal    = document.getElementById("loggerCardModal");
+  loggerCardTitle    = document.getElementById("loggerCardTitle");
+  loggerCardSub      = document.getElementById("loggerCardSub");
+  loggerCardSlots    = document.getElementById("loggerCardSlots");
+  loggerCardGrid     = document.getElementById("loggerCardGrid");
+  loggerCardSave     = document.getElementById("loggerCardSave");
+  loggerCardCancel   = document.getElementById("loggerCardCancel");
+}
+
+  
+  function openLoggerCardPicker({title, sub, slots, onSave}){
   loggerCardPicker.mode = title;
   loggerCardPicker.handId = null;
   loggerCardPicker.slots = slots.map(normalizeCard);
@@ -3879,16 +3896,6 @@ const loggerNewSessionBtn = document.getElementById("loggerNewSession");
 const loggerSessionSel    = document.getElementById("loggerSessionSel");
 const loggerSessionSummary= document.getElementById("loggerSessionSummary");
 const loggerSessionSettings = document.getElementById("loggerSessionSettings");
-const loggerCardModal      = document.getElementById("loggerCardModal");
-const loggerCardBackdrop   = document.getElementById("loggerCardBackdrop");
-const loggerCardClose      = document.getElementById("loggerCardClose");
-const loggerCardSlots      = document.getElementById("loggerCardSlots");
-const loggerCardGrid       = document.getElementById("loggerCardGrid");
-const loggerCardClearAll   = document.getElementById("loggerCardClearAll");
-const loggerCardSave       = document.getElementById("loggerCardSave");
-const loggerCardTitle      = document.getElementById("loggerCardTitle");
-const loggerCardSub        = document.getElementById("loggerCardSub");
-
 
 
 function refreshLoggerUI(){
@@ -4527,15 +4534,15 @@ if(loggerNewHandBtn){
   });
 }
 
-                             
-const selDelta = document.getElementById("selDelta");
-
 function resetSelectedHandUI(){
   selHand.textContent = "—";
   selAct.textContent = "—";
   selNote.textContent = "Click a cell";
-  if (selDelta) selDelta.textContent = "—";
+
+  const selDeltaEl = document.getElementById("selDelta");
+  if(selDeltaEl) selDeltaEl.textContent = "—";
 }
+
 
   
   function openHelp(){
