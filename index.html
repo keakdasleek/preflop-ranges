@@ -3146,20 +3146,22 @@ function getActiveSession(){
 
 // ===== Hand Logger: Table UI (v0) =====
 function seatAngleDeg(i, n){
-  // Seat 0 is Hero at 6 o’clock (bottom). Then counter-clockwise.
-  return -90 + (360 / n) * i;
+  // Seat 0 is Hero at 6 o’clock (bottom). Then CLOCKWISE.
+  return 90 - (360 / n) * i;
 }
+
 
 
 function prevClockwiseSeat(i, n){
-  // Renderer increases CCW, so clockwise is -1
-  return (i - 1 + n) % n;
+  // Renderer increases clockwise, so clockwise is +1
+  return (i + 1) % n;
 }
 
 function nextCounterClockwiseSeat(i, n){
-  // Renderer increases CCW, so counter-clockwise is +1
-  return (i + 1) % n;
+  // Renderer increases clockwise, so counter-clockwise is -1
+  return (i - 1 + n) % n;
 }
+
 
 
 function buildSeatPositionsFromButton(btnSeat, n){
