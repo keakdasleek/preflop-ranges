@@ -476,6 +476,14 @@ select:focus{
   align-items:center;
 }
 
+.trainerTopControls{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+
 .loggerModePill{
   padding:6px 10px;
   border-radius:999px;
@@ -833,16 +841,17 @@ select:focus{
             <div style="font-weight:900">Trainer Mode</div>
             <div class="kicker" id="trainerKicker">Random spot + random hand. Choose the action you’d take.</div>
           </div>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <select id="trainerScenario" title="Scenario"></select>
-            <select id="trainerRandomness" title="Hand selection">
-              <option value="smart">Smart practice (recommended)</option>
-              <option value="all">All hands (uniform)</option>
-              <option value="playable">Playable hands only (R/C/M)</option>
-              <option value="edge">Focus mistakes (missed hands)</option>
-            </select>
-            <button id="trainerNext">Next</button>
-          </div>
+<div class="trainerTopControls">
+  <select id="trainerScenario" title="Scenario"></select>
+  <select id="trainerRandomness" title="Hand selection">
+    <option value="smart">Smart practice (recommended)</option>
+    <option value="all">All hands (uniform)</option>
+    <option value="playable">Playable hands only (R/C/M)</option>
+    <option value="edge">Focus mistakes (missed hands)</option>
+  </select>
+  <button id="trainerNext" class="pfPrimary">Next</button>
+</div>
+
         </div>
 
         <div style="padding:16px;display:grid;gap:14px">
@@ -3146,20 +3155,28 @@ function prevClockwiseSeat(i, n){
   return (i - 1 + n) % n;
 }
 
+function nextCounterClockwiseSeat(i, n){
+  // Renderer increases CCW, so counter-clockwise is +1
+  return (i + 1) % n;
+}
+
+
 function buildSeatPositionsFromButton(btnSeat, n){
-  // Walking clockwise from BTN gives:
-  // BTN, SB, BB, UTG, UTG+1, LJ, HJ, CO (8-max)
-  const posNames = ["BTN","SB","BB","UTG","UTG+1","LJ","HJ","CO"];
+  // Labels should progress in the same direction as the UI seat layout (counter-clockwise).
+  // Starting at BTN and moving counter-clockwise around the table:
+  // BTN, CO, HJ, LJ, UTG+1, UTG, BB, SB
+  const posNames = ["BTN","CO","HJ","LJ","UTG+1","UTG","BB","SB"];
 
   const posBySeat = {};
   let seat = btnSeat;
 
   for(let k = 0; k < n; k++){
     posBySeat[seat] = posNames[k] || `P${k+1}`;
-    seat = prevClockwiseSeat(seat, n);
+    seat = nextCounterClockwiseSeat(seat, n);
   }
   return posBySeat;
 }
+
 
 function renderLoggerTable(){
   const mount = document.getElementById("loggerTableMount");
@@ -3604,8 +3621,12 @@ const loggerSessionSummary= document.getElementById("loggerSessionSummary");
 function refreshLoggerUI(){
   renderLoggerSessionSummary();
   renderLoggerHandsList();
-  renderLoggerHandEditor(null);
+
+  const active = getActiveSession();
+  const mostRecent = active?.hands?.[0] || null;
+  renderLoggerHandEditor(mostRecent);
 }
+
 
 function renderLoggerSessions(){
   if(!loggerSessionSel) return;
@@ -3632,14 +3653,6 @@ function renderLoggerSessions(){
   const nextId = loggerState.activeSessionId || loggerState.sessions[0].id;
   loggerSessionSel.value = nextId;
   loggerState.activeSessionId = nextId;
-
-  // Summary line (lightweight)
-  const active = getActiveSession();
-  if(loggerSessionSummary){
-    loggerSessionSummary.textContent = active
-      ? `Active session created ${new Date(active.createdAt).toLocaleString()} • Hands: ${(active.hands||[]).length}`
-      : "No session selected.";
-  }
 }
 
 
@@ -3660,8 +3673,6 @@ renderLoggerSessions();
 refreshLoggerUI();
 renderLoggerTable();
 toast("New session created");
-
-  toast("New session created");
 }
 
 function renderLoggerSessionSummary(){
@@ -3675,7 +3686,8 @@ function renderLoggerSessionSummary(){
 
   const created = new Date(active.createdAt || Date.now()).toLocaleString();
   const handsCount = (active.hands || []).length;
-
+  const btnSeat = Number(loggerState?.table?.btnSeat ?? 0);
+  
   loggerSessionSummary.textContent =
     `Active session created ${created} • Hands: ${handsCount} • Button seat: ${Number(loggerState.table.btnSeat) + 1}`;
 }
