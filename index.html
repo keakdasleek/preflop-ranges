@@ -4168,6 +4168,12 @@ function fmtActionLine(meta, a){
   return `${who} ${act}${amt}`.trim();
 }
 
+function getSortedActions(hand){
+  return ensureHandActions(hand)
+    .slice()
+    .sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
+}
+
 
 function isHandStarted(hand){
   if(!hand) return false;
@@ -5252,7 +5258,8 @@ if((hand.viewMode || "LOG") === "LOG"){
 } else {
   // REVIEW mode
   const meta = getActiveSessionMeta();
-  const actions = ensureHandActions(hand).slice().sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
+  const actions = getSortedActions(hand);
+
 
   const streets = ["PREFLOP","FLOP","TURN","RIVER"];
   const streetLabel = {PREFLOP:"Preflop", FLOP:"Flop", TURN:"Turn", RIVER:"River"};
@@ -5261,10 +5268,102 @@ if((hand.viewMode || "LOG") === "LOG"){
   wrap.style.display = "grid";
   wrap.style.gap = "12px";
 
+  // ===== Replay controls =====
+const replay = document.createElement("div");
+replay.style.display = "grid";
+replay.style.gap = "8px";
+replay.style.padding = "10px 12px";
+replay.style.borderRadius = "16px";
+replay.style.border = "1px solid rgba(255,255,255,.10)";
+replay.style.background = "rgba(255,255,255,.03)";
+
+const replayTop = document.createElement("div");
+replayTop.style.display = "flex";
+replayTop.style.justifyContent = "space-between";
+replayTop.style.alignItems = "center";
+replayTop.style.gap = "10px";
+
+const replayLabel = document.createElement("div");
+replayLabel.className = "kicker";
+replayLabel.style.fontWeight = "950";
+replayLabel.textContent = "Replay";
+
+const replayNow = document.createElement("div");
+replayNow.className = "kicker";
+replayNow.style.color = "var(--muted)";
+replayNow.style.fontWeight = "900";
+
+const total = actions.length;
+let idx = Number(hand.replayIdx || 0);
+if(!isFinite(idx) || idx < 0) idx = 0;
+if(idx > Math.max(0, total - 1)) idx = Math.max(0, total - 1);
+hand.replayIdx = idx;
+
+function updateReplayNow(){
+  if(!total){
+    replayNow.textContent = "No actions logged yet.";
+    return;
+  }
+  const a = actions[hand.replayIdx];
+  replayNow.textContent = `(${hand.replayIdx + 1}/${total}) ${a.street} • ${a.actorPos} • ${a.action}`;
+}
+
+updateReplayNow();
+
+replayTop.appendChild(replayLabel);
+replayTop.appendChild(replayNow);
+
+const replayBtns = document.createElement("div");
+replayBtns.style.display = "flex";
+replayBtns.style.flexWrap = "wrap";
+replayBtns.style.gap = "8px";
+
+function mkReplayBtn(label, onClick){
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = label;
+  b.style.padding = "8px 10px";
+  b.style.borderRadius = "12px";
+  b.style.fontWeight = "900";
+  b.addEventListener("click", onClick);
+  return b;
+}
+
+replayBtns.appendChild(mkReplayBtn("Start", ()=>{
+  hand.replayIdx = 0;
+  saveLogger();
+  renderLoggerHandEditor(hand);
+}));
+replayBtns.appendChild(mkReplayBtn("Prev", ()=>{
+  hand.replayIdx = Math.max(0, (hand.replayIdx||0) - 1);
+  saveLogger();
+  renderLoggerHandEditor(hand);
+}));
+replayBtns.appendChild(mkReplayBtn("Next", ()=>{
+  hand.replayIdx = Math.min(Math.max(0, total - 1), (hand.replayIdx||0) + 1);
+  saveLogger();
+  renderLoggerHandEditor(hand);
+}));
+replayBtns.appendChild(mkReplayBtn("End", ()=>{
+  hand.replayIdx = Math.max(0, total - 1);
+  saveLogger();
+  renderLoggerHandEditor(hand);
+}));
+
+replay.appendChild(replayTop);
+replay.appendChild(replayBtns);
+
+// Put replay panel above the street cards
+wrap.appendChild(replay);
+// ===== /Replay controls =====
+
+
   const nPlayers = Number(loggerState?.table?.maxPlayers || 8);
   const posBySeat = buildSeatPositionsFromButton(Number(hand.btnSeat), nPlayers);
   const heroPos = posBySeat[0] || "HERO";
 
+  let globalIdx = 0;
+ 
   streets.forEach(st=>{
     const group = actions.filter(x => x.street === st);
     if(!group.length) return;
@@ -5295,6 +5394,14 @@ if((hand.viewMode || "LOG") === "LOG"){
       line.style.background = "rgba(0,0,0,.10)";
       line.textContent = fmtActionLine(meta, a);
 
+      // Highlight the replay cursor line
+      if(globalIdx === Number(hand.replayIdx || 0)){
+        line.style.outline = "2px solid rgba(255,255,255,.35)";
+        line.style.boxShadow = "0 0 0 3px rgba(255,255,255,.10)";
+      }
+      globalIdx++;
+
+      
       if(a.actorPos === heroPos){
         line.style.border = "1px solid rgba(0,255,160,.35)";
         line.style.boxShadow = "0 0 0 3px rgba(0,255,160,.08)";
@@ -5352,6 +5459,7 @@ function createLoggerHand(){
       id: uid(),
       createdAt: Date.now(),
       viewMode: "LOG",
+      replayIdx: 0,
       maxPlayers: Number(loggerState?.table?.maxPlayers || 8),
       heroSeat: 0,
       btnSeat: Number(loggerState.table.btnSeat),
