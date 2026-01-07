@@ -4650,17 +4650,69 @@ function mkTpl(label, street, action, presetAmt){
   return b;
 }
 
-// Street-aware templates (minimal v1 set; we can expand later)
-tplRow.appendChild(mkTpl("PF Fold",  "PREFLOP", "FOLD"));
-tplRow.appendChild(mkTpl("PF Call",  "PREFLOP", "CALL"));
-tplRow.appendChild(mkTpl("PF Raise", "PREFLOP", "RAISE"));
-tplRow.appendChild(mkTpl("F Check",  "FLOP",    "CHECK"));
-tplRow.appendChild(mkTpl("F Bet",    "FLOP",    "BET"));
-tplRow.appendChild(mkTpl("F Raise",  "FLOP",    "RAISE"));
-tplRow.appendChild(mkTpl("T Check",  "TURN",    "CHECK"));
-tplRow.appendChild(mkTpl("T Bet",    "TURN",    "BET"));
-tplRow.appendChild(mkTpl("R Check",  "RIVER",   "CHECK"));
-tplRow.appendChild(mkTpl("R Bet",    "RIVER",   "BET"));
+// Street-aware templates (compact: only a few buttons + More dropdown)
+function renderQuickTemplates(){
+  tplRow.innerHTML = "";
+
+  const st = streetSel.value || "PREFLOP";
+
+  // Per-street “most used” quick buttons
+  if(st === "PREFLOP"){
+    tplRow.appendChild(mkTpl("Fold", "PREFLOP", "FOLD"));
+    tplRow.appendChild(mkTpl("Call", "PREFLOP", "CALL"));
+    tplRow.appendChild(mkTpl("Raise", "PREFLOP", "RAISE"));
+  } else {
+    tplRow.appendChild(mkTpl("Check", st, "CHECK"));
+    tplRow.appendChild(mkTpl("Bet",   st, "BET"));
+    tplRow.appendChild(mkTpl("Raise", st, "RAISE"));
+    tplRow.appendChild(mkTpl("Fold",  st, "FOLD"));
+  }
+
+  // “More…” dropdown (keeps UI clean)
+  const moreSel = document.createElement("select");
+  moreSel.style.borderRadius = "12px";
+  moreSel.style.border = "1px solid rgba(255,255,255,.10)";
+  moreSel.style.background = "rgba(0,0,0,.18)";
+  moreSel.style.color = "var(--text)";
+  moreSel.style.padding = "10px 12px";
+  moreSel.style.fontWeight = "900";
+  moreSel.style.minWidth = "120px";
+
+  const opts = [
+    {v:"", label:"More…"},
+    {v:"CALL",  label:"Call"},
+    {v:"CHECK", label:"Check"},
+    {v:"BET",   label:"Bet"},
+    {v:"RAISE", label:"Raise"},
+    {v:"FOLD",  label:"Fold"},
+    {v:"ALLIN", label:"All-in"},
+  ];
+
+  // Preflop doesn’t use “Check” in most logging; still allow via More if you want,
+  // but keep the quick row clean.
+  if(st === "PREFLOP"){
+    // (leave all options; it’s fine)
+  }
+
+  for(const o of opts){
+    const op = document.createElement("option");
+    op.value = o.v;
+    op.textContent = o.label;
+    moreSel.appendChild(op);
+  }
+
+  moreSel.addEventListener("change", ()=>{
+    if(!moreSel.value) return;
+    addActionQuick(st, moreSel.value);
+    moreSel.value = "";
+  });
+
+  tplRow.appendChild(moreSel);
+}
+
+renderQuickTemplates();
+streetSel.addEventListener("change", renderQuickTemplates);
+
 /* ===== /Fast templates ===== */
 
 
