@@ -3185,6 +3185,8 @@ let loggerState = {
   table: {
     maxPlayers: 8,
     heroSeat: 0,
+    uiMode: "BTN",
+    selectedActorPos: null,
     btnSeat: 5
   }
 };
@@ -3593,14 +3595,75 @@ function renderLoggerTable(){
       seat.appendChild(t);
     }
 
-    // Click sets BUTTON (BTN can be on HERO)
-    seat.addEventListener("click", ()=>{
-      loggerState.table.btnSeat = i;
-      saveLogger();
-      renderLoggerTable();
-      renderLoggerSessionSummary?.();
-      toast("Button set");
-    });
+// Highlight selected actor seat in ACTOR mode
+const mode = loggerState?.table?.uiMode || "BTN";
+const active = getActiveSession ? getActiveSession() : null;
+const curHand = (active && loggerSelectedHandId)
+  ? (active.hands || []).find(h => h.id === loggerSelectedHandId)
+  : null;
+
+const locked = !!(curHand && (curHand.btnLocked || ((curHand.heroCards||[]).filter(Boolean).length === 2)));
+const effectiveMode = locked ? "ACTOR" : mode;
+
+if(effectiveMode === "ACTOR"){
+  const nPlayers = Number(loggerState?.table?.maxPlayers || 8);
+  const btnSeatLocal = Number((curHand && curHand.btnSeat != null) ? curHand.btnSeat : loggerState?.table?.btnSeat || 0);
+  const posBySeat = buildSeatPositionsFromButton(btnSeatLocal, nPlayers);
+  const pos = posBySeat[i] || `P${i+1}`;
+
+  if(loggerState?.table?.selectedActorPos && pos === loggerState.table.selectedActorPos){
+    seat.style.outline = "2px solid rgba(255,215,0,.75)";
+    seat.style.boxShadow = "0 0 0 3px rgba(255,215,0,.12)";
+  }
+}
+
+    
+seat.addEventListener("click", ()=>{
+  const active = getActiveSession ? getActiveSession() : null;
+  const curHand = (active && loggerSelectedHandId)
+    ? (active.hands || []).find(h => h.id === loggerSelectedHandId)
+    : null;
+
+  const locked = !!(curHand && (curHand.btnLocked || ((curHand.heroCards||[]).filter(Boolean).length === 2)));
+  const mode = loggerState?.table?.uiMode || "BTN";
+
+  // Build positions for mapping seat -> position
+  const nPlayers = Number(loggerState?.table?.maxPlayers || 8);
+  const btnSeatLocal = Number((curHand && curHand.btnSeat != null) ? curHand.btnSeat : loggerState?.table?.btnSeat || 0);
+  const posBySeat = buildSeatPositionsFromButton(btnSeatLocal, nPlayers);
+
+  // If locked, force ACTOR mode
+  const effectiveMode = locked ? "ACTOR" : mode;
+
+  if(effectiveMode === "BTN"){
+    // Set BTN seat (only allowed before hand starts)
+    loggerState.table.btnSeat = i;
+
+    // If editing a hand, keep it consistent
+    if(curHand){
+      curHand.btnSeat = i;
+      // If user changes BTN mid-hand (rare), positions change—clear actor selection
+      loggerState.table.selectedActorPos = null;
+    }
+
+    saveLogger();
+    renderLoggerTable();
+    renderLoggerSessionSummary?.();
+    renderLoggerHandEditor?.(curHand || null);
+    toast("Button set");
+    return;
+  }
+
+  // ACTOR mode: click seat selects acting player
+  const pos = posBySeat[i] || `P${i+1}`;
+  loggerState.table.selectedActorPos = pos;
+
+  saveLogger();
+  renderLoggerTable();
+  renderLoggerHandEditor?.(curHand || null);
+  toast(`Actor: ${pos}`);
+});
+
 
     table.appendChild(seat);
   }
@@ -4410,12 +4473,31 @@ heroBtn.addEventListener("click", ()=>{
     hand.board?.river || null
     ].filter(Boolean)),
 
-    onSave: (newSlots)=>{
-      hand.heroCards = [newSlots[0] || null, newSlots[1] || null];
-      saveLogger();
-      renderLoggerHandEditor(hand);
-      renderLoggerHandsList();
+onSave: (newSlots)=>{
+  hand.heroCards = [newSlots[0] || null, newSlots[1] || null];
+
+  // Lock BTN once hero cards are set (start-of-hand trigger)
+  const hasHero2 = !!hand.heroCards[0] && !!hand.heroCards[1];
+  if(hasHero2){
+    hand.btnLocked = true;
+
+    // Switch table clicks to "select actor" mode
+    if(loggerState && loggerState.table){
+      loggerState.table.uiMode = "ACTOR";
+
+      // Default selected actor = Hero position (seat 0)
+      const nPlayers = Number(loggerState?.table?.maxPlayers || 8);
+      const posBySeat = buildSeatPositionsFromButton(Number(hand.btnSeat), nPlayers);
+      loggerState.table.selectedActorPos = posBySeat[0] || "HERO";
     }
+  }
+
+  saveLogger();
+  renderLoggerTable();
+  renderLoggerHandEditor(hand);
+  renderLoggerHandsList();
+}
+
   });
 });
 
@@ -4555,7 +4637,22 @@ const streetSel = mkSelect(
   "PREFLOP"
 );
 
-const actorSel = mkSelect(posOptions, posOptions[0]?.value || "HERO");
+const defaultActor =
+  (loggerState?.table?.selectedActorPos && posOptions.some(o => o.value === loggerState.table.selectedActorPos))
+    ? loggerState.table.selectedActorPos
+    : (posOptions[0]?.value || "HERO");
+
+const actorSel = mkSelect(posOptions, defaultActor);
+
+// Keep table-selected actor in sync if user changes dropdown manually
+actorSel.addEventListener("change", ()=>{
+  if(loggerState && loggerState.table){
+    loggerState.table.selectedActorPos = actorSel.value;
+    saveLogger();
+    renderLoggerTable();
+  }
+});
+
 
 const actionSel = mkSelect(
   [
