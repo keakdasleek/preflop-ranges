@@ -4580,6 +4580,90 @@ const unitSel = mkSelect(
 
 const noteInput = mkInput("Note (optional)", "");
 
+/* ===== Fast templates (use existing form controls + existing hand.actions model) ===== */
+const tplRow = document.createElement("div");
+tplRow.style.display = "flex";
+tplRow.style.gap = "6px";
+tplRow.style.flexWrap = "wrap";
+tplRow.style.margin = "6px 0 2px";
+
+let __lastAddedActionId = null;
+
+function needsAmount(action){
+  return action === "BET" || action === "RAISE" || action === "ALLIN";
+}
+
+function setForm(street, action){
+  streetSel.value = street;
+  actionSel.value = action;
+
+  // If this action type needs amount, focus it for fast entry
+  if(needsAmount(action)){
+    setTimeout(()=> amtInput.focus(), 0);
+  } else {
+    amtInput.value = "";
+  }
+}
+
+function addActionQuick(street, action, presetAmt){
+  if(!Array.isArray(hand.actions)) hand.actions = [];
+
+  const id = String(Date.now()) + "_" + Math.random().toString(16).slice(2);
+
+  const obj = {
+    id,
+    street,
+    actorPos: actorSel.value || (posOptions[0]?.value || "HERO"),
+    action,
+    amt: (needsAmount(action) ? (presetAmt ?? "") : ""),
+    unit: unitSel.value || "BB",
+    note: "",
+    createdAt: Date.now()
+  };
+
+  hand.actions.push(obj);
+  __lastAddedActionId = id;
+
+  saveLogger();
+  renderActionsList();
+
+  // Scroll + flash the new row (renderActionsList patch below adds data-aid)
+  setTimeout(()=>{
+    const row = list.querySelector(`[data-aid="${id}"]`);
+    if(row){
+      row.classList.add("loggerActionFlash");
+      row.scrollIntoView({block:"nearest", behavior:"smooth"});
+      setTimeout(()=> row.classList.remove("loggerActionFlash"), 650);
+    }
+  }, 0);
+
+  // Prefill form for “next action” speed
+  setForm(street, action);
+}
+
+function mkTpl(label, street, action, presetAmt){
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "pfBtn";
+  b.textContent = label;
+  b.addEventListener("click", ()=> addActionQuick(street, action, presetAmt));
+  return b;
+}
+
+// Street-aware templates (minimal v1 set; we can expand later)
+tplRow.appendChild(mkTpl("PF Fold",  "PREFLOP", "FOLD"));
+tplRow.appendChild(mkTpl("PF Call",  "PREFLOP", "CALL"));
+tplRow.appendChild(mkTpl("PF Raise", "PREFLOP", "RAISE"));
+tplRow.appendChild(mkTpl("F Check",  "FLOP",    "CHECK"));
+tplRow.appendChild(mkTpl("F Bet",    "FLOP",    "BET"));
+tplRow.appendChild(mkTpl("F Raise",  "FLOP",    "RAISE"));
+tplRow.appendChild(mkTpl("T Check",  "TURN",    "CHECK"));
+tplRow.appendChild(mkTpl("T Bet",    "TURN",    "BET"));
+tplRow.appendChild(mkTpl("R Check",  "RIVER",   "CHECK"));
+tplRow.appendChild(mkTpl("R Bet",    "RIVER",   "BET"));
+/* ===== /Fast templates ===== */
+
+
 // Add button
 const addBtn = document.createElement("button");
 addBtn.textContent = "Add";
@@ -4643,6 +4727,7 @@ function renderActionsList(){
 
   actions.forEach((a, idx)=>{
     const row = document.createElement("div");
+    row.dataset.aid = a.id || "";
     row.style.display = "grid";
     row.style.gridTemplateColumns = "1.2fr 1.2fr 1fr 1fr 2fr 70px";
     row.style.gap = "8px";
@@ -4710,6 +4795,67 @@ function renderActionsList(){
 renderActionsList();
 
 actionsWrap.appendChild(actionsTitle);
+
+/* ===== Fast action templates ===== */
+const templatesRow = document.createElement("div");
+templatesRow.style.display = "flex";
+templatesRow.style.gap = "6px";
+templatesRow.style.flexWrap = "wrap";
+templatesRow.style.margin = "8px 0 10px";
+
+function makeTplBtn(label, payload){
+  const b = document.createElement("button");
+  b.textContent = label;
+  b.className = "pfBtn"; // uses your existing button styling
+  b.type = "button";
+  b.addEventListener("click", ()=>{
+    // payload = {street, action, amt?}
+    // we add a new action row using your existing data model
+    const a = {
+      id: String(Date.now()) + "_" + Math.random().toString(16).slice(2),
+      street: payload.street,
+      actorPos: payload.actorPos || (hand.heroPos || "HERO"),
+      action: payload.action,
+      amt: payload.amt ?? "",
+      unit: payload.unit || "bb",
+      toCall: payload.toCall ?? "",
+      note: "",
+      createdAt: Date.now()
+    };
+
+    if(!Array.isArray(hand.actions)) hand.actions = [];
+    hand.actions.push(a);
+    saveLogger();
+
+    // re-render action list (your function inside editor)
+    renderActionsList();
+  });
+  return b;
+}
+
+// Common templates (street-specific)
+[
+  {label:"PF: Open", street:"preflop", action:"open"},
+  {label:"PF: Call", street:"preflop", action:"call"},
+  {label:"PF: 3-bet", street:"preflop", action:"3bet"},
+  {label:"PF: Fold", street:"preflop", action:"fold"},
+  {label:"F: Check", street:"flop", action:"check"},
+  {label:"F: Bet", street:"flop", action:"bet"},
+  {label:"F: Raise", street:"flop", action:"raise"},
+  {label:"T: Check", street:"turn", action:"check"},
+  {label:"T: Bet", street:"turn", action:"bet"},
+  {label:"R: Check", street:"river", action:"check"},
+  {label:"R: Bet", street:"river", action:"bet"},
+].forEach(t=>{
+  templatesRow.appendChild(makeTplBtn(t.label, {
+    street: t.street,
+    action: t.action
+  }));
+});
+
+actionsWrap.appendChild(templatesRow);
+/* ===== /Fast action templates ===== */
+
 actionsWrap.appendChild(form);
 actionsWrap.appendChild(list);
 
@@ -4740,6 +4886,7 @@ mount.appendChild(actionsWrap);
 
   mount.appendChild(top);
 }
+// end of renderloggerhandeditor
 
 function createLoggerHand(){
   const active = getActiveSession();
