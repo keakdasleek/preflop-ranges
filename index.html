@@ -2536,7 +2536,8 @@ function renderExplorerHandAwareness(){
 
   // Needs a selected hand + a picked flop
   const handCode = (selectedHandCode || "").trim(); // your existing selected-hand variable
-  const flop = (currentBoard && Array.isArray(currentBoard.flop)) ? currentBoard.flop.filter(Boolean) : [];
+ const flop = (getExplorerFlop() || []).filter(Boolean);
+
 
   if(!handCode){
     selHandAwareness.textContent = "Click a hand in the grid to see awareness.";
@@ -2640,6 +2641,18 @@ function classifyExplorerHandVsFlop(handCode, flopCards){
   return "Air";
 }
 
+function getExplorerFlop(){
+  // Supports BOTH shapes:
+  // 1) currentBoard = [{r,suit},...]
+  // 2) currentBoard = { flop:[{r,suit},...], turn, river }
+  if(!currentBoard) return null;
+
+  if(Array.isArray(currentBoard)) return currentBoard;
+
+  if(currentBoard && Array.isArray(currentBoard.flop)) return currentBoard.flop;
+
+  return null;
+}
 
   
   function renderPostflopAdvice(){
@@ -2653,7 +2666,9 @@ function classifyExplorerHandVsFlop(handCode, flopCards){
       return;
     }
 
-    const tex = boardTexture(currentBoard);
+  const flop = getExplorerFlop();
+  const tex = flop ? boardTexture(flop) : null;
+
     if(!tex){
       postflopLine.textContent = "Could not parse board texture.";
       return;
