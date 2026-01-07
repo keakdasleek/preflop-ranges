@@ -4593,7 +4593,30 @@ function needsAmount(action){
   return action === "BET" || action === "RAISE" || action === "ALLIN";
 }
 
-function setForm(street, action){
+function parseBetSize(raw){
+  if(!raw) return null;
+
+  const s = String(raw).trim().toLowerCase();
+
+  // "pot", "full pot"
+  if(s === "pot" || s === "full pot") return { type:"POT", value:1 };
+
+  // "1/2 pot", "0.5 pot"
+  let m = s.match(/^(\d*\.?\d+)\s*(?:\/)?\s*pot$/);
+  if(m) return { type:"POT", value: Number(m[1]) };
+
+  // "50%", "33 %"
+  m = s.match(/^(\d*\.?\d+)\s*%$/);
+  if(m) return { type:"PERCENT", value: Number(m[1]) };
+
+  // pure number → BB
+  if(!isNaN(s)) return { type:"BB", value:Number(s) };
+
+  return null;
+}
+
+  
+  function setForm(street, action){
   streetSel.value = street;
   actionSel.value = action;
 
@@ -4621,7 +4644,9 @@ function addActionQuick(street, action, presetAmt){
     createdAt: Date.now()
   };
 
-  hand.actions.push(obj);
+obj.norm = parseBetSize(obj.amt);
+hand.actions.push(obj);
+
   __lastAddedActionId = id;
 
   saveLogger();
@@ -4734,16 +4759,20 @@ addBtn.addEventListener("click", ()=>{
 
   const actions = ensureHandActions(hand);
 
-  actions.push({
-    id: uidShort(),
-    createdAt: Date.now(),
-    street: streetSel.value,
-    actorPos: actorSel.value,
-    action: actionSel.value,
-    unit,
-    amt: amtNum,
-    note: String(noteInput.value || "").trim()
-  });
+const a = {
+  id: uidShort(),
+  createdAt: Date.now(),
+  street: streetSel.value,
+  actorPos: actorSel.value,
+  action: actionSel.value,
+  unit,
+  amt: amtNum,
+  note: String(noteInput.value || "").trim()
+};
+
+a.norm = parseBetSize(a.amt);
+
+actions.push(a);
 
   saveLogger();
   renderLoggerHandEditor(hand);
