@@ -827,6 +827,14 @@ select:focus{
       <div class="v" id="selHand">—</div>
     </div>
 
+<div style="grid-column:1 / -1">
+  <div class="k">Hand awareness (vs flop)</div>
+  <div class="v" id="selHandAwareness" style="font-size:12px;font-weight:800;color:var(--muted);line-height:1.35">
+    Pick a flop and click Apply.
+  </div>
+</div>
+
+    
     <div>
       <div class="k">Action</div>
       <div class="v" id="selAct">—</div>
@@ -1364,6 +1372,7 @@ function updateSelectedHandPanel(scenarioKey){
     selNote.textContent = (notes && notes[h]) || defaultNoteFor(code, h, scenarioKey);
   }
 
+  renderExplorerHandAwareness();
   renderDeltaLine(h, scenarioKey);
 }
 
@@ -2505,6 +2514,8 @@ function applyPersonaToBuiltRange(built, scenarioKey, personaCode){
   // Postflop UI elements
   const boardApply  = document.getElementById("boardApply");
   const postflopLine = document.getElementById("postflopLine");
+  const selHandAwareness = document.getElementById("selHandAwareness");
+
 
 
   let currentBoard = null;
@@ -2520,6 +2531,117 @@ function applyPersonaToBuiltRange(built, scenarioKey, personaCode){
     setTimeout(()=> toastEl.classList.remove("show"), 1200);
   }
 
+function renderExplorerHandAwareness(){
+  if(!selHandAwareness) return;
+
+  // Needs a selected hand + a picked flop
+  const handCode = (selectedHandCode || "").trim(); // your existing selected-hand variable
+  const flop = (currentBoard && Array.isArray(currentBoard.flop)) ? currentBoard.flop.filter(Boolean) : [];
+
+  if(!handCode){
+    selHandAwareness.textContent = "Click a hand in the grid to see awareness.";
+    return;
+  }
+
+  if(flop.length !== 3){
+    selHandAwareness.textContent = "Pick a flop and click Apply to see hand awareness.";
+    return;
+  }
+
+  try{
+    // If you already have a real evaluator function, use it here instead.
+    // We do a simple, reliable classification that matches your existing labels.
+    const txt = classifyExplorerHandVsFlop(handCode, flop);
+    selHandAwareness.textContent = txt || "—";
+  }catch(e){
+    selHandAwareness.textContent = "—";
+  }
+}
+
+function classifyExplorerHandVsFlop(handCode, flopCards){
+  // handCode like "KQo", "AJs", "77"
+  const h = canonicalHand(handCode);
+  if(!h) return "";
+
+  const isPair = (h.length === 2);
+  const r1 = h[0];
+  const r2 = isPair ? h[1] : h[1];
+  const suited = (!isPair && h[2] === "s");
+
+  const br = flopCards.map(c => String(c || "")[0].toUpperCase());
+  const bs = flopCards.map(c => String(c || "")[1]?.toLowerCase());
+
+  // sort board ranks high->low by your rankIndex() (A=0 strongest)
+  const boardRanksSorted = br.slice().sort((a,b)=> rankIndex(a) - rankIndex(b));
+  const top = boardRanksSorted[0];
+  const mid = boardRanksSorted[1];
+  const bot = boardRanksSorted[2];
+
+  const countOnBoard = (rk)=> br.filter(x=>x===rk).length;
+  const c1 = countOnBoard(r1);
+  const c2 = isPair ? c1 : countOnBoard(r2);
+
+  // Made hands first
+  if(isPair){
+    if(c1 >= 1) return "Set / trips (pocket pair hits board)";
+    // overpair / underpair / middle pocket
+    if(rankIndex(r1) < rankIndex(top)) return "Overpair";
+    if(rankIndex(r1) > rankIndex(bot)) return "Underpair";
+    return "Pocket pair (between board cards)";
+  } else {
+    const hit1 = c1 > 0;
+    const hit2 = c2 > 0;
+
+    if(hit1 && hit2) return "Two pair";
+    if(hit1 || hit2){
+      const pairRank = hit1 ? r1 : r2;
+      const kicker   = hit1 ? r2 : r1;
+
+      let which = "Pair";
+      if(pairRank === top) which = "Top pair";
+      else if(pairRank === mid) which = "Middle pair";
+      else if(pairRank === bot) which = "Bottom pair";
+
+      // “strong kicker” heuristic
+      const strongKick = ["A","K","Q","J"].includes(kicker);
+      if(which === "Top pair" && strongKick) return "Top pair (strong kicker)";
+      if(which === "Top pair") return "Top pair";
+      return which;
+    }
+  }
+
+  // Draws / air (simple, but useful)
+  const drawBits = [];
+
+  // Flush draw: only meaningful if suited, and flop has 2 of that suit.
+  if(suited){
+    const suitCounts = {};
+    for(const s of bs){
+      if(!s) continue;
+      suitCounts[s] = (suitCounts[s] || 0) + 1;
+    }
+    const has2 = Object.values(suitCounts).some(v => v >= 2);
+    if(has2) drawBits.push("Flush draw possible");
+  }
+
+  // Straight draw (very lightweight)
+  const uniqRanks = [...new Set([r1, r2, ...br])];
+  const idxs = uniqRanks.map(rankIndex).filter(x=>Number.isFinite(x)).sort((a,b)=>a-b);
+
+  // If 4 cards fall within a 5-rank window -> “straight draw possible”
+  let straighty = false;
+  for(let i=0;i<idxs.length;i++){
+    const window = idxs.filter(x => x >= idxs[i] && x <= idxs[i] + 4);
+    if(window.length >= 4){ straighty = true; break; }
+  }
+  if(straighty) drawBits.push("Straight draw possible");
+
+  if(drawBits.length) return `Air (${drawBits.join(" • ")})`;
+  return "Air";
+}
+
+
+  
   function renderPostflopAdvice(){
     if(!postflopLine) return;
 
@@ -2569,6 +2691,8 @@ function applyPersonaToBuiltRange(built, scenarioKey, personaCode){
 
 
     postflopLine.textContent = "Unsupported spot for postflop foundation (for now).";
+  
+    renderExplorerHandAwareness();
   }
 
   
@@ -5625,6 +5749,7 @@ function resetSelectedHandUI(){
 
   const selDeltaEl = document.getElementById("selDelta");
   if(selDeltaEl) selDeltaEl.textContent = "—";
+  if(selHandAwareness) selHandAwareness.textContent = "Pick a flop and click Apply.";
 }
 
 
