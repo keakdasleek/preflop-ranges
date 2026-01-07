@@ -4147,6 +4147,28 @@ function ensureHandActions(hand){
   return hand.actions;
 }
 
+function fmtActionLine(meta, a){
+  const act = String(a.action || "").toUpperCase();
+  const who = a.actorPos || "";
+
+  let amt = "";
+  if(a.amt && a.amt !== 0){
+    if(a.unit === "MONEY"){
+      amt = " " + fmtMoney(meta.currency, a.amt);
+    } else {
+      amt = " " + String(a.amt) + "bb";
+    }
+  }
+
+  // Our semantics: RAISE/CALL are "to X"
+  if((act === "RAISE" || act === "CALL") && amt){
+    amt = " to" + amt;
+  }
+
+  return `${who} ${act}${amt}`.trim();
+}
+
+
 function isHandStarted(hand){
   if(!hand) return false;
   const hc = hand.heroCards || [];
@@ -4655,6 +4677,32 @@ actionsTitle.className = "kicker";
 actionsTitle.style.color = "var(--muted)";
 actionsTitle.style.fontWeight = "900";
 actionsTitle.textContent = "Actions (street-by-street)";
+
+const modeRow = document.createElement("div");
+modeRow.style.display = "flex";
+modeRow.style.gap = "8px";
+modeRow.style.alignItems = "center";
+
+function mkModeBtn(label, mode){
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = label;
+  b.style.padding = "8px 10px";
+  b.style.borderRadius = "12px";
+  b.style.fontWeight = "900";
+  b.style.opacity = (hand.viewMode || "LOG") === mode ? "1" : ".55";
+  b.addEventListener("click", ()=>{
+    hand.viewMode = mode;
+    saveLogger();
+    renderLoggerHandEditor(hand);
+  });
+  return b;
+}
+
+modeRow.appendChild(mkModeBtn("Log", "LOG"));
+modeRow.appendChild(mkModeBtn("Review", "REVIEW"));
+actionsWrap.appendChild(modeRow);
+
 
 const form = document.createElement("div");
 form.style.display = "grid";
@@ -5198,8 +5246,71 @@ renderActionsList();
 
 actionsWrap.appendChild(actionsTitle);
 actionsWrap.appendChild(tplRow);
-actionsWrap.appendChild(form);
-actionsWrap.appendChild(list);
+if((hand.viewMode || "LOG") === "LOG"){
+  actionsWrap.appendChild(form);
+  actionsWrap.appendChild(list);
+} else {
+  // REVIEW mode
+  const meta = getActiveSessionMeta();
+  const actions = ensureHandActions(hand).slice().sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
+
+  const streets = ["PREFLOP","FLOP","TURN","RIVER"];
+  const streetLabel = {PREFLOP:"Preflop", FLOP:"Flop", TURN:"Turn", RIVER:"River"};
+
+  const wrap = document.createElement("div");
+  wrap.style.display = "grid";
+  wrap.style.gap = "12px";
+
+  const nPlayers = Number(loggerState?.table?.maxPlayers || 8);
+  const posBySeat = buildSeatPositionsFromButton(Number(hand.btnSeat), nPlayers);
+  const heroPos = posBySeat[0] || "HERO";
+
+  streets.forEach(st=>{
+    const group = actions.filter(x => x.street === st);
+    if(!group.length) return;
+
+    const card = document.createElement("div");
+    card.style.border = "1px solid rgba(255,255,255,.10)";
+    card.style.borderRadius = "16px";
+    card.style.background = "rgba(255,255,255,.03)";
+    card.style.padding = "10px 12px";
+
+    const h = document.createElement("div");
+    h.className = "kicker";
+    h.style.fontWeight = "950";
+    h.textContent = streetLabel[st] || st;
+
+    const ul = document.createElement("div");
+    ul.style.display = "grid";
+    ul.style.gap = "6px";
+    ul.style.marginTop = "8px";
+
+    group.forEach(a=>{
+      const line = document.createElement("div");
+      line.className = "kicker";
+      line.style.fontWeight = "850";
+      line.style.padding = "6px 8px";
+      line.style.borderRadius = "12px";
+      line.style.border = "1px solid rgba(255,255,255,.08)";
+      line.style.background = "rgba(0,0,0,.10)";
+      line.textContent = fmtActionLine(meta, a);
+
+      if(a.actorPos === heroPos){
+        line.style.border = "1px solid rgba(0,255,160,.35)";
+        line.style.boxShadow = "0 0 0 3px rgba(0,255,160,.08)";
+      }
+
+      ul.appendChild(line);
+    });
+
+    card.appendChild(h);
+    card.appendChild(ul);
+    wrap.appendChild(card);
+  });
+
+  actionsWrap.appendChild(wrap);
+}
+
 
 // Add this block into your editor UI
 mount.appendChild(actionsWrap);
@@ -5240,6 +5351,7 @@ function createLoggerHand(){
       const hand = {
       id: uid(),
       createdAt: Date.now(),
+      viewMode: "LOG",
       maxPlayers: Number(loggerState?.table?.maxPlayers || 8),
       heroSeat: 0,
       btnSeat: Number(loggerState.table.btnSeat),
