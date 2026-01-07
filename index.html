@@ -4374,6 +4374,47 @@ function ensureHandActions(hand){
   return hand.actions;
 }
 
+function streetOrderVal(st){
+  const s = String(st || "").toUpperCase();
+  if(s === "PREFLOP") return 0;
+  if(s === "FLOP")    return 1;
+  if(s === "TURN")    return 2;
+  if(s === "RIVER")   return 3;
+  return 99;
+}
+
+// Returns an array of position codes still active (not folded) up to the given street
+function getActivePositionsForStreet(hand, street){
+  if(!hand) return [];
+
+  const nPlayers = Number(hand.maxPlayers || loggerState?.table?.maxPlayers || 8);
+  const btnSeatLocal = Number(
+    hand.btnSeat != null ? hand.btnSeat : (loggerState?.table?.btnSeat || 0)
+  );
+
+  const posBySeat = buildSeatPositionsFromButton(btnSeatLocal, nPlayers);
+
+  const allPos = [];
+  for(let i = 0; i < nPlayers; i++){
+    allPos.push(posBySeat[i] || `P${i+1}`);
+  }
+
+  const actions = ensureHandActions(hand);
+  const target = streetOrderVal(street);
+
+  const folded = new Set();
+  for(const a of actions){
+    const sVal = streetOrderVal(a.street);
+    const act = String(a.action || "").toUpperCase();
+    if(sVal <= target && act === "FOLD" && a.actorPos){
+      folded.add(a.actorPos);
+    }
+  }
+
+  return allPos.filter(p => !folded.has(p));
+}
+
+
 function fmtActionLine(meta, a){
   const act = String(a.action || "").toUpperCase();
   const who = a.actorPos || "";
