@@ -4719,6 +4719,33 @@ const streetSel = mkSelect(
 
 );
 
+const nextStreetBtn = document.createElement("button");
+nextStreetBtn.textContent = "Next street →";
+nextStreetBtn.style.padding = "10px 12px";
+nextStreetBtn.style.borderRadius = "12px";
+nextStreetBtn.style.fontWeight = "900";
+nextStreetBtn.type = "button";
+
+function advanceStreet(){
+  const order = ["PREFLOP","FLOP","TURN","RIVER"];
+  const cur = streetSel.value;
+  const idx = order.indexOf(cur);
+  if(idx >= 0 && idx < order.length - 1){
+    const next = order[idx + 1];
+    streetSel.value = next;
+
+    if(loggerState && loggerState.table){
+      loggerState.table.lastStreet = next;
+    }
+
+    saveLogger();
+    renderLoggerHandEditor(hand);
+  }
+}
+
+nextStreetBtn.addEventListener("click", advanceStreet);
+
+
 const defaultActor =
   (loggerState?.table?.selectedActorPos && posOptions.some(o => o.value === loggerState.table.selectedActorPos))
     ? loggerState.table.selectedActorPos
@@ -4959,6 +4986,17 @@ function renderQuickTemplates(){
     moreSel.value = "";
   });
 
+  // "Checks around" (postflop only)
+  if(st !== "PREFLOP"){
+    const checksBtn = document.createElement("button");
+    checksBtn.textContent = "Checks around";
+    checksBtn.className = "pfBtn";
+    checksBtn.type = "button";
+    checksBtn.addEventListener("click", addChecksAround);
+    tplRow.appendChild(checksBtn);
+  }
+
+  
   tplRow.appendChild(moreSel);
 }
 
@@ -4967,7 +5005,46 @@ streetSel.addEventListener("change", renderQuickTemplates);
 
 /* ===== /Fast templates ===== */
 
+function addChecksAround(){
+  const st = streetSel.value;
+  if(st === "PREFLOP") return;
 
+  const actions = ensureHandActions(hand);
+
+  const nPlayers = Number(loggerState?.table?.maxPlayers || 8);
+  const btnSeatLocal = Number(hand.btnSeat != null ? hand.btnSeat : loggerState?.table?.btnSeat || 0);
+  const posBySeat = buildSeatPositionsFromButton(btnSeatLocal, nPlayers);
+
+  const activeSeats = [];
+
+  for(let i=0;i<nPlayers;i++){
+    const pos = posBySeat[i];
+    const folded = actions.some(a => a.actorPos === pos && a.action === "FOLD");
+    if(!folded){
+      activeSeats.push(pos);
+    }
+  }
+
+  activeSeats.forEach(pos=>{
+    actions.push({
+      id: uidShort(),
+      createdAt: Date.now(),
+      street: st,
+      actorPos: pos,
+      action: "CHECK",
+      unit: "BB",
+      amt: 0,
+      note: "",
+      norm: null
+    });
+  });
+
+  saveLogger();
+  advanceStreet();
+}
+
+  
+  
 // Add button
 const addBtn = document.createElement("button");
 addBtn.textContent = "Add";
@@ -5015,6 +5092,7 @@ if(loggerState && loggerState.table){
 });
 
 form.appendChild(streetSel);
+form.appendChild(nextStreetBtn);
 form.appendChild(actorSel);
 form.appendChild(actionSel);
 form.appendChild(amtInput);
