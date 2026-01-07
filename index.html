@@ -2569,8 +2569,26 @@ function classifyExplorerHandVsFlop(handCode, flopCards){
   const r2 = isPair ? h[1] : h[1];
   const suited = (!isPair && h[2] === "s");
 
-  const br = flopCards.map(c => String(c || "")[0].toUpperCase());
-  const bs = flopCards.map(c => String(c || "")[1]?.toLowerCase());
+function cardRank(c){
+  if(!c) return "";
+  if(typeof c === "string") return String(c)[0].toUpperCase();
+  // card object shapes
+  if(c.r) return String(c.r)[0].toUpperCase();
+  if(c.rank) return String(c.rank)[0].toUpperCase();
+  return "";
+}
+
+function cardSuit(c){
+  if(!c) return "";
+  if(typeof c === "string") return String(c)[1]?.toLowerCase() || "";
+  if(c.s) return String(c.s)[0].toLowerCase();       // common short key
+  if(c.suit) return String(c.suit)[0].toLowerCase(); // common long key
+  return "";
+}
+
+const br = flopCards.map(cardRank).filter(Boolean);
+const bs = flopCards.map(cardSuit).filter(Boolean);
+
 
   // sort board ranks high->low by your rankIndex() (A=0 strongest)
   const boardRanksSorted = br.slice().sort((a,b)=> rankIndex(a) - rankIndex(b));
@@ -2614,16 +2632,6 @@ function classifyExplorerHandVsFlop(handCode, flopCards){
   // Draws / air (simple, but useful)
   const drawBits = [];
 
-  // Flush draw: only meaningful if suited, and flop has 2 of that suit.
-  if(suited){
-    const suitCounts = {};
-    for(const s of bs){
-      if(!s) continue;
-      suitCounts[s] = (suitCounts[s] || 0) + 1;
-    }
-    const has2 = Object.values(suitCounts).some(v => v >= 2);
-    if(has2) drawBits.push("Flush draw possible");
-  }
 
   // Straight draw (very lightweight)
   const uniqRanks = [...new Set([r1, r2, ...br])];
