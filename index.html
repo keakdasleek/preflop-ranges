@@ -5193,8 +5193,22 @@ if(needsAmount(action)){
     }
   }, 0);
 
-  // Prefill form for “next action” speed
-  setForm(street, action);
+// Prefill form for “next action” speed (don’t just repeat the same action)
+let nextAction = action;
+
+// After an aggressive action, most often the next logged action is a response (CALL/FOLD)
+if(action === "RAISE" || action === "BET" || action === "ALLIN"){
+  nextAction = "CALL";
+}
+
+// Keep street as-is; set a reasonable next action
+setForm(street, nextAction);
+
+// Keep actor on the last selected actor (don’t jump back to Hero)
+if(loggerState && loggerState.table && loggerState.table.selectedActorPos){
+  try { actorSel.value = loggerState.table.selectedActorPos; } catch(e){}
+}
+
 }
 
 function mkTpl(label, street, action, presetAmt){
@@ -5202,7 +5216,11 @@ function mkTpl(label, street, action, presetAmt){
   b.type = "button";
   b.className = "pfBtn";
   b.textContent = label;
-  b.addEventListener("click", ()=> addActionQuick(street, action, presetAmt));
+  b.addEventListener("click", ()=>{
+  const st = streetSel.value || street || "PREFLOP";
+  addActionQuick(st, action, presetAmt);
+  });
+
   return b;
 }
 
