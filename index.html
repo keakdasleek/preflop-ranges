@@ -3602,8 +3602,12 @@ const curHand = (active && loggerSelectedHandId)
   ? (active.hands || []).find(h => h.id === loggerSelectedHandId)
   : null;
 
-const locked = !!(curHand && (curHand.btnLocked || ((curHand.heroCards||[]).filter(Boolean).length === 2)));
-const effectiveMode = locked ? "ACTOR" : mode;
+const started = !!(curHand && ((curHand.heroCards||[]).filter(Boolean).length === 2));
+const locked = !!(curHand && (curHand.btnLocked || started));
+
+// Until the hand starts (hero cards selected), default to BTN mode
+const effectiveMode = locked ? "ACTOR" : (started ? mode : "BTN");
+
 
 if(effectiveMode === "ACTOR"){
   const nPlayers = Number(loggerState?.table?.maxPlayers || 8);
@@ -5233,6 +5237,14 @@ actions: [] // [{id, street, actorPos, action, amt, unit, toCall, note, createdA
       active.hands.unshift(hand);
       loggerSelectedHandId = hand.id;
     
+      if(loggerState && loggerState.table){
+      loggerState.table.uiMode = "BTN";
+      loggerState.table.selectedActorPos = null;
+      loggerState.table.lastStreet = "PREFLOP";
+      loggerState.table.lastAction = "CALL";
+    }
+
+  
       saveLogger();
       renderLoggerSessionSummary();
       renderLoggerHandsList();
