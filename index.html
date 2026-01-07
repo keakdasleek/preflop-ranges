@@ -5030,6 +5030,37 @@ const defaultActor =
 
 const actorSel = mkSelect(posOptions, defaultActor);
 
+function refreshActorOptionsForStreet(){
+  const st = streetSel.value || "PREFLOP";
+  const active = new Set(getActivePositionsForStreet(hand, st));
+
+  // Rebuild options in-place
+  actorSel.innerHTML = "";
+  for(const o of posOptions){
+    if(active.has(o.value)){
+      const op = document.createElement("option");
+      op.value = o.value;
+      op.textContent = o.label;
+      actorSel.appendChild(op);
+    }
+  }
+
+  // Keep selectedActorPos if still active, else fall back to Hero
+  const preferred = (loggerState?.table?.selectedActorPos) || (posOptions[0]?.value || "HERO");
+  const fallback = (posOptions[0]?.value || "HERO");
+
+  if(active.has(preferred)){
+    actorSel.value = preferred;
+  } else if(active.has(fallback)){
+    actorSel.value = fallback;
+    if(loggerState && loggerState.table) loggerState.table.selectedActorPos = fallback;
+  } else {
+    // extreme edge case: everyone folded
+    if(actorSel.options.length) actorSel.value = actorSel.options[0].value;
+  }
+}
+
+
 // Keep table-selected actor in sync if user changes dropdown manually
 actorSel.addEventListener("change", ()=>{
   if(loggerState && loggerState.table){
@@ -5166,6 +5197,8 @@ hand.actions.push(obj);
 
 saveLogger();
 renderActionsList();
+refreshActorOptionsForStreet();
+
 
 if(loggerState && loggerState.table){
   loggerState.table.lastStreet = street;
@@ -5296,29 +5329,52 @@ function renderQuickTemplates(){
 }
 
 renderQuickTemplates();
-streetSel.addEventListener("change", renderQuickTemplates);
+refreshActorOptionsForStreet();
+
+streetSel.addEventListener("change", ()=>{
+  renderQuickTemplates();
+  refreshActorOptionsForStreet();
+});
 
 /* ===== /Fast templates ===== */
 
+function getActivePositionsForStreet(hand, street){
+  const nPlayers = Number(loggerState?.table?.maxPlayers || 8);
+  const btnSeatLocal = Number(hand.btnSeat != null ? hand.btnSeat : (loggerState?.table?.btnSeat || 0));
+  const posBySeat = buildSeatPositionsFromButton(btnSeatLocal, nPlayers);
+
+  const actions = ensureHandActions(hand);
+
+  // Anyone who folded on an earlier street is inactive
+  const streetOrder = { PREFLOP:0, FLOP:1, TURN:2, RIVER:3 };
+  const curOrd = streetOrder[String(street||"PREFLOP").toUpperCase()] ?? 0;
+
+  const folded = new Set();
+  for(const a of actions){
+    const st = String(a.street||"PREFLOP").toUpperCase();
+    const ord = streetOrder[st];
+    if(ord == null) continue;
+    if(ord <= curOrd && String(a.action||"").toUpperCase() === "FOLD"){
+      if(a.actorPos) folded.add(a.actorPos);
+    }
+  }
+
+  const out = [];
+  for(let i=0;i<nPlayers;i++){
+    const pos = posBySeat[i] || `P${i+1}`;
+    if(!folded.has(pos)) out.push(pos);
+  }
+  return out;
+}
+
+  
 function addChecksAround(){
   const st = streetSel.value;
   if(st === "PREFLOP") return;
 
   const actions = ensureHandActions(hand);
+  const activeSeats = getActivePositionsForStreet(hand, st);
 
-  const nPlayers = Number(loggerState?.table?.maxPlayers || 8);
-  const btnSeatLocal = Number(hand.btnSeat != null ? hand.btnSeat : loggerState?.table?.btnSeat || 0);
-  const posBySeat = buildSeatPositionsFromButton(btnSeatLocal, nPlayers);
-
-  const activeSeats = [];
-
-  for(let i=0;i<nPlayers;i++){
-    const pos = posBySeat[i];
-    const folded = actions.some(a => a.actorPos === pos && a.action === "FOLD");
-    if(!folded){
-      activeSeats.push(pos);
-    }
-  }
 
   activeSeats.forEach(pos=>{
     actions.push({
