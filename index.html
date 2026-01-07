@@ -4315,11 +4315,67 @@ function fmtActionLine(meta, a){
   return `${who} ${act}${amt}`.trim();
 }
 
+function renderBoardSummaryInto(el, hand, mode){
+  if(!el) return;
+
+  const flop = (hand.board && Array.isArray(hand.board.flop)) ? hand.board.flop : [null,null,null];
+  const turn = hand.board ? hand.board.turn : null;
+  const river = hand.board ? hand.board.river : null;
+
+  function cardTxt(c){
+    if(!c) return "—";
+    if(typeof c === "string") return c;
+    // common shapes
+    if(c.r && c.suit) return String(c.r) + String(c.suit);
+    if(c.rank && c.suit) return String(c.rank) + String(c.suit);
+    if(c.r && c.s) return String(c.r) + String(c.s);
+    if(c.rank && c.s) return String(c.rank) + String(c.s);
+    return "—";
+  }
+
+  let showFlop = false, showTurn = false, showRiver = false;
+
+  if(mode === "REVIEW"){
+    const st = getReplayStreet(hand);
+    showFlop = (st === "FLOP" || st === "TURN" || st === "RIVER");
+    showTurn = (st === "TURN" || st === "RIVER");
+    showRiver = (st === "RIVER");
+  } else {
+    // LOG mode: always show full board as currently set
+    showFlop = true;
+    showTurn = true;
+    showRiver = true;
+  }
+
+  const f1 = showFlop ? cardTxt(flop[0]) : "—";
+  const f2 = showFlop ? cardTxt(flop[1]) : "—";
+  const f3 = showFlop ? cardTxt(flop[2]) : "—";
+  const t  = showTurn ? cardTxt(turn) : "—";
+  const r  = showRiver ? cardTxt(river) : "—";
+
+  el.textContent = `${f1} ${f2} ${f3}  |  ${t}  |  ${r}`;
+}
+
+
 function getSortedActions(hand){
   return ensureHandActions(hand)
     .slice()
     .sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
 }
+
+function getReplayStreet(hand){
+  const actions = getSortedActions(hand);
+  if(!actions.length) return "PREFLOP";
+
+  let idx = Number(hand.replayIdx || 0);
+  if(!isFinite(idx) || idx < 0) idx = 0;
+  if(idx > actions.length - 1) idx = actions.length - 1;
+
+  const st = String(actions[idx].street || "").toUpperCase();
+  if(st === "FLOP" || st === "TURN" || st === "RIVER") return st;
+  return "PREFLOP";
+}
+
 
 
 function isHandStarted(hand){
@@ -4770,7 +4826,7 @@ boardLine.style.gap = "10px";
 boardLine.style.flexWrap = "wrap";
 boardLine.style.alignItems = "center";
 
-const boardLabel = document.createElement("div");
+const boardLabel = document.createElement("div"); 
 boardLabel.style.fontWeight = "950";
 boardLabel.textContent = "Board";
 
@@ -4818,6 +4874,15 @@ boardLine.appendChild(boardLabel);
 boardLine.appendChild(boardVal);
 boardLine.appendChild(boardBtn);
 top.appendChild(boardLine);
+
+const boardReadout = document.createElement("div");
+boardReadout.className = "kicker";
+boardReadout.style.color = "var(--muted)";
+boardReadout.style.fontWeight = "900";
+boardReadout.style.marginTop = "6px";
+renderBoardSummaryInto(boardReadout, hand, (hand.viewMode || "LOG"));
+top.appendChild(boardReadout);
+
 
 // Actions block
 const actionsWrap = document.createElement("div");
