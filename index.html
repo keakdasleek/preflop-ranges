@@ -3985,7 +3985,20 @@ function savePersona(){
   return "—";
 }
 
+function mixPctLabelFromDist(d){
+  const parts = [
+    ["R", Math.round((d.R || 0) * 100)],
+    ["C", Math.round((d.C || 0) * 100)],
+    ["F", Math.round((d.F || 0) * 100)],
+  ]
+    .filter(([,p]) => p > 0)
+    .sort((a,b) => b[1] - a[1]);
 
+  // show the top two weights to keep it compact (e.g. "88F/12R")
+  return parts.slice(0, 2).map(([k,p]) => `${p}${k}`).join("/");
+}
+
+  
   function renderMiniMatrix(key, selectedHand, selStatus){
     if(!trainerMatrix) return;
    const { map, mixWeights } = getScenarioData(key);
@@ -4032,9 +4045,10 @@ if(a === "M"){
   el.style.setProperty("--mixA", mixIntensity(w));
 }
 
-const mixBadge = (showLabels && a === "M")
-  ? `<div class="mixPct">${Math.round((w.R ?? 0.5)*100)}/${Math.round((w.C ?? 0.5)*100)}</div>`
+const mixBadge = (showLabels && isMix(d))
+  ? `<div class="mixPct">${mixPctLabelFromDist(d)}</div>`
   : "";
+
 
 el.innerHTML =
   `<div class="hand">${handLabel}</div>` +
