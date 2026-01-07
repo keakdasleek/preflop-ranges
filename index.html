@@ -4590,8 +4590,21 @@ tplRow.style.margin = "6px 0 2px";
 let __lastAddedActionId = null;
 
 function needsAmount(action){
-  return action === "BET" || action === "RAISE" || action === "ALLIN";
+  const k = String(action || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, ""); // "3-bet" -> "3BET"
+
+  // Actions that should prompt amount entry
+  return (
+    k === "BET" ||
+    k === "RAISE" ||
+    k === "ALLIN" ||
+    k === "OPEN" ||
+    k === "3BET"
+  );
 }
+
 
 function parseBetSize(raw){
   if(!raw) return null;
@@ -4649,8 +4662,17 @@ hand.actions.push(obj);
 
   __lastAddedActionId = id;
 
-  saveLogger();
-  renderActionsList();
+saveLogger();
+renderActionsList();
+
+// Force focus for sizing actions (Open / 3-bet / Bet / Raise / All-in)
+if(needsAmount(action)){
+  setTimeout(()=>{
+    amtInput.focus();
+    try { amtInput.select(); } catch(e){}
+  }, 0);
+}
+
 
   // Scroll + flash the new row (renderActionsList patch below adds data-aid)
   setTimeout(()=>{
