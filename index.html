@@ -4936,6 +4936,7 @@ function renderLoggerHandEditor(hand){
   const title = document.createElement("div");
   title.style.fontWeight = "950";
   title.textContent = `Editing hand • Hero position: ${heroPos}`;
+  
 
   const meta = document.createElement("div");
   meta.className = "kicker";
@@ -4955,27 +4956,38 @@ function renderLoggerHandEditor(hand){
   doneBtn.style.borderRadius = "12px";
   doneBtn.style.fontWeight = "900";
   
-  doneBtn.addEventListener("click", ()=>{
-    // Require hero cards before allowing completion
-    const hc = (hand.heroCards || []).filter(Boolean);
-    if(hc.length !== 2){
-      toast("Pick hero cards before completing the hand.");
-      return;
-    }
-    hand.completedAt = Date.now();
-  
-    // After completion, unlock BTN for next hand
-    if(loggerState && loggerState.table){
-      loggerState.table.uiMode = "BTN";
-      loggerState.table.selectedActorPos = null;
-    }
-  
-    saveLogger();
-    renderLoggerTable();
-    renderLoggerHandEditor(hand);
-    renderLoggerHandsList();
-    toast("Hand completed");
-  });
+doneBtn.addEventListener("click", ()=>{
+  if(hand.completedAt) return;
+
+  // Require hero cards before allowing completion
+  const hc = (hand.heroCards || []).filter(Boolean);
+  if(hc.length !== 2){
+    toast("Pick hero cards before completing the hand.");
+    return;
+  }
+
+  hand.completedAt = Date.now();
+  hand.viewMode = "REVIEW";
+
+  // Reset table interaction state for next hand
+  if(loggerState && loggerState.table){
+    loggerState.table.uiMode = "BTN";
+    loggerState.table.selectedActorPos = null;
+    loggerState.table.lastStreet = "PREFLOP";
+    loggerState.table.lastAction = null;
+  }
+
+  saveLogger();
+
+  // Exit editor back to "Click log new hand"
+  loggerSelectedHandId = null;
+
+  renderLoggerTable();
+  renderLoggerHandsList();
+  renderLoggerHandEditor(null);
+  toast("Hand completed");
+});
+
   
   doneRow.appendChild(doneBtn);
   top.appendChild(doneRow);
