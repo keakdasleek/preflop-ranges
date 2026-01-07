@@ -4529,9 +4529,7 @@ function getPreflopAggressor(hand){
 }
 
 function getActivePositionsForStreet(hand, street){
-  // If you already have this function, DO NOT add this duplicate.
-  // (Leaving it here in case your file doesn’t have it yet.)
-  if(typeof window.getActivePositionsForStreet === "function") return window.getActivePositionsForStreet(hand, street);
+
 
   const nPlayers = Number(hand?.maxPlayers || loggerState?.table?.maxPlayers || 8);
   const btnSeatLocal = Number(hand?.btnSeat != null ? hand.btnSeat : (loggerState?.table?.btnSeat || 0));
