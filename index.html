@@ -540,6 +540,23 @@ select:focus{
   transform: translate(-50%, -50%);
 }
 
+.loggerSeat.folded::after{
+  content: "FOLDED";
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.35);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+    
 .loggerSeat:hover{ filter:brightness(1.08); }
 
 .loggerSeat .lbl{
@@ -570,6 +587,12 @@ select:focus{
 
 .loggerSeat.hero .tag{ border-color: rgba(36,194,106,.55); background: rgba(36,194,106,.14); }
 .loggerSeat.btn  .tag{ border-color: rgba(246,196,69,.55); background: rgba(246,196,69,.14); }
+
+.loggerSeat.folded{
+  opacity: 0.35;
+  filter: grayscale(0.25);
+}
+
 
 .loggerTableLegend{
   display:flex;
@@ -621,6 +644,34 @@ select:focus{
   white-space: nowrap;
   opacity: 0.95;
 }
+
+.seat.folded {
+  opacity: 0.35;
+  filter: grayscale(0.25);
+}
+
+.seat.folded .seatPos,
+.seat.folded .seatName,
+.seat.folded .seatStack {
+  opacity: 0.8;
+}
+
+.seat.folded::after{
+  content: "FOLDED";
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  padding: 3px 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.25);
+  color: var(--muted);
+}
+
+
 
 
     
@@ -3680,7 +3731,18 @@ function renderLoggerTable(){
   const heroSeat = 0;
   const btnSeat = Number(loggerState?.table?.btnSeat ?? 5);
 
-  const posBySeat = buildSeatPositionsFromButton(btnSeat, n);
+  const active = getActiveSession ? getActiveSession() : null;
+  const curHand = (active && loggerSelectedHandId)
+    ? (active.hands || []).find(h => h.id === loggerSelectedHandId)
+    : null;
+  
+  // Use the hand's BTN seat if editing a hand, otherwise the table's BTN seat
+  const btnSeatEffective = Number(
+    (curHand && curHand.btnSeat != null) ? curHand.btnSeat : btnSeat
+  );
+  
+  const posBySeat = buildSeatPositionsFromButton(btnSeatEffective, n);
+
 
   mount.innerHTML = "";
 
@@ -3716,6 +3778,19 @@ function renderLoggerTable(){
 
     const seat = document.createElement("div");
     seat.className = "loggerSeat";
+    // Dim folded players (if a hand is selected)
+    if(curHand){
+      const st = (loggerState?.table?.lastStreet) || "PREFLOP";
+      const activePos = new Set(getActivePositionsForStreet(curHand, st));
+      const pos = (posBySeat[i] || `P${i+1}`);
+    
+      if(!activePos.has(pos)){
+        seat.classList.add("folded");
+      } else {
+        seat.classList.remove("folded");
+      }
+    }
+
     seat.style.left = x + "%";
     seat.style.top  = y + "%";
     seat.style.transform = "translate(-50%, -50%)";
@@ -3744,10 +3819,6 @@ function renderLoggerTable(){
 
 // Highlight selected actor seat in ACTOR mode
 const mode = loggerState?.table?.uiMode || "BTN";
-const active = getActiveSession ? getActiveSession() : null;
-const curHand = (active && loggerSelectedHandId)
-  ? (active.hands || []).find(h => h.id === loggerSelectedHandId)
-  : null;
 
 const started = !!(curHand && ((curHand.heroCards||[]).filter(Boolean).length === 2));
 const locked = !!(curHand && (curHand.btnLocked || started));
@@ -3757,9 +3828,6 @@ const effectiveMode = locked ? "ACTOR" : (started ? mode : "BTN");
 
 
 if(effectiveMode === "ACTOR"){
-  const nPlayers = Number(loggerState?.table?.maxPlayers || 8);
-  const btnSeatLocal = Number((curHand && curHand.btnSeat != null) ? curHand.btnSeat : loggerState?.table?.btnSeat || 0);
-  const posBySeat = buildSeatPositionsFromButton(btnSeatLocal, nPlayers);
   const pos = posBySeat[i] || `P${i+1}`;
 
   if(loggerState?.table?.selectedActorPos && pos === loggerState.table.selectedActorPos){
@@ -3767,6 +3835,7 @@ if(effectiveMode === "ACTOR"){
     seat.style.boxShadow = "0 0 0 3px rgba(255,215,0,.12)";
   }
 }
+
 
     
 seat.addEventListener("click", ()=>{
