@@ -4996,6 +4996,16 @@ function renderQuickTemplates(){
     tplRow.appendChild(checksBtn);
   }
 
+  // Checks around (postflop only)
+  if(st !== "PREFLOP"){
+    const checksBtn = document.createElement("button");
+    checksBtn.textContent = "Checks around";
+    checksBtn.type = "button";
+    checksBtn.className = "pfBtn";
+    checksBtn.addEventListener("click", addChecksAround);
+    tplRow.appendChild(checksBtn);
+  }
+
   
   tplRow.appendChild(moreSel);
 }
@@ -5091,8 +5101,16 @@ if(loggerState && loggerState.table){
   renderLoggerHandsList();
 });
 
-form.appendChild(streetSel);
-form.appendChild(nextStreetBtn);
+const streetWrap = document.createElement("div");
+streetWrap.style.display = "grid";
+streetWrap.style.gridTemplateColumns = "1fr auto";
+streetWrap.style.gap = "8px";
+streetWrap.style.alignItems = "center";
+
+streetWrap.appendChild(streetSel);
+streetWrap.appendChild(nextStreetBtn);
+
+form.appendChild(streetWrap);
 form.appendChild(actorSel);
 form.appendChild(actionSel);
 form.appendChild(amtInput);
