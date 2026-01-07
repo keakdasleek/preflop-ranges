@@ -3761,7 +3761,6 @@ function renderLoggerTable(){
   modePill.className = "loggerModePill on";
   modePill.textContent = "Click a seat to set BUTTON (Hero is always bottom)";
 
-  controls.appendChild(btnBtn);
   controls.appendChild(modePill);
 
   // Table
@@ -4374,6 +4373,45 @@ function ensureHandActions(hand){
   return hand.actions;
 }
 
+function estimatePotFromLoggedBetsBB(hand){
+  const actions = ensureHandActions(hand);
+  const contrib = Object.create(null);
+
+  for(const a of actions){
+    const who = a.actorPos || "";
+    if(!who) continue;
+
+    const k = String(a.action || "").toUpperCase();
+    if(k !== "BET" && k !== "RAISE" && k !== "CALL" && k !== "ALLIN") continue;
+
+    const v = Number(a.amt || 0);
+    if(!isFinite(v) || v <= 0) continue;
+
+    // "to" semantics → just track max contribution per player
+    contrib[who] = Math.max(contrib[who] || 0, v);
+  }
+
+  let pot = 0;
+  for(const who in contrib) pot += contrib[who];
+  return pot;
+}
+
+
+function getLastAggToForStreet(hand, street){
+  const actions = ensureHandActions(hand);
+  for(let i = actions.length - 1; i >= 0; i--){
+    const a = actions[i];
+    if(a.street !== street) continue;
+    const k = String(a.action || "").toUpperCase();
+    if(k === "BET" || k === "RAISE" || k === "ALLIN"){
+      const v = Number(a.amt || 0);
+      if(isFinite(v) && v > 0) return v; // "to" amount
+    }
+  }
+  return 0;
+}
+
+  
 function streetOrderVal(st){
   const s = String(st || "").toUpperCase();
   if(s === "PREFLOP") return 0;
@@ -4554,6 +4592,38 @@ function renderLoggerSessionSettings(){
   title.style.color = "var(--muted)";
   title.style.fontWeight = "800";
   title.textContent = "Session settings";
+
+  // Complete hand button (ends editing + re-enables BTN selection for next hand)
+const doneBtn = document.createElement("button");
+doneBtn.textContent = "Complete hand";
+doneBtn.style.width = "fit-content";
+doneBtn.style.padding = "10px 14px";
+doneBtn.style.borderRadius = "12px";
+doneBtn.style.fontWeight = "900";
+
+doneBtn.addEventListener("click", ()=>{
+  hand.completedAt = Date.now();
+  hand.viewMode = "REVIEW"; // optional, but useful
+
+  // Reset table interaction state for next hand
+  if(loggerState && loggerState.table){
+    loggerState.table.uiMode = "BTN";
+    loggerState.table.selectedActorPos = null;
+    loggerState.table.lastStreet = "PREFLOP";
+    loggerState.table.lastAction = null;
+  }
+
+  saveLogger();
+
+  // Exit editor back to "Click log new hand"
+  loggerSelectedHandId = null;
+
+  renderLoggerTable();
+  renderLoggerHandsList();
+  renderLoggerHandEditor(null);
+  toast("Hand completed");
+});
+
 
   const grid = document.createElement("div");
   grid.style.display = "grid";
@@ -4806,7 +4876,8 @@ function renderLoggerHandEditor(hand){
     const d = document.createElement("div");
     d.className = "kicker";
     d.style.color = "var(--muted)";
-    d.textContent = "Pick hero cards first. Actions and board will unlock after that.";
+    d.textContent = "First, click a seat on the table to set the BUTTON. Then pick hero cards to start the hand (actions + board unlock after).";
+
 
     const btn = document.createElement("button");
     btn.textContent = "Pick hero cards";
@@ -4871,6 +4942,45 @@ function renderLoggerHandEditor(hand){
   meta.style.color = "var(--muted)";
   meta.textContent = `BTN seat: ${Number(hand.btnSeat) + 1} • Hero seat: 1 • Players: ${n}`;
 
+  const doneRow = document.createElement("div");
+  doneRow.style.display = "flex";
+  doneRow.style.gap = "10px";
+  doneRow.style.flexWrap = "wrap";
+  doneRow.style.alignItems = "center";
+  
+  const doneBtn = document.createElement("button");
+  doneBtn.textContent = hand.completedAt ? "Hand completed" : "Complete hand";
+  doneBtn.disabled = !!hand.completedAt;
+  doneBtn.style.padding = "10px 14px";
+  doneBtn.style.borderRadius = "12px";
+  doneBtn.style.fontWeight = "900";
+  
+  doneBtn.addEventListener("click", ()=>{
+    // Require hero cards before allowing completion
+    const hc = (hand.heroCards || []).filter(Boolean);
+    if(hc.length !== 2){
+      toast("Pick hero cards before completing the hand.");
+      return;
+    }
+    hand.completedAt = Date.now();
+  
+    // After completion, unlock BTN for next hand
+    if(loggerState && loggerState.table){
+      loggerState.table.uiMode = "BTN";
+      loggerState.table.selectedActorPos = null;
+    }
+  
+    saveLogger();
+    renderLoggerTable();
+    renderLoggerHandEditor(hand);
+    renderLoggerHandsList();
+    toast("Hand completed");
+  });
+  
+  doneRow.appendChild(doneBtn);
+  top.appendChild(doneRow);
+
+
   const notesLabel = document.createElement("div");
   notesLabel.className = "kicker";
   notesLabel.textContent = "Notes (optional)";
@@ -4893,7 +5003,7 @@ heroVal.textContent = hand.heroCards && hand.heroCards.length === 2
   : "—";
 
 const heroBtn = document.createElement("button");
-heroBtn.textContent = "Pick hero cards";
+heroBtn.textContent = "Pick hero cards (start hand)";
 heroBtn.addEventListener("click", ()=>{
   const slots = (hand.heroCards && hand.heroCards.length === 2) ? hand.heroCards.slice() : [null,null];
   openLoggerCardPicker({
@@ -5011,6 +5121,14 @@ actionsWrap.style.display = "grid";
 actionsWrap.style.gap = "10px";
 actionsWrap.style.marginTop = "8px";
 
+const potLine = document.createElement("div");
+potLine.className = "kicker";
+potLine.style.color = "var(--muted)";
+potLine.style.fontWeight = "900";
+potLine.textContent = `Pot (from logged bets): ~${estimatePotFromLoggedBetsBB(hand).toFixed(1)}bb`;
+actionsWrap.appendChild(potLine);
+
+  
 const actionsTitle = document.createElement("div");
 actionsTitle.className = "kicker";
 actionsTitle.style.color = "var(--muted)";
@@ -5294,7 +5412,12 @@ function addActionQuick(street, action, presetAmt){
     street,
     actorPos: actorSel.value || (posOptions[0]?.value || "HERO"),
     action,
-    amt: (needsAmount(action) ? (presetAmt ?? "") : ""),
+   amt: (
+        action === "CALL"
+        ? getLastAggToForStreet(hand, street)
+        : (needsAmount(action) ? (presetAmt ?? "") : "")
+    ),
+
     unit: unitSel.value || "BB",
     note: "",
     createdAt: Date.now()
@@ -5302,6 +5425,17 @@ function addActionQuick(street, action, presetAmt){
 
 obj.norm = parseBetSize(obj.amt);
 hand.actions.push(obj);
+// If this is a sizing action and no preset amount was provided,
+// DON'T log a row yet — just prefill the form and focus amount.
+if(needsAmount(action) && (presetAmt == null || presetAmt === "")){
+  setForm(street, action);
+  amtInput.value = "";
+  setTimeout(()=>{
+    amtInput.focus();
+    try { amtInput.select(); } catch(e){}
+  }, 0);
+  return;
+}
 
   __lastAddedActionId = id;
 
@@ -5847,6 +5981,8 @@ mount.appendChild(actionsWrap);
   });
 
   top.appendChild(title);
+  top.appendChild(doneBtn);
+
   top.appendChild(meta);
   top.appendChild(notesLabel);
   top.appendChild(notes);
@@ -5871,6 +6007,7 @@ function createLoggerHand(){
       heroSeat: 0,
       btnSeat: Number(loggerState.table.btnSeat),
       notes: "",
+      completedAt: null,
     
       // NEW
 heroCards: [null, null], // exactly 2
