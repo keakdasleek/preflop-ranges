@@ -5816,9 +5816,18 @@ if(boardApplyBtn){
       toast("Pick 3 cards first");
       return;
     }
-    currentBoard = cards;
-    toast("Board applied");
-    renderPostflopAdvice();
+   currentBoard = {
+  flop: cards,
+  turn: null,
+  river: null
+};
+
+toast("Board applied");
+renderPostflopAdvice();
+
+// NEW: update the hand awareness panel immediately
+renderExplorerHandAwareness();
+
   });
 }
 
