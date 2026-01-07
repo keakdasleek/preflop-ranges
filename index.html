@@ -3466,17 +3466,19 @@ function initLoggerCardPickerEls(){
 
 
   
-  function openLoggerCardPicker({title, sub, slots, onSave, opts}){
+function openLoggerCardPicker({ title, sub, slots, onSave, exclude }){
   initLoggerCardPickerEls();
+
   loggerCardPicker.mode = title;
   loggerCardPicker.handId = null;
-  loggerCardPicker.slots = slots.map(normalizeCard);
+
+  loggerCardPicker.slots = (slots || []).map(c => c ? normalizeCard(c) : null);
+
   loggerCardPicker.activeIdx = Math.max(0, loggerCardPicker.slots.findIndex(x=>!x));
-  const _opts = opts || {};
-  loggerCardPicker.exclude = (_opts.exclude instanceof Set) ? _opts.exclude : new Set();
-
-
   if(loggerCardPicker.activeIdx === -1) loggerCardPicker.activeIdx = 0;
+
+  loggerCardPicker.exclude = (exclude instanceof Set) ? exclude : new Set();
+
   loggerCardPicker.onSave = onSave;
 
   if(loggerCardTitle) loggerCardTitle.textContent = title;
@@ -3487,6 +3489,7 @@ function initLoggerCardPickerEls(){
 
   if(loggerCardModal) loggerCardModal.style.display = "block";
 }
+
 
 function closeLoggerCardPicker(){
   if(loggerCardModal) loggerCardModal.style.display = "none";
@@ -4453,30 +4456,24 @@ boardBtn.addEventListener("click", ()=>{
     cur.turn || null,
     cur.river || null
   ];
-  openLoggerCardPicker({
-    title: "Pick board",
-    sub: "Pick flop (3), then turn (1), then river (1).",
-    slots,
-    exclude: new Set((hand.heroCards || []).filter(Boolean)),
-onSave: (newSlots)=>{
-  hand.board = {
-    flop: [newSlots[0]||null, newSlots[1]||null, newSlots[2]||null],
-    turn: newSlots[3]||null,
-    river: newSlots[4]||null
-  };
-
-  const f = hand.board.flop || [];
-  const flopComplete = f.length === 3 && f[0] && f[1] && f[2];
-  if(flopComplete){
-    setLoggerActiveStreet("flop");
+  const heroExclude = new Set(allPickedCards(hand.heroCards || []));
+openLoggerCardPicker({
+  title: "Pick board",
+  sub: "Pick flop (3), then turn (1), then river (1).",
+  slots,
+  exclude: heroExclude,
+  onSave: (newSlots)=>{
+    hand.board = {
+      flop: [newSlots[0]||null, newSlots[1]||null, newSlots[2]||null],
+      turn: newSlots[3]||null,
+      river: newSlots[4]||null
+    };
+    saveLogger();
+    renderLoggerHandEditor(hand);
+    renderLoggerHandsList();
   }
+});
 
-  saveLogger();
-  renderLoggerHandEditor(hand);
-  renderLoggerHandsList();
-}
-
-  });
 });
 
 boardLine.appendChild(boardLabel);
