@@ -4996,16 +4996,6 @@ function renderQuickTemplates(){
     tplRow.appendChild(checksBtn);
   }
 
-  // Checks around (postflop only)
-  if(st !== "PREFLOP"){
-    const checksBtn = document.createElement("button");
-    checksBtn.textContent = "Checks around";
-    checksBtn.type = "button";
-    checksBtn.className = "pfBtn";
-    checksBtn.addEventListener("click", addChecksAround);
-    tplRow.appendChild(checksBtn);
-  }
-
   
   tplRow.appendChild(moreSel);
 }
@@ -5105,17 +5095,17 @@ const streetWrap = document.createElement("div");
 streetWrap.style.display = "grid";
 streetWrap.style.gridTemplateColumns = "1fr auto";
 streetWrap.style.gap = "8px";
-streetWrap.style.alignItems = "center";
-
 streetWrap.appendChild(streetSel);
 streetWrap.appendChild(nextStreetBtn);
 
+// then in your form append order:
 form.appendChild(streetWrap);
 form.appendChild(actorSel);
 form.appendChild(actionSel);
 form.appendChild(amtInput);
 form.appendChild(unitSel);
 form.appendChild(addBtn);
+
 
 // Actions list
 const list = document.createElement("div");
@@ -5207,67 +5197,7 @@ function renderActionsList(){
 renderActionsList();
 
 actionsWrap.appendChild(actionsTitle);
-
-/* ===== Fast action templates ===== */
-const templatesRow = document.createElement("div");
-templatesRow.style.display = "flex";
-templatesRow.style.gap = "6px";
-templatesRow.style.flexWrap = "wrap";
-templatesRow.style.margin = "8px 0 10px";
-
-function makeTplBtn(label, payload){
-  const b = document.createElement("button");
-  b.textContent = label;
-  b.className = "pfBtn"; // uses your existing button styling
-  b.type = "button";
-  b.addEventListener("click", ()=>{
-    // payload = {street, action, amt?}
-    // we add a new action row using your existing data model
-    const a = {
-      id: String(Date.now()) + "_" + Math.random().toString(16).slice(2),
-      street: payload.street,
-      actorPos: payload.actorPos || (hand.heroPos || "HERO"),
-      action: payload.action,
-      amt: payload.amt ?? "",
-      unit: payload.unit || "bb",
-      toCall: payload.toCall ?? "",
-      note: "",
-      createdAt: Date.now()
-    };
-
-    if(!Array.isArray(hand.actions)) hand.actions = [];
-    hand.actions.push(a);
-    saveLogger();
-
-    // re-render action list (your function inside editor)
-    renderActionsList();
-  });
-  return b;
-}
-
-// Common templates (street-specific)
-[
-  {label:"PF: Open", street:"preflop", action:"open"},
-  {label:"PF: Call", street:"preflop", action:"call"},
-  {label:"PF: 3-bet", street:"preflop", action:"3bet"},
-  {label:"PF: Fold", street:"preflop", action:"fold"},
-  {label:"F: Check", street:"flop", action:"check"},
-  {label:"F: Bet", street:"flop", action:"bet"},
-  {label:"F: Raise", street:"flop", action:"raise"},
-  {label:"T: Check", street:"turn", action:"check"},
-  {label:"T: Bet", street:"turn", action:"bet"},
-  {label:"R: Check", street:"river", action:"check"},
-  {label:"R: Bet", street:"river", action:"bet"},
-].forEach(t=>{
-  templatesRow.appendChild(makeTplBtn(t.label, {
-    street: t.street,
-    action: t.action
-  }));
-});
-
-actionsWrap.appendChild(templatesRow);
-/* ===== /Fast action templates ===== */
-
+actionsWrap.appendChild(tplRow);
 actionsWrap.appendChild(form);
 actionsWrap.appendChild(list);
 
