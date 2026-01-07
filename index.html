@@ -4143,6 +4143,13 @@ function ensureHandActions(hand){
   return hand.actions;
 }
 
+function isHandStarted(hand){
+  if(!hand) return false;
+  const hc = hand.heroCards || [];
+  return Boolean(hc[0] && hc[1]);
+}
+
+
   
 function renderLoggerSessionSummary(){
   const active = getActiveSession();
@@ -4422,8 +4429,78 @@ function renderLoggerHandEditor(hand){
   const n = Number(loggerState?.table?.maxPlayers || 8);
   const posBySeat = buildSeatPositionsFromButton(Number(hand.btnSeat), n);
   const heroPos = posBySeat[0] || "HERO";
+  const started = isHandStarted(hand);
 
   mount.innerHTML = "";
+
+    // ===== Hand gating: require hero cards to start =====
+  if(!started){
+    const gate = document.createElement("div");
+    gate.style.display = "grid";
+    gate.style.gap = "10px";
+    gate.style.padding = "12px 14px";
+    gate.style.borderRadius = "16px";
+    gate.style.border = "1px solid rgba(255,255,255,.10)";
+    gate.style.background = "rgba(255,255,255,.03)";
+
+    const t = document.createElement("div");
+    t.style.fontWeight = "950";
+    t.textContent = "Start this hand";
+
+    const d = document.createElement("div");
+    d.className = "kicker";
+    d.style.color = "var(--muted)";
+    d.textContent = "Pick hero cards first. Actions and board will unlock after that.";
+
+    const btn = document.createElement("button");
+    btn.textContent = "Pick hero cards";
+    btn.style.width = "fit-content";
+    btn.style.padding = "10px 14px";
+    btn.style.borderRadius = "12px";
+    btn.style.fontWeight = "900";
+
+    btn.addEventListener("click", ()=>{
+      openLoggerCardPicker({
+        title: "Pick hero cards",
+        sub: "Select exactly 2 cards.",
+        slots: (hand.heroCards || [null,null]).slice(),
+        exclude: new Set([
+          ...(hand.board?.flop || []),
+          hand.board?.turn || null,
+          hand.board?.river || null
+        ].filter(Boolean)),
+      onSave: (newSlots)=>{
+  hand.heroCards = [newSlots[0] || null, newSlots[1] || null];
+
+  const hasHero2 = !!hand.heroCards[0] && !!hand.heroCards[1];
+  if(hasHero2){
+    hand.btnLocked = true;
+    if(loggerState && loggerState.table){
+      loggerState.table.uiMode = "ACTOR";
+    }
+  }
+
+  saveLogger();
+  renderLoggerTable();
+  renderLoggerHandEditor(hand);
+  renderLoggerHandsList();
+}
+
+      });
+    });
+
+    gate.appendChild(t);
+    gate.appendChild(d);
+    gate.appendChild(btn);
+
+    mount.appendChild(gate);
+
+    // Still show notes at least (optional) OR exit entirely.
+    // For now, exit early so the screen is clean.
+    return;
+  }
+  // ===== /Hand gating =====
+
 
   const top = document.createElement("div");
   top.style.display = "grid";
