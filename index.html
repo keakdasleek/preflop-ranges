@@ -4474,6 +4474,211 @@ function fmtActionLine(meta, a){
   return `${who} ${act}${amt}`.trim();
 }
 
+function isAggressiveAction(a){
+  const k = String(a?.action || "").toUpperCase();
+  return (k === "BET" || k === "RAISE" || k === "ALLIN");
+}
+
+function isCallAction(a){
+  const k = String(a?.action || "").toUpperCase();
+  return (k === "CALL");
+}
+
+function isFoldAction(a){
+  const k = String(a?.action || "").toUpperCase();
+  return (k === "FOLD");
+}
+
+function streetKey(st){
+  const s = String(st || "").toUpperCase();
+  if(s === "PREFLOP") return "PREFLOP";
+  if(s === "FLOP") return "FLOP";
+  if(s === "TURN") return "TURN";
+  if(s === "RIVER") return "RIVER";
+  return "PREFLOP";
+}
+
+function streetOrderVal(st){
+  const s = streetKey(st);
+  if(s === "PREFLOP") return 0;
+  if(s === "FLOP") return 1;
+  if(s === "TURN") return 2;
+  if(s === "RIVER") return 3;
+  return 99;
+}
+
+function getHeroPosForHand(hand){
+  const nPlayers = Number(hand?.maxPlayers || loggerState?.table?.maxPlayers || 8);
+  const btnSeatLocal = Number(hand?.btnSeat != null ? hand.btnSeat : (loggerState?.table?.btnSeat || 0));
+  const posBySeat = buildSeatPositionsFromButton(btnSeatLocal, nPlayers);
+  return posBySeat[0] || "HERO";
+}
+
+function getPreflopAggressor(hand){
+  const actions = ensureHandActions(hand);
+  // last raiser / all-in preflop
+  let agg = null;
+  for(const a of actions){
+    if(streetKey(a.street) !== "PREFLOP") continue;
+    const k = String(a.action || "").toUpperCase();
+    if(k === "RAISE" || k === "ALLIN" || k === "BET"){
+      agg = a.actorPos || agg;
+    }
+  }
+  return agg;
+}
+
+function getActivePositionsForStreet(hand, street){
+  // If you already have this function, DO NOT add this duplicate.
+  // (Leaving it here in case your file doesn’t have it yet.)
+  if(typeof window.getActivePositionsForStreet === "function") return window.getActivePositionsForStreet(hand, street);
+
+  const nPlayers = Number(hand?.maxPlayers || loggerState?.table?.maxPlayers || 8);
+  const btnSeatLocal = Number(hand?.btnSeat != null ? hand.btnSeat : (loggerState?.table?.btnSeat || 0));
+  const posBySeat = buildSeatPositionsFromButton(btnSeatLocal, nPlayers);
+
+  const allPos = [];
+  for(let i=0;i<nPlayers;i++){
+    allPos.push(posBySeat[i] || `P${i+1}`);
+  }
+
+  const target = streetOrderVal(street);
+  const folded = new Set();
+
+  const actions = ensureHandActions(hand);
+  for(const a of actions){
+    const sVal = streetOrderVal(a.street);
+    const act = String(a.action || "").toUpperCase();
+    if(sVal <= target && act === "FOLD" && a.actorPos){
+      folded.add(a.actorPos);
+    }
+  }
+
+  return allPos.filter(p => !folded.has(p));
+}
+
+function getStreetActions(hand, street){
+  const s = streetKey(street);
+  return ensureHandActions(hand).filter(a => streetKey(a.street) === s);
+}
+
+function didDonkBet(hand){
+  // Donk bet = first aggression on flop is by someone other than preflop aggressor
+  const pfa = getPreflopAggressor(hand);
+  if(!pfa) return false;
+
+  const flopActs = getStreetActions(hand, "FLOP");
+  const firstAgg = flopActs.find(a => isAggressiveAction(a));
+  if(!firstAgg) return false;
+
+  return (firstAgg.actorPos && firstAgg.actorPos !== pfa);
+}
+
+function didCheckRaise(hand, street){
+  const acts = getStreetActions(hand, street);
+  // naive: someone CHECKs then later RAISEs on same street
+  const firstIdxByActor = Object.create(null);
+
+  for(let i=0;i<acts.length;i++){
+    const a = acts[i];
+    const who = a.actorPos || "";
+    if(!who) continue;
+
+    const k = String(a.action || "").toUpperCase();
+
+    if(firstIdxByActor[who] == null) firstIdxByActor[who] = { checked:false, raised:false };
+
+    if(k === "CHECK") firstIdxByActor[who].checked = true;
+    if(k === "RAISE") firstIdxByActor[who].raised = true;
+
+    if(firstIdxByActor[who].checked && firstIdxByActor[who].raised){
+      return true;
+    }
+  }
+  return false;
+}
+
+function heroFacedAggressionOnStreet(hand, street){
+  const heroPos = getHeroPosForHand(hand);
+  const acts = getStreetActions(hand, street);
+
+  // find first hero action index
+  const idxHero = acts.findIndex(a => (a.actorPos === heroPos));
+  if(idxHero < 0) return false;
+
+  // if any aggression occurred before hero acted
+  for(let i=0;i<idxHero;i++){
+    if(isAggressiveAction(acts[i])) return true;
+  }
+  return false;
+}
+
+function preflopUncontestedRaise(hand){
+  // One raiser; everyone else folds (no calls)
+  const pf = getStreetActions(hand, "PREFLOP");
+  const anyRaise = pf.some(a => {
+    const k = String(a.action || "").toUpperCase();
+    return k === "RAISE" || k === "ALLIN" || k === "BET";
+  });
+  if(!anyRaise) return false;
+
+  const anyCall = pf.some(a => isCallAction(a));
+  if(anyCall) return false;
+
+  // If there is any non-fold action besides raises (like check) ignore; this is coarse
+  // but good enough for v1.
+  const anyWeird = pf.some(a => {
+    const k = String(a.action || "").toUpperCase();
+    return !(k === "FOLD" || k === "RAISE" || k === "ALLIN" || k === "BET");
+  });
+  if(anyWeird) return false;
+
+  return true;
+}
+
+function deriveInsightsV1(hand){
+  const tags = [];
+  if(!hand) return tags;
+
+  const heroPos = getHeroPosForHand(hand);
+  const pfa = getPreflopAggressor(hand);
+
+  // Multiway / heads-up on flop
+  const flopActive = getActivePositionsForStreet(hand, "FLOP");
+  if(flopActive.length >= 3){
+    tags.push(`Multiway flop (${flopActive.length}-way)`);
+  } else if(flopActive.length === 2){
+    tags.push("Heads-up flop");
+  }
+
+  // Initiative
+  if(pfa){
+    tags.push(`Preflop aggressor: ${pfa}`);
+    if(pfa === heroPos) tags.push("Hero had initiative");
+  } else {
+    tags.push("No clear preflop aggressor (limped pot)");
+  }
+
+  // Donk / check-raise patterns
+  if(didDonkBet(hand)) tags.push("Donk bet occurred on flop");
+  if(didCheckRaise(hand, "FLOP")) tags.push("Check-raise occurred on flop");
+  if(didCheckRaise(hand, "TURN")) tags.push("Check-raise occurred on turn");
+  if(didCheckRaise(hand, "RIVER")) tags.push("Check-raise occurred on river");
+
+  // Hero facing aggression
+  ["FLOP","TURN","RIVER"].forEach(st=>{
+    if(heroFacedAggressionOnStreet(hand, st)){
+      tags.push(`Hero faced aggression on ${st.toLowerCase()}`);
+    }
+  });
+
+  // Uncontested preflop raise
+  if(preflopUncontestedRaise(hand)) tags.push("Uncontested preflop raise (steal)");
+
+  return tags;
+}
+
+
 function renderBoardSummaryInto(el, hand, mode){
   if(!el) return;
 
@@ -4493,6 +4698,7 @@ function renderBoardSummaryInto(el, hand, mode){
   }
 
   let showFlop = false, showTurn = false, showRiver = false;
+
 
   if(mode === "REVIEW"){
     const st = getReplayStreet(hand);
@@ -5172,6 +5378,57 @@ modeRow.appendChild(mkModeBtn("Log", "LOG"));
 modeRow.appendChild(mkModeBtn("Review", "REVIEW"));
 actionsWrap.appendChild(modeRow);
 
+// ===== Insights (Review mode) =====
+if((hand.viewMode || "LOG") === "REVIEW"){
+  const insights = (typeof deriveInsightsV1 === "function") ? deriveInsightsV1(hand) : [];
+
+  const insightsBox = document.createElement("div");
+  insightsBox.style.display = "grid";
+  insightsBox.style.gap = "8px";
+  insightsBox.style.padding = "10px 12px";
+  insightsBox.style.borderRadius = "14px";
+  insightsBox.style.border = "1px solid rgba(255,255,255,.10)";
+  insightsBox.style.background = "rgba(0,0,0,.18)";
+
+  const insightsTitle = document.createElement("div");
+  insightsTitle.style.fontWeight = "950";
+  insightsTitle.textContent = "Insights";
+
+  const insightsBody = document.createElement("div");
+  insightsBody.style.display = "flex";
+  insightsBody.style.gap = "8px";
+  insightsBody.style.flexWrap = "wrap";
+
+  if(!insights.length){
+    const empty = document.createElement("div");
+    empty.className = "kicker";
+    empty.style.color = "var(--muted)";
+    empty.textContent = "No insights yet — add more actions to this hand.";
+    insightsBody.appendChild(empty);
+  } else {
+    for(const txt of insights){
+      const chip = document.createElement("span");
+      chip.className = "kicker";
+      chip.style.padding = "6px 10px";
+      chip.style.borderRadius = "999px";
+      chip.style.border = "1px solid rgba(255,255,255,.10)";
+      chip.style.background = "rgba(255,255,255,.03)";
+      chip.style.fontWeight = "900";
+      chip.textContent = txt;
+      insightsBody.appendChild(chip);
+    }
+  }
+
+  insightsBox.appendChild(insightsTitle);
+  insightsBox.appendChild(insightsBody);
+  actionsWrap.appendChild(insightsBox);
+
+  // In REVIEW mode we show top + actionsWrap only (no logging form)
+  mount.appendChild(top);
+  mount.appendChild(actionsWrap);
+  return;
+}
+// ===== /Insights (Review mode) =====
 
 const form = document.createElement("div");
 form.style.display = "grid";
@@ -5711,7 +5968,7 @@ form.appendChild(actorSel);
 form.appendChild(actionSel);
 form.appendChild(amtInput);
 form.appendChild(unitSel);
-form.appendChild(addBtn);
+form.appendChild(addBtn); 
 
 
 // Actions list
