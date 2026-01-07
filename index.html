@@ -4634,7 +4634,8 @@ const streetSel = mkSelect(
     {value:"TURN", label:"Turn"},
     {value:"RIVER", label:"River"}
   ],
-  "PREFLOP"
+(loggerState?.table?.lastStreet || "PREFLOP")
+
 );
 
 const defaultActor =
@@ -4663,11 +4664,30 @@ const actionSel = mkSelect(
     {value:"RAISE", label:"Raise"},
     {value:"ALLIN", label:"All-in"}
   ],
-  "RAISE"
+  (loggerState?.table?.lastAction || "CALL")
 );
 
+
 const amtInput = mkInput("Amount", "");
-const unitSel = mkSelect(
+
+function updateAmtPlaceholder(){
+  const act = String(actionSel.value || "").toUpperCase();
+  if(act === "RAISE" || act === "CALL"){
+    amtInput.placeholder = "To (bb)";
+  } else if(act === "BET"){
+    amtInput.placeholder = "Bet (bb)";
+  } else if(act === "ALLIN"){
+    amtInput.placeholder = "All-in (bb)";
+  } else {
+    amtInput.placeholder = "Amount";
+  }
+}
+
+updateAmtPlaceholder();
+actionSel.addEventListener("change", updateAmtPlaceholder);
+
+  
+  const unitSel = mkSelect(
   [
     {value:"BB", label:"BB"},
     {value:"MONEY", label:getActiveSessionMeta().currency || "$"}
@@ -4762,7 +4782,14 @@ hand.actions.push(obj);
 saveLogger();
 renderActionsList();
 
-// Force focus for sizing actions (Open / 3-bet / Bet / Raise / All-in)
+if(loggerState && loggerState.table){
+  loggerState.table.lastStreet = street;
+  loggerState.table.lastAction = action;
+  loggerState.table.selectedActorPos = obj.actorPos;
+}
+
+  
+  // Force focus for sizing actions (Open / 3-bet / Bet / Raise / All-in)
 if(needsAmount(action)){
   setTimeout(()=>{
     amtInput.focus();
@@ -4892,6 +4919,14 @@ const a = {
 a.norm = parseBetSize(a.amt);
 
 actions.push(a);
+
+// Persist form defaults for speed
+if(loggerState && loggerState.table){
+  loggerState.table.lastStreet = a.street;
+  loggerState.table.lastAction = a.action;
+  loggerState.table.selectedActorPos = a.actorPos;
+}
+
 
   saveLogger();
   renderLoggerHandEditor(hand);
