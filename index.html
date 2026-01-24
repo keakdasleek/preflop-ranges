@@ -407,6 +407,40 @@ select:focus{
   filter:none;
 }
 
+.loggerFastAdd{
+  display:grid;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.loggerFastRow{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+}
+
+.loggerFastActor{
+  font-weight:950;
+  margin-top:4px;
+}
+
+.loggerFastBtns,
+.loggerFastSizes{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.loggerFastInputs{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+
 
     /* Trainer */
     .trainerPrompt{padding:12px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.08);background: rgba(255,255,255,.03);font-weight:800;line-height:1.35}
@@ -5062,6 +5096,50 @@ function renderLoggerHandEditor(hand){
   const started = isHandStarted(hand);
 
   mount.innerHTML = "";
+
+    // ===== Fast Add (v1) =====
+  const fast = document.createElement("div");
+  fast.className = "loggerFastAdd";
+
+  fast.innerHTML = `
+    <div class="loggerFastRow">
+      <div>
+        <div class="kicker">Fast add</div>
+        <div id="loggerFastActorLine" class="loggerFastActor">Actor: —</div>
+      </div>
+
+      <div class="loggerFastBtns">
+        <button type="button" data-act="F">Fold</button>
+        <button type="button" data-act="C">Call</button>
+        <button type="button" data-act="X">Check</button>
+        <button type="button" data-act="B">Bet</button>
+        <button type="button" data-act="R">Raise</button>
+      </div>
+    </div>
+
+    <div class="loggerFastRow">
+      <div class="loggerFastSizes">
+        <button type="button" data-size="33">⅓</button>
+        <button type="button" data-size="50">½</button>
+        <button type="button" data-size="75">¾</button>
+        <button type="button" data-size="100">Pot</button>
+      </div>
+
+      <div class="loggerFastInputs">
+        <select id="loggerFastUnit">
+          <option value="bb">BB</option>
+          <option value="potpct">Pot%</option>
+        </select>
+        <input id="loggerFastAmt" class="pfInput tiny" placeholder="amt" inputmode="decimal" />
+        <button type="button" id="loggerFastAdd" class="pfPrimary">Add</button>
+        <button type="button" id="loggerFastUndo">Undo</button>
+      </div>
+    </div>
+  `;
+
+  mount.appendChild(fast);
+  // ===== /Fast Add =====
+
 
     // ===== Hand gating: require hero cards to start =====
   if(!started){
