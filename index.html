@@ -5097,50 +5097,7 @@ function renderLoggerHandEditor(hand){
 
   mount.innerHTML = "";
 
-    // ===== Fast Add (v1) =====
-  const fast = document.createElement("div");
-  fast.className = "loggerFastAdd";
-
-  fast.innerHTML = `
-    <div class="loggerFastRow">
-      <div>
-        <div class="kicker">Fast add</div>
-        <div id="loggerFastActorLine" class="loggerFastActor">Actor: —</div>
-      </div>
-
-      <div class="loggerFastBtns">
-        <button type="button" data-act="F">Fold</button>
-        <button type="button" data-act="C">Call</button>
-        <button type="button" data-act="X">Check</button>
-        <button type="button" data-act="B">Bet</button>
-        <button type="button" data-act="R">Raise</button>
-      </div>
-    </div>
-
-    <div class="loggerFastRow">
-      <div class="loggerFastSizes">
-        <button type="button" data-size="33">⅓</button>
-        <button type="button" data-size="50">½</button>
-        <button type="button" data-size="75">¾</button>
-        <button type="button" data-size="100">Pot</button>
-      </div>
-
-      <div class="loggerFastInputs">
-        <select id="loggerFastUnit">
-          <option value="bb">BB</option>
-          <option value="potpct">Pot%</option>
-        </select>
-        <input id="loggerFastAmt" class="pfInput tiny" placeholder="amt" inputmode="decimal" />
-        <button type="button" id="loggerFastAdd" class="pfPrimary">Add</button>
-        <button type="button" id="loggerFastUndo">Undo</button>
-      </div>
-    </div>
-  `;
-
-  mount.appendChild(fast);
-  // ===== /Fast Add =====
-
-
+  
     // ===== Hand gating: require hero cards to start =====
   if(!started){
     const gate = document.createElement("div");
@@ -6022,7 +5979,15 @@ actions.push(a);
 if(loggerState && loggerState.table){
   loggerState.table.lastStreet = a.street;
   loggerState.table.lastAction = a.action;
+// Auto-advance actor to next active position for speed
+try{
+  const active = getActivePositionsForStreet(hand, a.street);
+  const i = active.indexOf(a.actorPos);
+  const next = (i >= 0 && active.length) ? active[(i+1) % active.length] : a.actorPos;
+  loggerState.table.selectedActorPos = next;
+}catch(e){
   loggerState.table.selectedActorPos = a.actorPos;
+}
 }
 
 
