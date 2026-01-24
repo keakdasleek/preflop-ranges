@@ -5541,6 +5541,12 @@ nextStreetBtn.style.padding = "10px 12px";
 nextStreetBtn.style.borderRadius = "12px";
 nextStreetBtn.style.fontWeight = "900";
 nextStreetBtn.type = "button";
+// Layout: keep this compact so it doesn't overlap the actor label
+nextStreetBtn.style.minWidth = "92px";
+nextStreetBtn.style.whiteSpace = "normal";
+nextStreetBtn.style.lineHeight = "1.05";
+nextStreetBtn.style.padding = "8px 10px";
+
 
 function advanceStreet(){
   const order = ["PREFLOP","FLOP","TURN","RIVER"];
@@ -5568,17 +5574,33 @@ const defaultActor =
     : (posOptions[0]?.value || "HERO");
 
 const actorSel = mkSelect(posOptions, defaultActor);
+actorSel.style.minWidth = "140px";
+actorSel.style.flex = "0 0 140px";
 
-function advanceActor(){
-  // Advance to next option in actorSel (options are already filtered to "active")
-  const opts = Array.from(actorSel.options || []).map(o => o.value).filter(Boolean);
-  if(!opts.length) return;
+  
+function advanceActor(){const POS_ORDER = ["UTG","UTG+1","LJ","HJ","CO","BTN","SB","BB"];
+
+function sortPositionsByOrder(arr){
+  const set = new Set(arr || []);
+  return POS_ORDER.filter(p => set.has(p));
+}
+
+function advanceActor(currentStreet){
+  const st = currentStreet || streetSel.value;
+
+  // Rebuild actor options so we reflect newly-folded players
+  refreshActorOptionsForStreet();
+
+  let active = getActivePositionsForStreet(hand, st) || [];
+  active = sortPositionsByOrder(active);
+
+  if(!active.length) return;
 
   const cur = actorSel.value;
-  let idx = opts.indexOf(cur);
+  let idx = active.indexOf(cur);
   if(idx < 0) idx = 0;
 
-  const next = opts[(idx + 1) % opts.length];
+  const next = active[(idx + 1) % active.length];
   if(!next) return;
 
   actorSel.value = next;
@@ -5590,6 +5612,7 @@ function advanceActor(){
   saveLogger();
   renderLoggerTable();
 }
+
 
   
 function refreshActorOptionsForStreet(){
@@ -5672,6 +5695,11 @@ actionSel.addEventListener("change", updateAmtPlaceholder);
   ],
   "BB"
 );
+
+unitSel.style.minWidth = "70px";
+unitSel.style.width = "70px";
+unitSel.style.flex = "0 0 70px";
+
 
 const noteInput = mkInput("Note (optional)", "");
 
@@ -5758,7 +5786,21 @@ function addActionQuick(street, action, presetAmt){
   };
 
 obj.norm = parseBetSize(obj.amt);
+
+// If this is a sizing action and no preset amount was provided,
+// DON'T log a row yet — just prefill the form and focus amount.
+if(needsAmount(action) && (presetAmt == null || presetAmt === "")){
+  setForm(street, action);
+  amtInput.value = "";
+  setTimeout(()=>{
+    amtInput.focus();
+    try { amtInput.select(); } catch(e){}
+  }, 0);
+  return;
+}
+
 hand.actions.push(obj);
+
 // If this is a sizing action and no preset amount was provided,
 // DON'T log a row yet — just prefill the form and focus amount.
 if(needsAmount(action) && (presetAmt == null || presetAmt === "")){
@@ -5816,7 +5858,8 @@ if(action === "RAISE" || action === "BET" || action === "ALLIN"){
 setForm(street, nextAction);
 
 // Auto-advance to the next actor after logging a click-action
-advanceActor();
+advanceActor(street);
+
 
 
 // Keep actor on the last selected actor (don’t jump back to Hero)
