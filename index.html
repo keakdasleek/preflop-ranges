@@ -5975,22 +5975,29 @@ function sortPositionsByOrder(arr){
   return POS_ORDER.filter(p => set.has(p));
 }
 
+const PREFLOP_ORDER = ["UTG","UTG+1","LJ","HJ","CO","BTN","SB","BB"];
+
 function advanceActor(currentStreet){
-  const st = currentStreet || streetSel.value;
+  const st = (currentStreet || streetSel.value || "").toUpperCase();
 
-  // Rebuild actor options so we reflect newly-folded players
-  refreshActorOptionsForStreet();
+  // Determine canonical order
+  const order = (st === "PREFLOP")
+    ? PREFLOP_ORDER
+    : getPostflopOrder(); // existing helper if you have one, or fallback
 
-  let active = getActivePositionsForStreet(hand, st) || [];
-  active = sortPositionsByOrder(active);
+  // Get active positions for this street
+  const activeSet = new Set(getActivePositionsForStreet(hand, st));
+  const activeOrdered = order.filter(p => activeSet.has(p));
 
-  if(!active.length) return;
+  if(!activeOrdered.length) return;
 
   const cur = actorSel.value;
-  let idx = active.indexOf(cur);
-  if(idx < 0) idx = 0;
+  let idx = activeOrdered.indexOf(cur);
 
-  const next = active[(idx + 1) % active.length];
+  // If current actor not found (can happen on street change), start at first
+  if(idx < 0) idx = -1;
+
+  const next = activeOrdered[idx + 1];
   if(!next) return;
 
   actorSel.value = next;
@@ -6002,6 +6009,7 @@ function advanceActor(currentStreet){
   saveLogger();
   renderLoggerTable();
 }
+
 
   
   
