@@ -5578,40 +5578,8 @@ actorSel.style.minWidth = "140px";
 actorSel.style.flex = "0 0 140px";
 
   
-function advanceActor(){const POS_ORDER = ["UTG","UTG+1","LJ","HJ","CO","BTN","SB","BB"];
 
-function sortPositionsByOrder(arr){
-  const set = new Set(arr || []);
-  return POS_ORDER.filter(p => set.has(p));
-}
 
-function advanceActor(currentStreet){
-  const st = currentStreet || streetSel.value;
-
-  // Rebuild actor options so we reflect newly-folded players
-  refreshActorOptionsForStreet();
-
-  let active = getActivePositionsForStreet(hand, st) || [];
-  active = sortPositionsByOrder(active);
-
-  if(!active.length) return;
-
-  const cur = actorSel.value;
-  let idx = active.indexOf(cur);
-  if(idx < 0) idx = 0;
-
-  const next = active[(idx + 1) % active.length];
-  if(!next) return;
-
-  actorSel.value = next;
-
-  if(loggerState && loggerState.table){
-    loggerState.table.selectedActorPos = next;
-  }
-
-  saveLogger();
-  renderLoggerTable();
-}
 
 
   
@@ -5630,20 +5598,27 @@ function refreshActorOptionsForStreet(){
     }
   }
 
-  // Keep selectedActorPos if still active, else fall back to Hero
-  const preferred = (loggerState?.table?.selectedActorPos) || (posOptions[0]?.value || "HERO");
-  const fallback = (posOptions[0]?.value || "HERO");
+  // Keep selection if still active; otherwise default to first active
+  const preferred = loggerState?.table?.selectedActorPos;
+  const current = actorSel.value;
 
-  if(active.has(preferred)){
-    actorSel.value = preferred;
-  } else if(active.has(fallback)){
-    actorSel.value = fallback;
-    if(loggerState && loggerState.table) loggerState.table.selectedActorPos = fallback;
+  let next = "";
+
+  if(preferred && active.has(preferred)){
+    next = preferred;
+  } else if(current && active.has(current)){
+    next = current;
   } else {
-    // extreme edge case: everyone folded
-    if(actorSel.options.length) actorSel.value = actorSel.options[0].value;
+    next = actorSel.options[0]?.value || "";
+  }
+
+  if(next) actorSel.value = next;
+
+  if(loggerState && loggerState.table){
+    loggerState.table.selectedActorPos = actorSel.value || "";
   }
 }
+
 
 
 // Keep table-selected actor in sync if user changes dropdown manually
@@ -5992,6 +5967,43 @@ function getActivePositionsForStreet(hand, street){
   return out;
 }
 
+
+const POS_ORDER = ["UTG","UTG+1","LJ","HJ","CO","BTN","SB","BB"];
+
+function sortPositionsByOrder(arr){
+  const set = new Set(arr || []);
+  return POS_ORDER.filter(p => set.has(p));
+}
+
+function advanceActor(currentStreet){
+  const st = currentStreet || streetSel.value;
+
+  // Rebuild actor options so we reflect newly-folded players
+  refreshActorOptionsForStreet();
+
+  let active = getActivePositionsForStreet(hand, st) || [];
+  active = sortPositionsByOrder(active);
+
+  if(!active.length) return;
+
+  const cur = actorSel.value;
+  let idx = active.indexOf(cur);
+  if(idx < 0) idx = 0;
+
+  const next = active[(idx + 1) % active.length];
+  if(!next) return;
+
+  actorSel.value = next;
+
+  if(loggerState && loggerState.table){
+    loggerState.table.selectedActorPos = next;
+  }
+
+  saveLogger();
+  renderLoggerTable();
+}
+
+  
   
 function addChecksAround(){
   const st = streetSel.value;
