@@ -5468,14 +5468,16 @@ if((hand.viewMode || "LOG") === "REVIEW"){
 // ===== /Insights (Review mode) =====
 
 const form = document.createElement("div");
-form.style.display = "grid";
-form.style.gridTemplateColumns = "repeat(6, minmax(0, 1fr))";
+form.style.display = "flex";
+form.style.flexWrap = "wrap";
 form.style.gap = "8px";
 form.style.alignItems = "end";
 
+
 function mkSelect(options, value){
   const s = document.createElement("select");
-  s.style.width = "100%";
+  s.style.minWidth = "140px";
+  s.style.flex = "0 0 140px";
   s.style.borderRadius = "12px";
   s.style.border = "1px solid rgba(255,255,255,.10)";
   s.style.background = "rgba(0,0,0,.18)";
@@ -5497,7 +5499,8 @@ function mkInput(placeholder, value){
   i.type = "text";
   i.placeholder = placeholder || "";
   i.value = value || "";
-  i.style.width = "100%";
+  i.style.minWidth = "90px";
+  i.style.flex = "0 0 90px";
   i.style.borderRadius = "12px";
   i.style.border = "1px solid rgba(255,255,255,.10)";
   i.style.background = "rgba(0,0,0,.18)";
@@ -5547,6 +5550,9 @@ nextStreetBtn.style.whiteSpace = "normal";
 nextStreetBtn.style.lineHeight = "1.05";
 nextStreetBtn.style.padding = "8px 10px";
 nextStreetBtn.style.flex = "0 0 auto";
+nextStreetBtn.style.position = "static";
+nextStreetBtn.style.zIndex = "0";
+
 
 function advanceStreet(){
   const order = ["PREFLOP","FLOP","TURN","RIVER"];
@@ -5747,7 +5753,7 @@ function addActionQuick(street, action, presetAmt){
   const obj = {
     id,
     street,
-    actorPos: actorSel.value || (posOptions[0]?.value || "HERO"),
+    actorPos: actorSel.value || (loggerState?.table?.selectedActorPos || (posOptions[0]?.value || "HERO")),
     action,
    amt: (
         action === "CALL"
@@ -5776,19 +5782,7 @@ if(needsAmount(action) && (presetAmt == null || presetAmt === "")){
 
 hand.actions.push(obj);
 
-// If this is a sizing action and no preset amount was provided,
-// DON'T log a row yet — just prefill the form and focus amount.
-if(needsAmount(action) && (presetAmt == null || presetAmt === "")){
-  setForm(street, action);
-  amtInput.value = "";
-  setTimeout(()=>{
-    amtInput.focus();
-    try { amtInput.select(); } catch(e){}
-  }, 0);
-  return;
-}
-
-  __lastAddedActionId = id;
+__lastAddedActionId = id;
 
 saveLogger();
 renderActionsList();
@@ -5831,17 +5825,6 @@ if(action === "RAISE" || action === "BET" || action === "ALLIN"){
 
 // Keep street as-is; set a reasonable next action
 setForm(street, nextAction);
-
-// Auto-advance to the next actor after logging a click-action
-advanceActor(street, obj.actorPos);
-
-
-
-
-// Keep actor on the last selected actor (don’t jump back to Hero)
-if(loggerState && loggerState.table && loggerState.table.selectedActorPos){
-  try { actorSel.value = loggerState.table.selectedActorPos; } catch(e){}
-}
 
 }
 
@@ -6065,12 +6048,18 @@ if(loggerState && loggerState.table){
   loggerState.table.lastStreet = a.street;
   loggerState.table.lastAction = a.action;
 // Auto-advance actor to next active position for speed
-try{
-  const active = getActivePositionsForStreet(hand, a.street);
+  try{
+  let active = getActivePositionsForStreet(hand, a.street);
+
+  // Use canonical positional order so "next" is always correct
+  const ORDER = ["UTG","UTG+1","LJ","HJ","CO","BTN","SB","BB"];
+  const set = new Set(active || []);
+  active = ORDER.filter(p => set.has(p));
+
   const i = active.indexOf(a.actorPos);
   const next = (i >= 0 && active.length) ? active[(i+1) % active.length] : a.actorPos;
   loggerState.table.selectedActorPos = next;
-}catch(e){
+  }catch(e){
   loggerState.table.selectedActorPos = a.actorPos;
 }
 }
