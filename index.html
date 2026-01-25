@@ -4281,6 +4281,8 @@ if(trainerPersonaLine){
   }
 
 const loggerView  = document.getElementById("loggerView");
+// For cleaning up logger hotkeys when re-rendering editor
+window.__loggerHotkeysCleanup = window.__loggerHotkeysCleanup || null;
 const loggerBtn   = document.getElementById("loggerBtn");
 const loggerNewSessionBtn = document.getElementById("loggerNewSession");
 const loggerSessionSel    = document.getElementById("loggerSessionSel");
@@ -6119,6 +6121,88 @@ if(loggerState && loggerState.table){
   renderLoggerHandsList();
 });
 
+// ================== Keyboard shortcuts (Hand Logger) ==================
+// Clean up any previous handler (renderLoggerHandEditor re-runs often)
+try{ if(typeof window.__loggerHotkeysCleanup === "function") window.__loggerHotkeysCleanup(); }catch(e){}
+
+function isLoggerEditorActive(){
+  // Only when logger view is visible and the editor mount exists
+  const lv = document.getElementById("loggerView");
+  if(!lv) return false;
+  if(lv.style.display === "none") return false;
+
+  // If focus is somewhere inside logger, or no focus at all, allow shortcuts
+  const ae = document.activeElement;
+  if(!ae) return true;
+  return !!ae.closest("#loggerView");
+}
+
+function isTypingContext(el){
+  if(!el) return false;
+  const tag = (el.tagName || "").toUpperCase();
+  if(tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+  // contenteditable edge case
+  if(el.isContentEditable) return true;
+  return false;
+}
+
+const __loggerHotkeyHandler = (e)=>{
+  if(!isLoggerEditorActive()) return;
+
+  // Don’t fire hotkeys while typing, except:
+  // - Enter in Amount input should submit Add
+  const ae = document.activeElement;
+
+  // ENTER to submit when Amount is focused
+  if(e.key === "Enter" && ae === amtInput){
+    e.preventDefault();
+    try{ addBtn.click(); }catch(err){}
+    return;
+  }
+
+  // If user is typing in any input/textarea/select, don't hijack keys
+  if(isTypingContext(ae)) return;
+
+  const k = (e.key || "").toLowerCase();
+
+  // Next street
+  if(k === "n"){
+    e.preventDefault();
+    try{ nextStreetBtn.click(); }catch(err){}
+    return;
+  }
+
+  // Instant log actions
+  if(k === "f"){ e.preventDefault(); addActionQuick(streetSel.value, "FOLD"); return; }
+  if(k === "c"){ e.preventDefault(); addActionQuick(streetSel.value, "CALL"); return; }
+  if(k === "k"){ e.preventDefault(); addActionQuick(streetSel.value, "CHECK"); return; }
+
+  // Sizing actions: set form + focus amount, user hits Enter to submit
+  if(k === "b"){
+    e.preventDefault();
+    setForm(streetSel.value, "BET");
+    setTimeout(()=>{ try{ amtInput.focus(); amtInput.select(); }catch(err){} }, 0);
+    return;
+  }
+  if(k === "r"){
+    e.preventDefault();
+    setForm(streetSel.value, "RAISE");
+    setTimeout(()=>{ try{ amtInput.focus(); amtInput.select(); }catch(err){} }, 0);
+    return;
+  }
+  if(k === "a"){
+    e.preventDefault();
+    setForm(streetSel.value, "ALLIN");
+    setTimeout(()=>{ try{ amtInput.focus(); amtInput.select(); }catch(err){} }, 0);
+    return;
+  }
+};
+
+document.addEventListener("keydown", __loggerHotkeyHandler);
+window.__loggerHotkeysCleanup = ()=> document.removeEventListener("keydown", __loggerHotkeyHandler);
+// ================== /Keyboard shortcuts ==================
+
+  
 const streetWrap = document.createElement("div");
 streetWrap.style.display = "grid";
 streetWrap.style.gridTemplateColumns = "1fr auto";
