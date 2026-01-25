@@ -5825,35 +5825,6 @@ if(action === "RAISE" || action === "BET" || action === "ALLIN"){
 
 // Keep street as-is; set a reasonable next action
 setForm(street, nextAction);
-
-// Auto-advance actor after quick non-sizing actions (Fold/Call/Check)
-if(action === "FOLD" || action === "CALL" || action === "CHECK"){
-  try{
-    // Rebuild options first so folded players are removed
-    refreshActorOptionsForStreet();
-
-    const ORDER = ["UTG","UTG+1","LJ","HJ","CO","BTN","SB","BB"];
-
-    const activeSet = new Set(getActivePositionsForStreet(hand, street));
-    const activeOrdered = ORDER.filter(p => activeSet.has(p));
-
-    const cur = obj.actorPos;
-    let idx = activeOrdered.indexOf(cur);
-    if(idx < 0) idx = -1;
-
-    const next = activeOrdered[idx + 1] || "";
-
-    if(next){
-      actorSel.value = next;
-      if(loggerState && loggerState.table){
-        loggerState.table.selectedActorPos = next;
-      }
-      saveLogger();
-      renderLoggerTable();
-    }
-  }catch(e){}
-}
-
   
 }
 
@@ -6088,8 +6059,15 @@ if(loggerState && loggerState.table){
   const i = active.indexOf(a.actorPos);
   const next = (i >= 0 && active.length) ? active[(i+1) % active.length] : a.actorPos;
   loggerState.table.selectedActorPos = next;
+  refreshActorOptionsForStreet();
+  try { actorSel.value = next; } catch(e){}
+
+
   }catch(e){
   loggerState.table.selectedActorPos = a.actorPos;
+  refreshActorOptionsForStreet();
+  try { actorSel.value = a.actorPos; } catch(e){}
+
 }
 }
 
