@@ -6126,16 +6126,23 @@ if(loggerState && loggerState.table){
 try{ if(typeof window.__loggerHotkeysCleanup === "function") window.__loggerHotkeysCleanup(); }catch(e){}
 
 function isLoggerEditorActive(){
-  // Only when logger view is visible and the editor mount exists
+  // Only when logger view is visible
   const lv = document.getElementById("loggerView");
   if(!lv) return false;
   if(lv.style.display === "none") return false;
 
-  // If focus is somewhere inside logger, or no focus at all, allow shortcuts
+  // Allow hotkeys if:
+  // - focus is inside loggerView, OR
+  // - focus is on the document body/html (common after closing modals / clicking blank areas)
   const ae = document.activeElement;
   if(!ae) return true;
+
+  const tag = (ae.tagName || "").toUpperCase();
+  if(ae === document.body || tag === "BODY" || tag === "HTML") return true;
+
   return !!ae.closest("#loggerView");
 }
+
 
 function isTypingContext(el){
   if(!el) return false;
