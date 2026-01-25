@@ -5772,6 +5772,30 @@ obj.norm = parseBetSize(obj.amt);
 // DON'T log a row yet — just prefill the form and focus amount.
 if(needsAmount(action) && (presetAmt == null || presetAmt === "")){
   setForm(street, action);
+ 
+  // Auto-advance after quick non-sizing actions (Fold/Call/Check)
+  if(action === "FOLD" || action === "CALL" || action === "CHECK"){
+  try{
+    // mirror the Add button logic (canonical order)
+    let active = getActivePositionsForStreet(hand, street);
+
+    const ORDER = ["UTG","UTG+1","LJ","HJ","CO","BTN","SB","BB"];
+    const set = new Set(active || []);
+    active = ORDER.filter(p => set.has(p));
+
+    const i = active.indexOf(obj.actorPos);
+    const next = (i >= 0 && active.length) ? active[(i+1) % active.length] : obj.actorPos;
+
+    if(loggerState && loggerState.table){
+      loggerState.table.selectedActorPos = next;
+    }
+
+    refreshActorOptionsForStreet();
+    try { actorSel.value = next; } catch(e){}
+
+  }catch(e){}
+}
+
   amtInput.value = "";
   setTimeout(()=>{
     amtInput.focus();
@@ -5825,6 +5849,16 @@ if(action === "RAISE" || action === "BET" || action === "ALLIN"){
 
 // Keep street as-is; set a reasonable next action
 setForm(street, nextAction);
+
+// Auto-advance after quick non-sizing actions (Fold/Call/Check)
+if(action === "FOLD" || action === "CALL" || action === "CHECK"){
+  try{
+    advanceActor(street, obj.actorPos);
+    // Keep dropdown options in sync after folds
+    refreshActorOptionsForStreet();
+  }catch(e){}
+}
+
   
 }
 
@@ -5857,6 +5891,7 @@ function renderQuickTemplates(){
     tplRow.appendChild(mkTpl("Bet",   st, "BET"));
     tplRow.appendChild(mkTpl("Raise", st, "RAISE"));
     tplRow.appendChild(mkTpl("Fold",  st, "FOLD"));
+    tplRow.appendChild(mkTpl("Call", st, "CALL"));
   }
 
   // “More…” dropdown (keeps UI clean)
@@ -6046,7 +6081,8 @@ actions.push(a);
 // Persist form defaults for speed
 if(loggerState && loggerState.table){
   loggerState.table.lastStreet = a.street;
-  loggerState.table.lastAction = a.action;
+  loggerState.table.lastAction = String(a.action || "").toUpperCase();
+
 // Auto-advance actor to next active position for speed
   try{
   let active = getActivePositionsForStreet(hand, a.street);
