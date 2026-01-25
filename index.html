@@ -5590,40 +5590,47 @@ actorSel.style.flex = "0 0 140px";
 
   
 function refreshActorOptionsForStreet(){
-  const st = streetSel.value || "PREFLOP";
-  const active = new Set(getActivePositionsForStreet(hand, st));
+  const st = (streetSel.value || "PREFLOP").toUpperCase();
+
+  // Remember what we *want* selected BEFORE rebuilding options
+const desired =
+  (actorSel && actorSel.value) ? actorSel.value :
+  ((loggerState && loggerState.table && loggerState.table.selectedActorPos) ? loggerState.table.selectedActorPos : "");
+
+
+  // Compute active positions for this street
+  const activeRaw = getActivePositionsForStreet(hand, st) || [];
+
+  // Canonical order (pre + post, for our 8-max model)
+  const ORDER = ["UTG","UTG+1","LJ","HJ","CO","BTN","SB","BB"];
+  const set = new Set(activeRaw);
+  const active = ORDER.filter(p => set.has(p));
 
   // Rebuild options in-place
   actorSel.innerHTML = "";
-  for(const o of posOptions){
-    if(active.has(o.value)){
-      const op = document.createElement("option");
-      op.value = o.value;
-      op.textContent = o.label;
-      actorSel.appendChild(op);
+  for(const p of active){
+    const op = document.createElement("option");
+    op.value = p;
+    op.textContent = p;
+    actorSel.appendChild(op);
+  }
+
+  // Preserve selection if still valid; otherwise fall back to first active
+  let nextVal = "";
+  if(desired && active.includes(desired)){
+    nextVal = desired;
+  } else if(actorSel.options.length){
+    nextVal = actorSel.options[0].value;
+  }
+
+  if(nextVal){
+    actorSel.value = nextVal;
+    if(loggerState && loggerState.table){
+      loggerState.table.selectedActorPos = nextVal;
     }
   }
-
-  // Keep selection if still active; otherwise default to first active
-  const preferred = loggerState?.table?.selectedActorPos;
-  const current = actorSel.value;
-
-  let next = "";
-
-  if(preferred && active.has(preferred)){
-    next = preferred;
-  } else if(current && active.has(current)){
-    next = current;
-  } else {
-    next = actorSel.options[0]?.value || "";
-  }
-
-  if(next) actorSel.value = next;
-
-  if(loggerState && loggerState.table){
-    loggerState.table.selectedActorPos = actorSel.value || "";
-  }
 }
+
 
 
 
@@ -5772,11 +5779,20 @@ obj.norm = parseBetSize(obj.amt);
 // DON'T log a row yet — just prefill the form and focus amount.
 if(needsAmount(action) && (presetAmt == null || presetAmt === "")){
   setForm(street, action);
- 
-  // Auto-advance after quick non-sizing actions (Fold/Call/Check)
-  if(action === "FOLD" || action === "CALL" || action === "CHECK"){
+
+  amtInput.value = "";
+  setTimeout(()=>{
+    amtInput.focus();
+    try { amtInput.select(); } catch(e){}
+  }, 0);
+  return;
+}
+
+hand.actions.push(obj);
+
+// Auto-advance after quick non-sizing actions (Fold/Call/Check)
+if(action === "FOLD" || action === "CALL" || action === "CHECK"){
   try{
-    // mirror the Add button logic (canonical order)
     let active = getActivePositionsForStreet(hand, street);
 
     const ORDER = ["UTG","UTG+1","LJ","HJ","CO","BTN","SB","BB"];
@@ -5792,19 +5808,9 @@ if(needsAmount(action) && (presetAmt == null || presetAmt === "")){
 
     refreshActorOptionsForStreet();
     try { actorSel.value = next; } catch(e){}
-
   }catch(e){}
 }
 
-  amtInput.value = "";
-  setTimeout(()=>{
-    amtInput.focus();
-    try { amtInput.select(); } catch(e){}
-  }, 0);
-  return;
-}
-
-hand.actions.push(obj);
 
 __lastAddedActionId = id;
 
