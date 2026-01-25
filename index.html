@@ -5546,7 +5546,7 @@ nextStreetBtn.style.minWidth = "92px";
 nextStreetBtn.style.whiteSpace = "normal";
 nextStreetBtn.style.lineHeight = "1.05";
 nextStreetBtn.style.padding = "8px 10px";
-
+nextStreetBtn.style.flex = "0 0 auto";
 
 function advanceStreet(){
   const order = ["PREFLOP","FLOP","TURN","RIVER"];
@@ -5833,7 +5833,8 @@ if(action === "RAISE" || action === "BET" || action === "ALLIN"){
 setForm(street, nextAction);
 
 // Auto-advance to the next actor after logging a click-action
-advanceActor(street);
+advanceActor(street, obj.actorPos);
+
 
 
 
@@ -5967,37 +5968,24 @@ function getActivePositionsForStreet(hand, street){
   return out;
 }
 
+function advanceActor(currentStreet, fromPos){
+  const st = String(currentStreet || streetSel.value || "PREFLOP").toUpperCase();
 
-const POS_ORDER = ["UTG","UTG+1","LJ","HJ","CO","BTN","SB","BB"];
+  // Use one stable order for now (works preflop perfectly; good enough postflop too)
+  const order = ["UTG","UTG+1","LJ","HJ","CO","BTN","SB","BB"];
 
-function sortPositionsByOrder(arr){
-  const set = new Set(arr || []);
-  return POS_ORDER.filter(p => set.has(p));
-}
-
-const PREFLOP_ORDER = ["UTG","UTG+1","LJ","HJ","CO","BTN","SB","BB"];
-
-function advanceActor(currentStreet){
-  const st = (currentStreet || streetSel.value || "").toUpperCase();
-
-  // Determine canonical order
-  const order = (st === "PREFLOP")
-    ? PREFLOP_ORDER
-    : getPostflopOrder(); // existing helper if you have one, or fallback
-
-  // Get active positions for this street
   const activeSet = new Set(getActivePositionsForStreet(hand, st));
   const activeOrdered = order.filter(p => activeSet.has(p));
 
   if(!activeOrdered.length) return;
 
-  const cur = actorSel.value;
+  const cur = fromPos || actorSel.value;
   let idx = activeOrdered.indexOf(cur);
 
-  // If current actor not found (can happen on street change), start at first
+  // If current actor isn't found, start at beginning
   if(idx < 0) idx = -1;
 
-  const next = activeOrdered[idx + 1];
+  const next = activeOrdered[idx + 1] || "";
   if(!next) return;
 
   actorSel.value = next;
@@ -6010,10 +5998,8 @@ function advanceActor(currentStreet){
   renderLoggerTable();
 }
 
-
   
-  
-function addChecksAround(){
+  function addChecksAround(){
   const st = streetSel.value;
   if(st === "PREFLOP") return;
 
@@ -6142,6 +6128,11 @@ function renderActionsList(){
     row.style.borderRadius = "12px";
     row.style.border = "1px solid rgba(255,255,255,.08)";
     row.style.background = "rgba(255,255,255,.03)";
+    row.style.display = "flex";
+    row.style.flexWrap = "wrap";
+    row.style.gap = "10px";
+    row.style.alignItems = "center";
+
 
     const street = document.createElement("div");
     street.className = "kicker";
