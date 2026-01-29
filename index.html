@@ -4432,6 +4432,80 @@ function estimatePotFromLoggedBetsBB(hand){
   return pot;
 }
 
+function __amtToBb(a, meta){
+  const amt = Number(a?.amt || 0);
+  if(!isFinite(amt) || amt <= 0) return 0;
+  if(String(a.unit || "BB").toUpperCase() === "MONEY"){
+    return moneyToBb(amt, meta.bb);
+  }
+  return amt; // already BB
+}
+
+// Rough but consistent: blinds + antes + (optional straddle) + per-street max "to" per player.
+function estimatePotByStreetBB(hand){
+  const meta = getActiveSessionMeta();
+  const active = getActiveSession();
+  const nPlayers = Number(hand?.maxPlayers || meta.maxPlayers || 8);
+
+  // Base pot: SB + BB + antes
+  const sbBB = meta.bb ? moneyToBb(meta.sb, meta.bb) : 0.5; // fallback
+  const bbBB = 1;
+
+  // Ante in money -> BB
+  let anteMoney = 0;
+  if(active && active.ante){
+    const p = parseStakes(active.ante); // will treat single number as "sb"
+    anteMoney = Number(p.sb || 0);
+  }
+  const anteBB = meta.bb ? moneyToBb(anteMoney, meta.bb) : 0;
+
+  // Straddle (very rough; common is 2bb)
+  const straddleBB = meta.straddle ? 2 : 0;
+
+  const base = sbBB + bbBB + (anteBB * nPlayers) + straddleBB;
+
+  // Per street: sum of each player's max contribution ("to") for that street
+  const streets = ["PREFLOP","FLOP","TURN","RIVER"];
+  const perStreet = { PREFLOP:0, FLOP:0, TURN:0, RIVER:0 };
+
+  const actions = ensureHandActions(hand);
+
+  for(const st of streets){
+    const contrib = Object.create(null);
+    for(const a of actions){
+      if(String(a.street || "").toUpperCase() !== st) continue;
+
+      const k = String(a.action || "").toUpperCase();
+      if(k !== "BET" && k !== "RAISE" && k !== "CALL" && k !== "ALLIN") continue;
+
+      const who = a.actorPos || "";
+      if(!who) continue;
+
+      const bb = __amtToBb(a, meta);
+      if(bb <= 0) continue;
+
+      contrib[who] = Math.max(contrib[who] || 0, bb);
+    }
+    let sum = 0;
+    for(const who in contrib) sum += contrib[who];
+    perStreet[st] = sum;
+  }
+
+  // “Pot after street” (cumulative)
+  const potAfter = {
+    PREFLOP: base + perStreet.PREFLOP,
+    FLOP: 0,
+    TURN: 0,
+    RIVER: 0
+  };
+  potAfter.FLOP  = potAfter.PREFLOP + perStreet.FLOP;
+  potAfter.TURN  = potAfter.FLOP    + perStreet.TURN;
+  potAfter.RIVER = potAfter.TURN    + perStreet.RIVER;
+
+  return { base, perStreet, potAfter };
+}
+
+
 
 function getLastAggToForStreet(hand, street){
   const actions = ensureHandActions(hand);
@@ -5362,6 +5436,122 @@ boardLine.appendChild(boardLabel);
 boardLine.appendChild(boardVal);
 boardLine.appendChild(boardBtn);
 top.appendChild(boardLine);
+// ===== Effective stack (BB) =====
+const effLine = document.createElement("div");
+effLine.style.display = "flex";
+effLine.style.gap = "10px";
+effLine.style.flexWrap = "wrap";
+effLine.style.alignItems = "center";
+
+const effLabel = document.createElement("div");
+effLabel.style.fontWeight = "950";
+effLabel.textContent = "Effective stack (BB)";
+
+const effInput = document.createElement("input");
+effInput.type = "text";
+effInput.placeholder = "e.g. 100";
+effInput.value = (hand.effStackBB ?? "").toString();
+effInput.style.width = "140px";
+effInput.style.borderRadius = "12px";
+effInput.style.border = "1px solid rgba(255,255,255,.10)";
+effInput.style.background = "rgba(0,0,0,.18)";
+effInput.style.color = "var(--text)";
+effInput.style.padding = "10px 12px";
+effInput.style.fontWeight = "800";
+
+effInput.addEventListener("input", ()=>{
+  // allow "" (unknown) or a number
+  const raw = String(effInput.value || "").trim();
+  if(raw === ""){
+    hand.effStackBB = "";
+  } else {
+    const n = Number(raw);
+    if(!isFinite(n) || n <= 0){
+      // don't block typing; just don't save bad values yet
+      return;
+    }
+    hand.effStackBB = n;
+  }
+  saveLogger();
+});
+
+effLine.appendChild(effLabel);
+effLine.appendChild(effInput);
+top.appendChild(effLine);
+
+// ===== Showdown (optional) =====
+const sdWrap = document.createElement("div");
+sdWrap.style.display = "flex";
+sdWrap.style.gap = "10px";
+sdWrap.style.flexWrap = "wrap";
+sdWrap.style.alignItems = "center";
+
+const sdChk = document.createElement("input");
+sdChk.type = "checkbox";
+sdChk.checked = !!hand.wentToShowdown;
+
+const sdLbl = document.createElement("div");
+sdLbl.className = "kicker";
+sdLbl.style.fontWeight = "900";
+sdLbl.textContent = "Went to showdown";
+
+sdChk.addEventListener("change", ()=>{
+  hand.wentToShowdown = !!sdChk.checked;
+  saveLogger();
+  renderLoggerHandEditor(hand);
+});
+
+sdWrap.appendChild(sdChk);
+sdWrap.appendChild(sdLbl);
+
+// If showdown is on, let user optionally record villain pos + cards
+if(hand.wentToShowdown){
+  const vPos = document.createElement("input");
+  vPos.type = "text";
+  vPos.placeholder = "Villain pos (e.g. BTN)";
+  vPos.value = hand.villainShow?.pos || "";
+  vPos.style.width = "160px";
+  vPos.style.borderRadius = "12px";
+  vPos.style.border = "1px solid rgba(255,255,255,.10)";
+  vPos.style.background = "rgba(0,0,0,.18)";
+  vPos.style.color = "var(--text)";
+  vPos.style.padding = "10px 12px";
+  vPos.style.fontWeight = "800";
+
+  vPos.addEventListener("input", ()=>{
+    if(!hand.villainShow) hand.villainShow = {pos:"", cards:[null,null]};
+    hand.villainShow.pos = vPos.value.trim();
+    saveLogger();
+  });
+
+  const vBtn = document.createElement("button");
+  vBtn.textContent = "Pick villain cards";
+  vBtn.addEventListener("click", ()=>{
+    if(!hand.villainShow) hand.villainShow = {pos:"", cards:[null,null]};
+    openLoggerCardPicker({
+      title: "Pick villain cards",
+      sub: "Select exactly 2 cards (optional).",
+      slots: (hand.villainShow.cards || [null,null]).slice(),
+      exclude: new Set([
+        ...(hand.heroCards || []),
+        ...(hand.board?.flop || []),
+        hand.board?.turn || null,
+        hand.board?.river || null
+      ].filter(Boolean)),
+      onSave: (newSlots)=>{
+        hand.villainShow.cards = [newSlots[0] || null, newSlots[1] || null];
+        saveLogger();
+        renderLoggerHandEditor(hand);
+      }
+    });
+  });
+
+  sdWrap.appendChild(vPos);
+  sdWrap.appendChild(vBtn);
+}
+
+top.appendChild(sdWrap);
+
 
 const boardReadout = document.createElement("div");
 boardReadout.className = "kicker";
@@ -5382,8 +5572,13 @@ const potLine = document.createElement("div");
 potLine.className = "kicker";
 potLine.style.color = "var(--muted)";
 potLine.style.fontWeight = "900";
-potLine.textContent = `Pot (from logged bets): ~${estimatePotFromLoggedBetsBB(hand).toFixed(1)}bb`;
+
+const pot = estimatePotByStreetBB(hand);
+potLine.textContent =
+  `Pot (approx): pre ${pot.potAfter.PREFLOP.toFixed(1)}bb • flop ${pot.potAfter.FLOP.toFixed(1)}bb • turn ${pot.potAfter.TURN.toFixed(1)}bb • river ${pot.potAfter.RIVER.toFixed(1)}bb`;
+
 actionsWrap.appendChild(potLine);
+
 
   
 const actionsTitle = document.createElement("div");
@@ -5467,6 +5662,94 @@ if((hand.viewMode || "LOG") === "REVIEW"){
   mount.appendChild(actionsWrap);
   return;
 }
+
+// ===== Recap card (Review mode) =====
+const recap = document.createElement("div");
+recap.style.display = "grid";
+recap.style.gap = "8px";
+recap.style.padding = "10px 12px";
+recap.style.borderRadius = "14px";
+recap.style.border = "1px solid rgba(255,255,255,.10)";
+recap.style.background = "rgba(255,255,255,.03)";
+
+const meta = getActiveSessionMeta();
+const nPlayers = Number(hand.maxPlayers || meta.maxPlayers || 8);
+const posBySeatLocal = buildSeatPositionsFromButton(Number(hand.btnSeat), nPlayers);
+const heroPosLocal = posBySeatLocal[0] || "HERO";
+
+const recapTop = document.createElement("div");
+recapTop.style.display = "flex";
+recapTop.style.gap = "10px";
+recapTop.style.flexWrap = "wrap";
+recapTop.style.alignItems = "center";
+
+const spot = document.createElement("div");
+spot.style.fontWeight = "950";
+spot.textContent = `Spot: ${heroPosLocal} (Hero)`;
+
+const eff = document.createElement("div");
+eff.className = "kicker";
+eff.style.color = "var(--muted)";
+eff.style.fontWeight = "900";
+eff.textContent = hand.effStackBB ? `Eff: ${Number(hand.effStackBB).toFixed(0)}bb` : "Eff: —";
+
+recapTop.appendChild(spot);
+recapTop.appendChild(eff);
+
+const tags = (typeof buildHandTags === "function") ? buildHandTags(hand) : [];
+const tagLine = document.createElement("div");
+tagLine.style.display = "flex";
+tagLine.style.flexWrap = "wrap";
+tagLine.style.gap = "8px";
+
+if(tags.length){
+  tags.slice(0, 8).forEach(t=>{
+    const chip = document.createElement("span");
+    chip.className = "kicker";
+    chip.style.padding = "6px 10px";
+    chip.style.borderRadius = "999px";
+    chip.style.border = "1px solid rgba(255,255,255,.10)";
+    chip.style.background = "rgba(0,0,0,.18)";
+    chip.style.fontWeight = "900";
+    chip.textContent = t;
+    tagLine.appendChild(chip);
+  });
+} else {
+  const empty = document.createElement("div");
+  empty.className = "kicker";
+  empty.style.color = "var(--muted)";
+  empty.textContent = "No derived spot labels yet.";
+  tagLine.appendChild(empty);
+}
+
+// Flags (missing board for streets that have actions)
+const actions = getSortedActions(hand);
+const hasFlopAction = actions.some(a=> String(a.street).toUpperCase()==="FLOP");
+const hasTurnAction = actions.some(a=> String(a.street).toUpperCase()==="TURN");
+const hasRiverAction= actions.some(a=> String(a.street).toUpperCase()==="RIVER");
+
+const b = hand.board || {flop:[null,null,null], turn:null, river:null};
+const flopComplete = !!(b.flop && b.flop[0] && b.flop[1] && b.flop[2]);
+const flags = [];
+if(hasFlopAction && !flopComplete) flags.push("Flag: flop actions but flop cards missing");
+if(hasTurnAction && !b.turn) flags.push("Flag: turn actions but turn card missing");
+if(hasRiverAction && !b.river) flags.push("Flag: river actions but river card missing");
+
+if(flags.length){
+  const flagLine = document.createElement("div");
+  flagLine.className = "kicker";
+  flagLine.style.color = "var(--muted)";
+  flagLine.style.fontWeight = "900";
+  flagLine.textContent = flags.join(" • ");
+  recap.appendChild(flagLine);
+}
+
+recap.appendChild(recapTop);
+recap.appendChild(tagLine);
+actionsWrap.appendChild(recap);
+// ===== /Recap card =====
+
+  
 // ===== /Insights (Review mode) =====
 
 const form = document.createElement("div");
@@ -6537,6 +6820,13 @@ function createLoggerHand(){
       btnSeat: Number(loggerState.table.btnSeat),
       notes: "",
       completedAt: null,
+      effStackBB: "",            // user-entered, e.g. 100
+      wentToShowdown: false,     // optional
+      villainShow: {             // optional (single villain for now)
+        pos: "",
+        cards: [null, null]
+      },
+
     
       // NEW
 heroCards: [null, null], // exactly 2
