@@ -5816,24 +5816,57 @@ for(const st of streets){
   const block = document.createElement("div");
   block.style.display = "grid";
   block.style.gap = "6px";
+  block.style.padding = "10px 10px";
+  block.style.borderRadius = "12px";
+  block.style.border = "1px solid rgba(255,255,255,.10)";
+  block.style.background = "rgba(0,0,0,.12)";
+
 
   const h = document.createElement("div");
   h.className = "kicker";
   h.style.color = "var(--muted)";
   h.style.fontWeight = "900";
   h.textContent = streetLabel(st);
+  h.style.letterSpacing = ".02em";
+
 
   const list = document.createElement("div");
   list.style.display = "grid";
   list.style.gap = "4px";
 
-  rows.forEach(a=>{
-    const line = document.createElement("div");
-    line.className = "kicker";
-    line.style.fontWeight = "850";
-    line.textContent = formatActionForTimeline(a);
-    list.appendChild(line);
-  });
+rows.forEach((a, idx)=>{
+  const row = document.createElement("div");
+  row.style.display = "grid";
+  row.style.gridTemplateColumns = "78px 1fr";
+  row.style.gap = "10px";
+  row.style.alignItems = "baseline";
+  row.style.padding = "6px 8px";
+  row.style.borderRadius = "10px";
+
+  // subtle zebra for readability
+  if(idx % 2 === 0){
+    row.style.background = "rgba(255,255,255,.03)";
+  } else {
+    row.style.background = "transparent";
+  }
+
+  const who = document.createElement("div");
+  who.className = "kicker";
+  who.style.color = "var(--muted)";
+  who.style.fontWeight = "950";
+  who.style.textAlign = "right";
+  who.textContent = a.actorPos || "—";
+
+  const what = document.createElement("div");
+  what.className = "kicker";
+  what.style.fontWeight = "900";
+  what.textContent = formatActionForTimeline(a).replace(/^(\S+)\s+/, ""); // drop actor prefix
+
+  row.appendChild(who);
+  row.appendChild(what);
+  list.appendChild(row);
+});
+
 
   block.appendChild(h);
   block.appendChild(list);
