@@ -4443,7 +4443,7 @@ function __amtToBb(a, meta){
 
 // Rough but consistent: blinds + antes + (optional straddle) + per-street max "to" per player.
 function estimatePotByStreetBB(hand){
-  const meta = getActiveSessionMeta();
+  const metaLocal = getActiveSessionMeta();
   const active = getActiveSession();
   const nPlayers = Number(hand?.maxPlayers || meta.maxPlayers || 8);
 
@@ -5614,56 +5614,8 @@ actionsWrap.appendChild(modeRow);
 
 // ===== Insights (Review mode) =====
 if((hand.viewMode || "LOG") === "REVIEW"){
-  const insights = (typeof deriveInsightsV1 === "function") ? deriveInsightsV1(hand) : [];
 
-  const insightsBox = document.createElement("div");
-  insightsBox.style.display = "grid";
-  insightsBox.style.gap = "8px";
-  insightsBox.style.padding = "10px 12px";
-  insightsBox.style.borderRadius = "14px";
-  insightsBox.style.border = "1px solid rgba(255,255,255,.10)";
-  insightsBox.style.background = "rgba(0,0,0,.18)";
-
-  const insightsTitle = document.createElement("div");
-  insightsTitle.style.fontWeight = "950";
-  insightsTitle.textContent = "Insights";
-
-  const insightsBody = document.createElement("div");
-  insightsBody.style.display = "flex";
-  insightsBody.style.gap = "8px";
-  insightsBody.style.flexWrap = "wrap";
-
-  if(!insights.length){
-    const empty = document.createElement("div");
-    empty.className = "kicker";
-    empty.style.color = "var(--muted)";
-    empty.textContent = "No insights yet — add more actions to this hand.";
-    insightsBody.appendChild(empty);
-  } else {
-    for(const txt of insights){
-      const chip = document.createElement("span");
-      chip.className = "kicker";
-      chip.style.padding = "6px 10px";
-      chip.style.borderRadius = "999px";
-      chip.style.border = "1px solid rgba(255,255,255,.10)";
-      chip.style.background = "rgba(255,255,255,.03)";
-      chip.style.fontWeight = "900";
-      chip.textContent = txt;
-      insightsBody.appendChild(chip);
-    }
-  }
-
-  insightsBox.appendChild(insightsTitle);
-  insightsBox.appendChild(insightsBody);
-  actionsWrap.appendChild(insightsBox);
-
-  // In REVIEW mode we show top + actionsWrap only (no logging form)
-  mount.appendChild(top);
-  mount.appendChild(actionsWrap);
-  return;
-}
-
-// ===== Recap card (Review mode) =====
+  // ===== Recap card (Review mode) =====
 const recap = document.createElement("div");
 recap.style.display = "grid";
 recap.style.gap = "8px";
@@ -5748,7 +5700,55 @@ recap.appendChild(recapTop);
 recap.appendChild(tagLine);
 actionsWrap.appendChild(recap);
 // ===== /Recap card =====
+  
+  const insights = (typeof deriveInsightsV1 === "function") ? deriveInsightsV1(hand) : [];
 
+  const insightsBox = document.createElement("div");
+  insightsBox.style.display = "grid";
+  insightsBox.style.gap = "8px";
+  insightsBox.style.padding = "10px 12px";
+  insightsBox.style.borderRadius = "14px";
+  insightsBox.style.border = "1px solid rgba(255,255,255,.10)";
+  insightsBox.style.background = "rgba(0,0,0,.18)";
+
+  const insightsTitle = document.createElement("div");
+  insightsTitle.style.fontWeight = "950";
+  insightsTitle.textContent = "Insights";
+
+  const insightsBody = document.createElement("div");
+  insightsBody.style.display = "flex";
+  insightsBody.style.gap = "8px";
+  insightsBody.style.flexWrap = "wrap";
+
+  if(!insights.length){
+    const empty = document.createElement("div");
+    empty.className = "kicker";
+    empty.style.color = "var(--muted)";
+    empty.textContent = "No insights yet — add more actions to this hand.";
+    insightsBody.appendChild(empty);
+  } else {
+    for(const txt of insights){
+      const chip = document.createElement("span");
+      chip.className = "kicker";
+      chip.style.padding = "6px 10px";
+      chip.style.borderRadius = "999px";
+      chip.style.border = "1px solid rgba(255,255,255,.10)";
+      chip.style.background = "rgba(255,255,255,.03)";
+      chip.style.fontWeight = "900";
+      chip.textContent = txt;
+      insightsBody.appendChild(chip);
+    }
+  }
+
+  insightsBox.appendChild(insightsTitle);
+  insightsBox.appendChild(insightsBody);
+  actionsWrap.appendChild(insightsBox);
+
+  // In REVIEW mode we show top + actionsWrap only (no logging form)
+  mount.appendChild(top);
+  mount.appendChild(actionsWrap);
+  return;
+}
   
 // ===== /Insights (Review mode) =====
 
