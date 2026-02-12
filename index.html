@@ -4842,6 +4842,34 @@ function getSortedActions(hand){
     .sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
 }
 
+function formatActionForTimeline(a){
+  const who = a.actorPos || "—";
+  const k = String(a.action || "").toUpperCase();
+
+  // Map actions to nice short text
+  const map = {
+    FOLD: "folds",
+    CHECK: "checks",
+    CALL: "calls",
+    BET: "bets",
+    RAISE: "raises to",
+    ALLIN: "all-in to"
+  };
+  const verb = map[k] || String(a.action || "").toLowerCase();
+
+  const amtNum = Number(a.amt || 0);
+  const hasAmt = isFinite(amtNum) && amtNum > 0 && (k === "BET" || k === "RAISE" || k === "CALL" || k === "ALLIN");
+  const unit = String(a.unit || "BB").toUpperCase();
+  const amtTxt = hasAmt ? ` ${amtNum}${unit === "BB" ? "bb" : ""}${unit === "MONEY" ? "" : ""}` : "";
+
+  // Optional note (keep short)
+  const note = String(a.note || "").trim();
+  const noteTxt = note ? ` — ${note}` : "";
+
+  return `${who} ${verb}${amtTxt}${noteTxt}`;
+}
+
+  
 function getReplayStreet(hand){
   const actions = getSortedActions(hand);
   if(!actions.length) return "PREFLOP";
@@ -5748,6 +5776,84 @@ if(flags.length){
 recap.appendChild(recapTop);
 recap.appendChild(tagLine);
 actionsWrap.appendChild(recap);
+
+// ===== Action Timeline (Review) =====
+const tl = document.createElement("div");
+tl.style.display = "grid";
+tl.style.gap = "8px";
+tl.style.padding = "10px 12px";
+tl.style.borderRadius = "14px";
+tl.style.border = "1px solid rgba(255,255,255,.10)";
+tl.style.background = "rgba(0,0,0,.18)";
+
+const tlTitle = document.createElement("div");
+tlTitle.style.fontWeight = "950";
+tlTitle.textContent = "Action timeline";
+
+const tlBody = document.createElement("div");
+tlBody.style.display = "grid";
+tlBody.style.gap = "8px";
+
+const acts = getSortedActions(hand);
+
+function streetLabel(st){
+  const s = String(st || "").toUpperCase();
+  if(s === "PREFLOP") return "Preflop";
+  if(s === "FLOP")    return "Flop";
+  if(s === "TURN")    return "Turn";
+  if(s === "RIVER")   return "River";
+  return s || "—";
+}
+
+const streets = ["PREFLOP","FLOP","TURN","RIVER"];
+let any = false;
+
+for(const st of streets){
+  const rows = acts.filter(a => String(a.street || "").toUpperCase() === st);
+  if(!rows.length) continue;
+  any = true;
+
+  const block = document.createElement("div");
+  block.style.display = "grid";
+  block.style.gap = "6px";
+
+  const h = document.createElement("div");
+  h.className = "kicker";
+  h.style.color = "var(--muted)";
+  h.style.fontWeight = "900";
+  h.textContent = streetLabel(st);
+
+  const list = document.createElement("div");
+  list.style.display = "grid";
+  list.style.gap = "4px";
+
+  rows.forEach(a=>{
+    const line = document.createElement("div");
+    line.className = "kicker";
+    line.style.fontWeight = "850";
+    line.textContent = formatActionForTimeline(a);
+    list.appendChild(line);
+  });
+
+  block.appendChild(h);
+  block.appendChild(list);
+  tlBody.appendChild(block);
+}
+
+if(!any){
+  const empty = document.createElement("div");
+  empty.className = "kicker";
+  empty.style.color = "var(--muted)";
+  empty.textContent = "No actions logged yet.";
+  tlBody.appendChild(empty);
+}
+
+tl.appendChild(tlTitle);
+tl.appendChild(tlBody);
+actionsWrap.appendChild(tl);
+// ===== /Action Timeline =====
+
+  
 // ===== /Recap card =====
   
   const insights = (typeof deriveInsightsV1 === "function") ? deriveInsightsV1(hand) : [];
