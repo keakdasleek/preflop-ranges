@@ -4445,10 +4445,10 @@ function __amtToBb(a, meta){
 function estimatePotByStreetBB(hand){
   const metaLocal = getActiveSessionMeta();
   const active = getActiveSession();
-  const nPlayers = Number(hand?.maxPlayers || meta.maxPlayers || 8);
+  const nPlayers = Number(hand?.maxPlayers || metaLocal.maxPlayers || 8);
 
   // Base pot: SB + BB + antes
-  const sbBB = meta.bb ? moneyToBb(meta.sb, meta.bb) : 0.5; // fallback
+  const sbBB = metaLocal.bb ? moneyToBb(metaLocal.sb, metaLocal.bb) : 0.5; // fallback
   const bbBB = 1;
 
   // Ante in money -> BB
@@ -4457,10 +4457,12 @@ function estimatePotByStreetBB(hand){
     const p = parseStakes(active.ante); // will treat single number as "sb"
     anteMoney = Number(p.sb || 0);
   }
-  const anteBB = meta.bb ? moneyToBb(anteMoney, meta.bb) : 0;
+  
+  const anteBB = metaLocal.bb ? moneyToBb(anteMoney, metaLocal.bb) : 0;
+
 
   // Straddle (very rough; common is 2bb)
-  const straddleBB = meta.straddle ? 2 : 0;
+  const straddleBB = metaLocal.straddle ? 2 : 0;
 
   const base = sbBB + bbBB + (anteBB * nPlayers) + straddleBB;
 
@@ -4481,7 +4483,7 @@ function estimatePotByStreetBB(hand){
       const who = a.actorPos || "";
       if(!who) continue;
 
-      const bb = __amtToBb(a, meta);
+      const bb = __amtToBb(a, metaLocal);
       if(bb <= 0) continue;
 
       contrib[who] = Math.max(contrib[who] || 0, bb);
