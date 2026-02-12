@@ -5499,9 +5499,29 @@ sdLbl.textContent = "Went to showdown";
 
 sdChk.addEventListener("change", ()=>{
   hand.wentToShowdown = !!sdChk.checked;
+
+  // Auto-suggest villain pos if blank (best-effort, not perfect)
+  if(hand.wentToShowdown){
+    if(!hand.villainShow) hand.villainShow = {pos:"", cards:[null,null]};
+    if(!(hand.villainShow.pos || "").trim()){
+      const acts = getSortedActions(hand);
+      // guess: last non-hero actor to take an action in the hand
+      let guess = "";
+      for(let i = acts.length - 1; i >= 0; i--){
+        const a = acts[i];
+        if(a && a.actorPos && a.actorPos !== heroPos){
+          guess = a.actorPos;
+          break;
+        }
+      }
+      if(guess) hand.villainShow.pos = guess;
+    }
+  }
+
   saveLogger();
   renderLoggerHandEditor(hand);
 });
+
 
 sdWrap.appendChild(sdChk);
 sdWrap.appendChild(sdLbl);
@@ -5649,6 +5669,33 @@ eff.textContent = hand.effStackBB ? `Eff: ${Number(hand.effStackBB).toFixed(0)}b
 
 recapTop.appendChild(spot);
 recapTop.appendChild(eff);
+
+// ===== Showdown readout (Review) =====
+function fmtCard(cc){
+  if(!cc) return "—";
+  const r = cc[0];
+  const s = cc[1];
+  const suitObj = PF_SUITS.find(x => x.s === s);
+  return r + (suitObj?.label || s);
+}
+
+const sdRead = document.createElement("div");
+sdRead.className = "kicker";
+sdRead.style.color = "var(--muted)";
+sdRead.style.fontWeight = "900";
+
+if(!hand.wentToShowdown){
+  sdRead.textContent = "Showdown: No";
+} else {
+  const vPos = (hand.villainShow?.pos || "").trim();
+  const cards = (hand.villainShow?.cards || []).filter(Boolean);
+  const cardTxt = cards.length ? cards.map(fmtCard).join(" ") : "—";
+  sdRead.textContent = `Showdown: Yes • Villain ${vPos ? vPos : "—"} • Cards: ${cardTxt}`;
+}
+
+recap.appendChild(sdRead);
+// ===== /Showdown readout =====
+
 
 const tags = (typeof buildHandTags === "function") ? buildHandTags(hand) : [];
 const tagLine = document.createElement("div");
