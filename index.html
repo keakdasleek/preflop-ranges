@@ -4537,6 +4537,74 @@ function streetOrderVal(st){
   return 99;
 }
 
+// ===== Review helpers v1 =====
+
+function getStreetActions(hand, street){
+  const st = String(street || "").toUpperCase();
+  return getSortedActions(hand).filter(a => String(a.street || "").toUpperCase() === st);
+}
+
+function countDistinctActors(actions){
+  const s = new Set();
+  actions.forEach(a=>{
+    if(a.actorPos) s.add(a.actorPos);
+  });
+  return s.size;
+}
+
+// Detect SRP vs 3BP from number of preflop raises
+function derivePreflopPotType(hand){
+  const pre = getStreetActions(hand, "PREFLOP");
+  const raises = pre.filter(a=>{
+    const k = String(a.action || "").toUpperCase();
+    return k === "RAISE" || k === "BET" || k === "ALLIN";
+  });
+
+  if(raises.length >= 2) return "3BP";
+  if(raises.length === 1) return "SRP";
+  return "Limped";
+}
+
+function derivePatternFlagsV1(hand, heroPos){
+  const flags = [];
+
+  const flop = getStreetActions(hand, "FLOP");
+  const turn = getStreetActions(hand, "TURN");
+  const river = getStreetActions(hand, "RIVER");
+
+  const heroFlop = flop.filter(a => a.actorPos === heroPos);
+  const heroTurn = turn.filter(a => a.actorPos === heroPos);
+
+  // Hero called flop → folded turn
+  const heroCalledFlop = heroFlop.some(a => String(a.action||"").toUpperCase() === "CALL");
+  const heroFoldedTurn = heroTurn.some(a => String(a.action||"").toUpperCase() === "FOLD");
+  if(heroCalledFlop && heroFoldedTurn){
+    flags.push("Hero: call flop → fold turn");
+  }
+
+  // Faced river bet + response
+  const riverAgg = river.find(a=>{
+    const k = String(a.action||"").toUpperCase();
+    return (k==="BET" || k==="RAISE" || k==="ALLIN") && a.actorPos !== heroPos;
+  });
+
+  if(riverAgg){
+    flags.push("Hero faced river bet");
+    const heroResp = river.find(a => a.actorPos === heroPos);
+    if(heroResp){
+      const k = String(heroResp.action||"").toUpperCase();
+      if(k==="FOLD") flags.push("Hero river: fold");
+      if(k==="CALL") flags.push("Hero river: call");
+      if(k==="RAISE"||k==="ALLIN") flags.push("Hero river: raise");
+    }
+  }
+
+  return flags;
+}
+
+// ===== /Review helpers v1 =====
+
+
 // Returns an array of position codes still active (not folded) up to the given street
 function getActivePositionsForStreet(hand, street){
   if(!hand) return [];
@@ -5775,6 +5843,52 @@ if(flags.length){
 
 recap.appendChild(recapTop);
 recap.appendChild(tagLine);
+
+// ===== Spot Summary + Pattern Flags (Review) =====
+const summaryLine = document.createElement("div");
+summaryLine.style.display = "flex";
+summaryLine.style.flexWrap = "wrap";
+summaryLine.style.gap = "8px";
+
+function addSummaryChip(text){
+  const chip = document.createElement("span");
+  chip.className = "kicker";
+  chip.style.padding = "6px 10px";
+  chip.style.borderRadius = "999px";
+  chip.style.border = "1px solid rgba(255,255,255,.10)";
+  chip.style.background = "rgba(0,0,0,.18)";
+  chip.style.fontWeight = "900";
+  chip.textContent = text;
+  summaryLine.appendChild(chip);
+}
+
+// Pot type (SRP / 3BP / Limped)
+addSummaryChip(derivePreflopPotType(hand));
+
+// Heads-up vs Multiway (based on distinct actors in log)
+const allActsLocal = getSortedActions(hand);
+const playersInHandLocal = countDistinctActors(allActsLocal);
+addSummaryChip(playersInHandLocal <= 2 ? "Heads-up" : `Multiway (${playersInHandLocal})`);
+
+// Effective stack bucket (if known)
+if(hand.effStackBB !== "" && hand.effStackBB != null){
+  const n = Number(hand.effStackBB);
+  if(isFinite(n) && n > 0){
+    if(n < 40) addSummaryChip("Eff <40bb");
+    else if(n < 80) addSummaryChip("Eff 40–80bb");
+    else if(n < 150) addSummaryChip("Eff 80–150bb");
+    else addSummaryChip("Eff 150bb+");
+  }
+}
+
+// Pattern flags (objective)
+const pFlagsLocal = derivePatternFlagsV1(hand, heroPosLocal);
+pFlagsLocal.slice(0, 6).forEach(addSummaryChip);
+
+recap.appendChild(summaryLine);
+// ===== /Spot Summary + Pattern Flags =====
+
+  
 actionsWrap.appendChild(recap);
 
 // ===== Action Timeline (Review) =====
