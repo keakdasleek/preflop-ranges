@@ -5671,15 +5671,6 @@ if(hand.wentToShowdown){
 top.appendChild(sdWrap);
 
 
-const boardReadout = document.createElement("div");
-boardReadout.className = "kicker";
-boardReadout.style.color = "var(--muted)";
-boardReadout.style.fontWeight = "900";
-boardReadout.style.marginTop = "6px";
-renderBoardSummaryInto(boardReadout, hand, (hand.viewMode || "LOG"));
-top.appendChild(boardReadout);
-
-
 // Actions block
 const actionsWrap = document.createElement("div");
 actionsWrap.style.display = "grid";
