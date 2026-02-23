@@ -498,6 +498,63 @@ select:focus{
     .cell.sel.good{outline-color: rgba(36,194,106,.95)}
     .cell.sel.bad{outline-color: rgba(255,77,90,.95)}
 
+/* ===== Hand Logger: Session Review Table ===== */
+.loggerReviewTable{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  overflow:hidden;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.14);
+}
+
+.loggerReviewTable th,
+.loggerReviewTable td{
+  padding:8px 10px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  font-size:12px;
+  vertical-align:top;
+}
+
+.loggerReviewTable th{
+  text-align:left;
+  color:var(--muted);
+  font-weight:950;
+  background: rgba(255,255,255,.03);
+}
+
+.loggerReviewTable tr:last-child td{ border-bottom:none; }
+
+.loggerReviewRow{
+  cursor:pointer;
+}
+.loggerReviewRow:hover{
+  background: rgba(255,255,255,.05);
+}
+
+.loggerReviewRow.sel{
+  outline:2px solid rgba(93,169,255,.55);
+  outline-offset:-2px;
+  background: rgba(93,169,255,.08);
+}
+
+.loggerTinyChip{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:3px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  font-weight:900;
+  white-space:nowrap;
+  margin-right:6px;
+  margin-bottom:6px;
+}
+/* ===== /Hand Logger: Session Review Table ===== */
+    
+    
 /* ===== Hand Logger: Table UI ===== */
 .loggerTableWrap{
   display:grid;
@@ -1069,6 +1126,14 @@ select:focus{
   </div>
 
   <div id="loggerSessionSettings" style="margin-top:10px"></div>
+
+<div class="info" style="margin:0">
+  <h3>Session Review</h3>
+  <div id="loggerSessionReview" class="kicker" style="color:var(--muted);font-size:12px;line-height:1.45;font-weight:700">
+    —
+  </div>
+</div>
+       
 </div>
 
 
@@ -4289,14 +4354,188 @@ const loggerSessionSel    = document.getElementById("loggerSessionSel");
 const loggerSessionSummary= document.getElementById("loggerSessionSummary");
 const loggerSessionSettings = document.getElementById("loggerSessionSettings");
 
+function deriveHandForSessionReview(hand){
+  const active = getActiveSession();
+  const meta = getActiveSessionMeta();
+  const n = Number(hand?.maxPlayers || meta.maxPlayers || 8);
 
-function refreshLoggerUI(){
-  renderLoggerSessionSummary();
-  renderLoggerSessionSettings();   // <-- ADD
-  renderLoggerHandsList();
-  renderLoggerHandEditor(null);
+  const posBySeat = buildSeatPositionsFromButton(Number(hand.btnSeat || 0), n);
+  const heroPos = posBySeat[0] || "HERO";
+
+  const actions = getSortedActions(hand);
+  const pf = actions.filter(a => String(a.street || "").toUpperCase() === "PREFLOP");
+  const flop = actions.filter(a => String(a.street || "").toUpperCase() === "FLOP");
+  const turn = actions.filter(a => String(a.street || "").toUpperCase() === "TURN");
+  const river = actions.filter(a => String(a.street || "").toUpperCase() === "RIVER");
+
+  // Pot type (simple, derived)
+  const pfRaises = pf.filter(a => ["RAISE","ALLIN","BET"].includes(String(a.action || "").toUpperCase()));
+  const pfCalls  = pf.filter(a => String(a.action || "").toUpperCase() === "CALL");
+
+  let potType = "SRP";
+  if(pfRaises.length >= 2) potType = "3BP";
+  else if(pfRaises.length === 0 && pfCalls.length > 0) potType = "Limped";
+
+  // HU vs MW (use postflop if present; else use preflop non-fold actors)
+  const post = flop.length ? flop : (turn.length ? turn : (river.length ? river : []));
+  let actors = [];
+  if(post.length){
+    actors = Array.from(new Set(post.map(a => a.actorPos).filter(Boolean)));
+  } else {
+    actors = Array.from(new Set(
+      pf.filter(a => String(a.action || "").toUpperCase() !== "FOLD")
+        .map(a => a.actorPos)
+        .filter(Boolean)
+    ));
+  }
+  const huMw = actors.length <= 2 ? "HU" : "MW";
+
+  // Eff stack bucket (BB)
+  const eff = Number(hand.effStackBB || 0);
+  let effBucket = "—";
+  if(isFinite(eff) && eff > 0){
+    if(eff < 25) effBucket = "<25bb";
+    else if(eff < 50) effBucket = "25–50bb";
+    else if(eff < 100) effBucket = "50–100bb";
+    else effBucket = "100bb+";
+  }
+
+  // Pattern flags (objective, simple)
+  const flags = [];
+
+  // Call flop → fold turn (hero only)
+  const heroFlopCall = flop.some(a =>
+    a.actorPos === heroPos && String(a.action || "").toUpperCase() === "CALL"
+  );
+  const heroTurnFold = turn.some(a =>
+    a.actorPos === heroPos && String(a.action || "").toUpperCase() === "FOLD"
+  );
+  if(heroFlopCall && heroTurnFold) flags.push("Call flop → fold turn");
+
+  // Faced river bet + hero response
+  const riverAggIdx = river.findIndex(a => {
+    const k = String(a.action || "").toUpperCase();
+    return a.actorPos !== heroPos && (k === "BET" || k === "RAISE" || k === "ALLIN");
+  });
+  if(riverAggIdx >= 0){
+    const heroAfter = river.slice(riverAggIdx + 1).some(a => a.actorPos === heroPos);
+    if(heroAfter) flags.push("Faced river bet + hero response");
+  }
+
+  // Missing board flags (if actions exist but board is incomplete)
+  const hasFlopActions = flop.length > 0;
+  const hasTurnActions = turn.length > 0;
+  const hasRiverActions = river.length > 0;
+
+  const b = hand.board || {};
+  const flopMissing = hasFlopActions && !(b.flop && b.flop[0] && b.flop[1] && b.flop[2]);
+  const turnMissing = hasTurnActions && !b.turn;
+  const riverMissing = hasRiverActions && !b.river;
+
+  if(flopMissing) flags.push("Missing flop cards");
+  if(turnMissing) flags.push("Missing turn card");
+  if(riverMissing) flags.push("Missing river card");
+
+  const dt = new Date(hand.createdAt || Date.now()).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+
+  return {
+    dt,
+    heroPos,
+    potType,
+    huMw,
+    eff,
+    effBucket,
+    flags,
+    wentToShowdown: !!hand.wentToShowdown
+  };
 }
 
+function renderLoggerSessionReviewTable(){
+  const mount = document.getElementById("loggerSessionReview");
+  if(!mount) return;
+
+  const active = getActiveSession();
+  if(!active){
+    mount.textContent = "No session selected.";
+    return;
+  }
+
+  const hands = active.hands || [];
+  if(!hands.length){
+    mount.textContent = "No hands yet.";
+    return;
+  }
+
+  const table = document.createElement("table");
+  table.className = "loggerReviewTable";
+
+  const thead = document.createElement("thead");
+  thead.innerHTML = `
+    <tr>
+      <th style="width:66px">Hand</th>
+      <th style="width:64px">Time</th>
+      <th style="width:64px">Pos</th>
+      <th style="width:70px">Type</th>
+      <th style="width:60px">HU/MW</th>
+      <th style="width:80px">Eff</th>
+      <th>Derived</th>
+    </tr>
+  `;
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+
+  hands.forEach((h, idx) => {
+    const d = deriveHandForSessionReview(h);
+
+    const tr = document.createElement("tr");
+    tr.className = "loggerReviewRow" + (h.id === loggerSelectedHandId ? " sel" : "");
+
+    const label = (idx === 0) ? "Recent" : `#${idx + 1}`;
+    const effTxt = (isFinite(d.eff) && d.eff > 0) ? `${d.eff}bb` : "—";
+
+    const chips = [];
+    chips.push(`<span class="loggerTinyChip">${d.potType}</span>`);
+    chips.push(`<span class="loggerTinyChip">${d.huMw}</span>`);
+    if(d.effBucket !== "—") chips.push(`<span class="loggerTinyChip">${d.effBucket}</span>`);
+    if(d.wentToShowdown) chips.push(`<span class="loggerTinyChip">Showdown</span>`);
+    d.flags.slice(0, 4).forEach(f => chips.push(`<span class="loggerTinyChip">${f}</span>`));
+    if(d.flags.length > 4) chips.push(`<span class="loggerTinyChip">+${d.flags.length - 4} more</span>`);
+
+    tr.innerHTML = `
+      <td>${label}</td>
+      <td>${d.dt}</td>
+      <td>${d.heroPos}</td>
+      <td>${d.potType}</td>
+      <td>${d.huMw}</td>
+      <td>${effTxt}</td>
+      <td>${chips.join(" ")}</td>
+    `;
+
+    tr.addEventListener("click", () => {
+      loggerSelectedHandId = h.id;
+      renderLoggerHandsList();
+      renderLoggerHandEditor(h);
+      renderLoggerSessionReviewTable();
+    });
+
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+
+  mount.innerHTML = "";
+  mount.appendChild(table);
+}
+
+  
+function refreshLoggerUI(){
+  renderLoggerSessionSummary();
+  renderLoggerSessionSettings();
+  renderLoggerHandsList();
+  renderLoggerSessionReviewTable(); // NEW
+  renderLoggerHandEditor(null);
+}
 
 
 function renderLoggerSessions(){
@@ -5036,6 +5275,7 @@ doneBtn.addEventListener("click", ()=>{
 
   renderLoggerTable();
   renderLoggerHandsList();
+  renderLoggerSessionReviewTable();
   renderLoggerHandEditor(null);
   toast("Hand completed");
 });
@@ -5242,13 +5482,14 @@ row.appendChild(right);
 
 
 
-    row.addEventListener("click", ()=>{
-      loggerSelectedHandId = h.id;
-      renderLoggerHandsList();
-      renderLoggerHandEditor(h);
-    });
-
-    el.appendChild(row);
+row.addEventListener("click", ()=>{
+  loggerSelectedHandId = h.id;
+  renderLoggerHandsList();
+  renderLoggerHandEditor(h);
+  renderLoggerSessionReviewTable(); // NEW
+});
+    
+el.appendChild(row);
   });
 }
 
