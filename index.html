@@ -6203,6 +6203,31 @@ rows.forEach((a, idx)=>{
   who.style.textAlign = "right";
   who.textContent = a.actorPos || "—";
 
+// Call out HERO position in the timeline for fast scanning
+if((a.actorPos || "") === heroPosLocal){
+  who.style.color = "var(--text)";
+
+  const heroBadge = document.createElement("span");
+  heroBadge.textContent = "H";
+  heroBadge.style.display = "inline-flex";
+  heroBadge.style.alignItems = "center";
+  heroBadge.style.justifyContent = "center";
+  heroBadge.style.marginLeft = "6px";
+  heroBadge.style.width = "18px";
+  heroBadge.style.height = "18px";
+  heroBadge.style.borderRadius = "50%";
+  heroBadge.style.border = "1px solid rgba(0,255,160,.45)";
+  heroBadge.style.background = "rgba(0,255,160,.14)";
+  heroBadge.style.color = "rgba(0,255,160,.95)";
+  heroBadge.style.fontWeight = "950";
+  heroBadge.style.fontSize = "11px";
+
+  who.appendChild(heroBadge);
+
+  // subtle row emphasis
+  row.style.border = "1px solid rgba(0,255,160,.25)";
+}
+
   const what = document.createElement("div");
   what.className = "kicker";
   what.style.fontWeight = "900";
