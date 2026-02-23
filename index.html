@@ -5237,6 +5237,54 @@ function renderLoggerSessionSettings(){
 
   loggerSessionSettings.innerHTML = "";
 
+  // --- Session Rename ---
+const nameWrap = document.createElement("div");
+nameWrap.style.display = "flex";
+nameWrap.style.alignItems = "center";
+nameWrap.style.gap = "8px";
+
+const nameLabel = document.createElement("div");
+nameLabel.className = "kicker";
+nameLabel.style.color = "var(--muted)";
+nameLabel.style.fontWeight = "800";
+nameLabel.textContent = "Session name";
+
+const nameInput = document.createElement("input");
+nameInput.type = "text";
+nameInput.value = active.name || "";
+nameInput.placeholder = "Session name";
+nameInput.style.padding = "8px 10px";
+nameInput.style.borderRadius = "10px";
+nameInput.style.border = "1px solid rgba(255,255,255,.15)";
+nameInput.style.background = "rgba(255,255,255,.05)";
+nameInput.style.color = "var(--text)";
+nameInput.style.fontWeight = "800";
+nameInput.style.width = "220px";
+
+const saveNameBtn = document.createElement("button");
+saveNameBtn.textContent = "Save";
+saveNameBtn.style.width = "fit-content";
+saveNameBtn.style.padding = "8px 12px";
+saveNameBtn.style.borderRadius = "10px";
+saveNameBtn.style.fontWeight = "900";
+
+saveNameBtn.addEventListener("click", ()=>{
+  active.name = nameInput.value.trim() || "Untitled Session";
+  saveLogger();
+
+  // Update any UI that depends on session name
+  renderLoggerSessionSummary();
+  renderLoggerSessionSettings();
+  renderLoggerHandsList();
+  renderLoggerSessionReviewTable();
+});
+
+loggerSessionSettings.appendChild(nameLabel);
+nameWrap.appendChild(nameInput);
+nameWrap.appendChild(saveNameBtn);
+loggerSessionSettings.appendChild(nameWrap);
+// --- /Session Rename ---
+
   const wrap = document.createElement("div");
   wrap.style.display = "grid";
   wrap.style.gap = "10px";
