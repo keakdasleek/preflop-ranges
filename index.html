@@ -5541,6 +5541,268 @@ el.appendChild(row);
   });
 }
 
+function renderLoggerSnapshotEditor({ mount, hand, heroPos, n }){
+  mount.innerHTML = "";
+
+  const top = document.createElement("div");
+  top.style.display = "grid";
+  top.style.gap = "10px";
+
+  const title = document.createElement("div");
+  title.style.fontWeight = "950";
+  title.textContent = "Quick snapshot";
+
+  const sub = document.createElement("div");
+  sub.className = "kicker";
+  sub.style.color = "var(--muted)";
+  sub.textContent = "Fast in-session capture. You can fill details later.";
+
+  top.appendChild(title);
+  top.appendChild(sub);
+
+  const card = document.createElement("div");
+  card.style.display = "grid";
+  card.style.gap = "10px";
+  card.style.padding = "12px 14px";
+  card.style.borderRadius = "16px";
+  card.style.border = "1px solid rgba(255,255,255,.10)";
+  card.style.background = "rgba(255,255,255,.03)";
+
+  // Positions list (prefer derived; allow override)
+  const posBySeat = buildSeatPositionsFromButton(Number(hand.btnSeat || 0), n);
+  const posOptions = posBySeat.filter(Boolean);
+  const currentHero = hand.heroPosOverride || heroPos || "HERO";
+
+  const row1 = document.createElement("div");
+  row1.style.display = "flex";
+  row1.style.gap = "10px";
+  row1.style.flexWrap = "wrap";
+  row1.style.alignItems = "center";
+
+  const heroLabel = document.createElement("div");
+  heroLabel.className = "kicker";
+  heroLabel.style.color = "var(--muted)";
+  heroLabel.style.fontWeight = "800";
+  heroLabel.textContent = "Hero pos";
+
+  const heroSel = document.createElement("select");
+  heroSel.style.padding = "8px 10px";
+  heroSel.style.borderRadius = "10px";
+  heroSel.style.border = "1px solid rgba(255,255,255,.15)";
+  heroSel.style.background = "rgba(255,255,255,.05)";
+  heroSel.style.color = "var(--text)";
+  heroSel.style.fontWeight = "900";
+
+  // If no derived options (e.g., BTN not set), provide fallback
+  const fallback = ["UTG","UTG+1","LJ","HJ","CO","BTN","SB","BB"];
+  const list = posOptions.length ? posOptions : fallback;
+
+  list.forEach(p=>{
+    const opt = document.createElement("option");
+    opt.value = p;
+    opt.textContent = p;
+    if(p === currentHero) opt.selected = true;
+    heroSel.appendChild(opt);
+  });
+
+  heroSel.addEventListener("change", ()=>{
+    hand.heroPosOverride = heroSel.value;
+    saveLogger();
+  });
+
+  row1.appendChild(heroLabel);
+  row1.appendChild(heroSel);
+
+  // Street reached
+  const streetLabel = document.createElement("div");
+  streetLabel.className = "kicker";
+  streetLabel.style.color = "var(--muted)";
+  streetLabel.style.fontWeight = "800";
+  streetLabel.textContent = "Street";
+
+  const streetSel = document.createElement("select");
+  streetSel.style.padding = "8px 10px";
+  streetSel.style.borderRadius = "10px";
+  streetSel.style.border = "1px solid rgba(255,255,255,.15)";
+  streetSel.style.background = "rgba(255,255,255,.05)";
+  streetSel.style.color = "var(--text)";
+  streetSel.style.fontWeight = "900";
+
+  const streetOptions = ["PREFLOP","FLOP","TURN","RIVER","SHOWDOWN"];
+  streetOptions.forEach(s=>{
+    const opt = document.createElement("option");
+    opt.value = s;
+    opt.textContent = s;
+    if((hand.snapStreet || "PREFLOP") === s) opt.selected = true;
+    streetSel.appendChild(opt);
+  });
+
+  streetSel.addEventListener("change", ()=>{
+    hand.snapStreet = streetSel.value;
+    saveLogger();
+  });
+
+  row1.appendChild(streetLabel);
+  row1.appendChild(streetSel);
+
+  // Pot type
+  const potLabel = document.createElement("div");
+  potLabel.className = "kicker";
+  potLabel.style.color = "var(--muted)";
+  potLabel.style.fontWeight = "800";
+  potLabel.textContent = "Type";
+
+  const potSel = document.createElement("select");
+  potSel.style.padding = "8px 10px";
+  potSel.style.borderRadius = "10px";
+  potSel.style.border = "1px solid rgba(255,255,255,.15)";
+  potSel.style.background = "rgba(255,255,255,.05)";
+  potSel.style.color = "var(--text)";
+  potSel.style.fontWeight = "900";
+
+  ["SRP","3BP","Limped"].forEach(t=>{
+    const opt = document.createElement("option");
+    opt.value = t;
+    opt.textContent = t;
+    if((hand.snapType || "SRP") === t) opt.selected = true;
+    potSel.appendChild(opt);
+  });
+
+  potSel.addEventListener("change", ()=>{
+    hand.snapType = potSel.value;
+    saveLogger();
+  });
+
+  row1.appendChild(potLabel);
+  row1.appendChild(potSel);
+
+  card.appendChild(row1);
+
+  // Result (BB)
+  const row2 = document.createElement("div");
+  row2.style.display = "flex";
+  row2.style.gap = "10px";
+  row2.style.flexWrap = "wrap";
+  row2.style.alignItems = "center";
+
+  const resLabel = document.createElement("div");
+  resLabel.className = "kicker";
+  resLabel.style.color = "var(--muted)";
+  resLabel.style.fontWeight = "800";
+  resLabel.textContent = "Result (BB)";
+
+  const resInput = document.createElement("input");
+  resInput.type = "number";
+  resInput.step = "0.1";
+  resInput.placeholder = "e.g. -35.5";
+  resInput.value = (hand.resultBB != null) ? hand.resultBB : "";
+  resInput.style.padding = "8px 10px";
+  resInput.style.borderRadius = "10px";
+  resInput.style.border = "1px solid rgba(255,255,255,.15)";
+  resInput.style.background = "rgba(255,255,255,.05)";
+  resInput.style.color = "var(--text)";
+  resInput.style.fontWeight = "900";
+  resInput.style.width = "140px";
+
+  resInput.addEventListener("change", ()=>{
+    const v = Number(resInput.value);
+    hand.resultBB = isFinite(v) ? v : null;
+    saveLogger();
+  });
+
+  const flagWrap = document.createElement("label");
+  flagWrap.style.display = "inline-flex";
+  flagWrap.style.alignItems = "center";
+  flagWrap.style.gap = "8px";
+  flagWrap.style.fontWeight = "900";
+
+  const flagCb = document.createElement("input");
+  flagCb.type = "checkbox";
+  flagCb.checked = (hand.needsReview !== false); // default true
+  flagCb.addEventListener("change", ()=>{
+    hand.needsReview = !!flagCb.checked;
+    saveLogger();
+  });
+
+  const flagText = document.createElement("span");
+  flagText.textContent = "Flag for review";
+
+  flagWrap.appendChild(flagCb);
+  flagWrap.appendChild(flagText);
+
+  row2.appendChild(resLabel);
+  row2.appendChild(resInput);
+  row2.appendChild(flagWrap);
+
+  card.appendChild(row2);
+
+  // Note
+  const note = document.createElement("textarea");
+  note.placeholder = "Quick note (optional)…";
+  note.value = hand.snapNote || "";
+  note.style.minHeight = "80px";
+  note.style.padding = "10px 12px";
+  note.style.borderRadius = "12px";
+  note.style.border = "1px solid rgba(255,255,255,.12)";
+  note.style.background = "rgba(255,255,255,.04)";
+  note.style.color = "var(--text)";
+  note.style.resize = "vertical";
+
+  note.addEventListener("change", ()=>{
+    hand.snapNote = note.value;
+    saveLogger();
+  });
+
+  card.appendChild(note);
+
+  // Buttons
+  const btnRow = document.createElement("div");
+  btnRow.style.display = "flex";
+  btnRow.style.gap = "10px";
+  btnRow.style.flexWrap = "wrap";
+  btnRow.style.alignItems = "center";
+
+  const saveBtn = document.createElement("button");
+  saveBtn.textContent = "Save snapshot";
+  saveBtn.style.padding = "10px 14px";
+  saveBtn.style.borderRadius = "12px";
+  saveBtn.style.fontWeight = "950";
+
+  saveBtn.addEventListener("click", ()=>{
+    hand.isSnapshot = true;
+    hand.completedAt = Date.now();
+    hand.viewMode = "REVIEW";
+    saveLogger();
+
+    loggerSelectedHandId = null;
+
+    renderLoggerTable();
+    renderLoggerHandsList();
+    renderLoggerSessionReviewTable?.();
+    renderLoggerHandEditor(null);
+    toast("Snapshot saved");
+  });
+
+  const fullBtn = document.createElement("button");
+  fullBtn.textContent = "Switch to full log";
+  fullBtn.style.padding = "10px 14px";
+  fullBtn.style.borderRadius = "12px";
+  fullBtn.style.fontWeight = "900";
+
+  fullBtn.addEventListener("click", ()=>{
+    hand.logMode = "FULL";
+    saveLogger();
+    renderLoggerHandEditor(hand);
+  });
+
+  btnRow.appendChild(saveBtn);
+  btnRow.appendChild(fullBtn);
+
+  card.appendChild(btnRow);
+
+  mount.appendChild(top);
+  mount.appendChild(card);
+}
 
 function renderLoggerHandEditor(hand){
   const mount = document.getElementById("loggerHandEditor");
@@ -5561,6 +5823,12 @@ function renderLoggerHandEditor(hand){
   const posBySeat = buildSeatPositionsFromButton(Number(hand.btnSeat), n);
   const heroPos = posBySeat[0] || "HERO";
   const started = isHandStarted(hand);
+
+    // Snapshot mode: fast capture, no need for hero cards / full details
+  if(hand.logMode === "SNAP"){
+    renderLoggerSnapshotEditor({ mount, hand, heroPos, n });
+    return;
+  }
 
   mount.innerHTML = "";
 
@@ -5625,6 +5893,22 @@ function renderLoggerHandEditor(hand){
     gate.appendChild(t);
     gate.appendChild(d);
     gate.appendChild(btn);
+
+    // Quick snapshot path (in-session logging, no hero cards required)
+const snapBtn = document.createElement("button");
+snapBtn.textContent = "Quick snapshot (flag for later)";
+snapBtn.style.width = "fit-content";
+snapBtn.style.padding = "10px 14px";
+snapBtn.style.borderRadius = "12px";
+snapBtn.style.fontWeight = "900";
+
+snapBtn.addEventListener("click", ()=>{
+  hand.logMode = "SNAP";
+  saveLogger();
+  renderLoggerHandEditor(hand);
+});
+
+gate.appendChild(snapBtn);
 
     mount.appendChild(gate);
 
@@ -5691,6 +5975,7 @@ doneBtn.addEventListener("click", ()=>{
   renderLoggerTable();
   renderLoggerHandsList();
   renderLoggerHandEditor(null);
+  renderLoggerSessionReviewTable?.();
   toast("Hand completed");
 });
 
