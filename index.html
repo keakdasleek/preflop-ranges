@@ -4359,8 +4359,14 @@ function deriveHandForSessionReview(hand){
   const meta = getActiveSessionMeta();
   const n = Number(hand?.maxPlayers || meta.maxPlayers || 8);
 
-  const posBySeat = buildSeatPositionsFromButton(Number(hand.btnSeat || 0), n);
-  const heroPos = posBySeat[0] || "HERO";
+const posBySeatRaw = buildSeatPositionsFromButton(Number(hand.btnSeat || 0), n);
+
+// Normalize return type (array vs object map)
+const posBySeatArr = Array.isArray(posBySeatRaw)
+  ? posBySeatRaw
+  : Object.values(posBySeatRaw || {});
+
+const heroPos = posBySeatArr[0] || "HERO";
 
   const actions = getSortedActions(hand);
   const pf = actions.filter(a => String(a.street || "").toUpperCase() === "PREFLOP");
