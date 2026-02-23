@@ -5575,8 +5575,14 @@ function renderLoggerSnapshotEditor({ mount, hand, heroPos, n }){
   card.style.background = "rgba(255,255,255,.03)";
 
   // Positions list (prefer derived; allow override)
-  const posBySeat = buildSeatPositionsFromButton(Number(hand.btnSeat || 0), n);
-  const posOptions = posBySeat.filter(Boolean);
+const posBySeatRaw = buildSeatPositionsFromButton(Number(hand.btnSeat || 0), n);
+
+// Normalize return type (array vs object map)
+const posBySeatArr = Array.isArray(posBySeatRaw)
+  ? posBySeatRaw
+  : Object.values(posBySeatRaw || {});
+
+const posOptions = posBySeatArr.filter(Boolean);
   const currentHero = hand.heroPosOverride || heroPos || "HERO";
 
   const row1 = document.createElement("div");
@@ -5826,8 +5832,14 @@ function renderLoggerHandEditor(hand){
   }
 
   const n = Number(loggerState?.table?.maxPlayers || 8);
-  const posBySeat = buildSeatPositionsFromButton(Number(hand.btnSeat), n);
-  const heroPos = posBySeat[0] || "HERO";
+const posBySeatRaw = buildSeatPositionsFromButton(Number(hand.btnSeat), n);
+
+// Normalize return type (array vs object map)
+const posBySeatArr = Array.isArray(posBySeatRaw)
+  ? posBySeatRaw
+  : Object.values(posBySeatRaw || {});
+
+const heroPos = posBySeatArr[0] || "HERO";
   const started = isHandStarted(hand);
 
     // Snapshot mode: fast capture, no need for hero cards / full details
@@ -6038,9 +6050,11 @@ onSave: (newSlots)=>{
       loggerState.table.uiMode = "ACTOR";
 
       // Default selected actor = Hero position (seat 0)
-      const nPlayers = Number(loggerState?.table?.maxPlayers || 8);
-      const posBySeat = buildSeatPositionsFromButton(Number(hand.btnSeat), nPlayers);
-      loggerState.table.selectedActorPos = posBySeat[0] || "HERO";
+const posBySeatRaw = buildSeatPositionsFromButton(Number(hand.btnSeat), nPlayers);
+const posBySeatArr = Array.isArray(posBySeatRaw)
+  ? posBySeatRaw
+  : Object.values(posBySeatRaw || {});
+loggerState.table.selectedActorPos = posBySeatArr[0] || "HERO";
     }
   }
 
