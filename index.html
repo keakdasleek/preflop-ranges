@@ -3585,6 +3585,45 @@ function buildSeatPositionsFromButton(btnSeat, n){
   return posBySeat;
 }
 
+function getPosBySeatArr(btnSeat, n){
+  const map = buildSeatPositionsFromButton(btnSeat, n) || {};
+  const arr = new Array(n).fill(null);
+  for(let i=0;i<n;i++){
+    arr[i] = map[i] || null;
+  }
+  return arr;
+}
+
+function remapPositionsForHandOnBtnChange(hand, oldBtnSeat, newBtnSeat, n){
+  const oldArr = getPosBySeatArr(oldBtnSeat, n);
+  const newArr = getPosBySeatArr(newBtnSeat, n);
+
+  // position label -> seat index (based on old mapping)
+  const posToSeat = {};
+  for(let seat=0; seat<n; seat++){
+    const p = oldArr[seat];
+    if(p) posToSeat[p] = seat;
+  }
+
+  // Remap action actorPos
+  if(Array.isArray(hand.actions)){
+    hand.actions.forEach(a=>{
+      const seat = posToSeat[a.actorPos];
+      if(seat != null){
+        a.actorPos = newArr[seat] || a.actorPos;
+      }
+    });
+  }
+
+  // Remap villain shown position
+  if(hand.villainShow && hand.villainShow.pos){
+    const seat = posToSeat[hand.villainShow.pos];
+    if(seat != null){
+      hand.villainShow.pos = newArr[seat] || hand.villainShow.pos;
+    }
+  }
+}
+  
 // ===== Logger Card Picker (Hero + Board) =====
 const LOGGER_RANKS = ["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
 const LOGGER_SUITS = [
@@ -6057,6 +6096,60 @@ gate.appendChild(startRow);
   meta.style.color = "var(--muted)";
   meta.textContent = `BTN seat: ${Number(hand.btnSeat) + 1} • Hero seat: 1 • Players: ${n}`;
 
+  // Allow correcting BTN seat after hand start (remaps existing actor positions)
+const btnSeatLine = document.createElement("div");
+btnSeatLine.style.display = "flex";
+btnSeatLine.style.gap = "10px";
+btnSeatLine.style.flexWrap = "wrap";
+btnSeatLine.style.alignItems = "center";
+
+const btnSeatLabel = document.createElement("div");
+btnSeatLabel.className = "kicker";
+btnSeatLabel.style.color = "var(--muted)";
+btnSeatLabel.style.fontWeight = "800";
+btnSeatLabel.textContent = "Correct BTN seat";
+
+const btnSeatSel = document.createElement("select");
+btnSeatSel.style.padding = "8px 10px";
+btnSeatSel.style.borderRadius = "10px";
+btnSeatSel.style.border = "1px solid rgba(255,255,255,.15)";
+btnSeatSel.style.background = "rgba(255,255,255,.05)";
+btnSeatSel.style.color = "var(--text)";
+btnSeatSel.style.fontWeight = "900";
+
+for(let i=0;i<n;i++){
+  const opt = document.createElement("option");
+  opt.value = String(i);
+  opt.textContent = String(i+1);
+  if(Number(hand.btnSeat) === i) opt.selected = true;
+  btnSeatSel.appendChild(opt);
+}
+
+btnSeatSel.addEventListener("change", ()=>{
+  const oldBtn = Number(hand.btnSeat);
+  const newBtn = Number(btnSeatSel.value);
+
+  if(oldBtn === newBtn) return;
+
+  if(!confirm("Change BTN seat for this hand? This will remap all logged positions in actions.")){
+    btnSeatSel.value = String(oldBtn);
+    return;
+  }
+
+  remapPositionsForHandOnBtnChange(hand, oldBtn, newBtn, n);
+  hand.btnSeat = newBtn;
+
+  saveLogger();
+  renderLoggerTable();
+  renderLoggerHandsList();
+  renderLoggerSessionReviewTable?.();
+  renderLoggerHandEditor(hand);
+});
+
+btnSeatLine.appendChild(btnSeatLabel);
+btnSeatLine.appendChild(btnSeatSel);
+top.appendChild(btnSeatLine);
+
   const doneRow = document.createElement("div");
   doneRow.style.display = "flex";
   doneRow.style.gap = "10px";
@@ -6105,6 +6198,35 @@ doneBtn.addEventListener("click", ()=>{
 
   
   doneRow.appendChild(doneBtn);
+
+const delBtn = document.createElement("button");
+delBtn.textContent = "Delete hand";
+delBtn.style.padding = "10px 14px";
+delBtn.style.borderRadius = "12px";
+delBtn.style.fontWeight = "900";
+delBtn.style.border = "1px solid rgba(255,255,255,.18)";
+delBtn.style.background = "rgba(255,255,255,.04)";
+delBtn.style.opacity = "0.92";
+
+delBtn.addEventListener("click", ()=>{
+  if(!confirm("Delete this hand? This cannot be undone.")) return;
+
+  const active = getActiveSession();
+  if(!active || !Array.isArray(active.hands)) return;
+
+  active.hands = active.hands.filter(h => h.id !== hand.id);
+  saveLogger();
+
+  loggerSelectedHandId = null;
+  renderLoggerTable();
+  renderLoggerHandsList();
+  renderLoggerSessionReviewTable?.();
+  renderLoggerHandEditor(null);
+  toast("Hand deleted");
+});
+
+doneRow.appendChild(delBtn);
+  
   top.appendChild(doneRow);
 
 
@@ -7838,6 +7960,7 @@ function createLoggerHand(){
       id: uid(),
       createdAt: Date.now(),
       viewMode: "LOG",
+      logMode: "SNAP",
       replayIdx: 0,
       maxPlayers: Number(loggerState?.table?.maxPlayers || 8),
       heroSeat: 0,
@@ -7884,23 +8007,24 @@ actions: [] // [{id, street, actorPos, action, amt, unit, toCall, note, createdA
       renderLoggerHandEditor(hand);
       scrollLoggerHandEditorIntoView();
 
-      // Auto-open hero card picker for new hands
-      openLoggerCardPicker({
-        title: "Pick hero cards",
-        sub: "Select exactly 2 cards.",
-        slots: hand.heroCards.slice(),
-        exclude: new Set([
-          ...(hand.board?.flop || []),
-          hand.board?.turn || null,
-          hand.board?.river || null
-        ].filter(Boolean)),
-        onSave: (newSlots)=>{
-          hand.heroCards = [newSlots[0] || null, newSlots[1] || null];
-          saveLogger();
-          renderLoggerHandEditor(hand);
-          renderLoggerHandsList();
-        }
-      });
+// Auto-open hero cards for SNAPSHOT (optional)
+openLoggerCardPicker({
+  title: "Pick hero cards (snapshot)",
+  sub: "Optional — helps reconstruct later.",
+  slots: (hand.heroCards || [null,null]).slice(),
+  exclude: new Set([
+    ...(hand.board?.flop || []),
+    hand.board?.turn || null,
+    hand.board?.river || null
+  ].filter(Boolean)),
+  onSave: (newSlots)=>{
+    hand.heroCards = [newSlots[0] || null, newSlots[1] || null];
+    saveLogger();
+    renderLoggerHandEditor(hand);   // will render Snapshot editor because logMode is SNAP
+    renderLoggerHandsList();
+    renderLoggerSessionReviewTable?.();
+  }
+});
 
     
       toast("Hand created");
