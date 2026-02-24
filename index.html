@@ -5712,6 +5712,78 @@ const posOptions = posBySeatArr.filter(Boolean);
 
   card.appendChild(row1);
 
+  // Hero cards (optional, helps reconstruct later)
+const heroCardsLine = document.createElement("div");
+heroCardsLine.style.display = "flex";
+heroCardsLine.style.gap = "10px";
+heroCardsLine.style.flexWrap = "wrap";
+heroCardsLine.style.alignItems = "center";
+
+const heroCardsLabel = document.createElement("div");
+heroCardsLabel.className = "kicker";
+heroCardsLabel.style.color = "var(--muted)";
+heroCardsLabel.style.fontWeight = "800";
+heroCardsLabel.textContent = "Hero cards";
+
+const heroCardsVal = document.createElement("div");
+heroCardsVal.className = "kicker";
+heroCardsVal.style.fontWeight = "900";
+heroCardsVal.textContent = (hand.heroCards && hand.heroCards.length === 2 && hand.heroCards[0] && hand.heroCards[1])
+  ? `${cardToPretty(hand.heroCards[0])} ${cardToPretty(hand.heroCards[1])}`
+  : "—";
+
+const heroCardsBtn = document.createElement("button");
+heroCardsBtn.textContent = "Pick hero cards";
+heroCardsBtn.style.width = "fit-content";
+heroCardsBtn.style.padding = "8px 12px";
+heroCardsBtn.style.borderRadius = "12px";
+heroCardsBtn.style.fontWeight = "900";
+
+heroCardsBtn.addEventListener("click", ()=>{
+  const slots = (hand.heroCards && hand.heroCards.length === 2)
+    ? hand.heroCards.slice()
+    : [null,null];
+
+  openLoggerCardPicker({
+    title: "Pick hero cards",
+    sub: "Select exactly 2 cards (optional in snapshot).",
+    slots,
+    exclude: new Set([
+      ...(hand.board?.flop || []),
+      hand.board?.turn || null,
+      hand.board?.river || null
+    ].filter(Boolean)),
+    onSave: (newSlots)=>{
+      hand.heroCards = [newSlots[0] || null, newSlots[1] || null];
+      saveLogger();
+      renderLoggerSnapshotEditor({ mount, hand, heroPos, n });
+    }
+  });
+});
+
+const heroCardsClearBtn = document.createElement("button");
+heroCardsClearBtn.textContent = "Clear";
+heroCardsClearBtn.style.width = "fit-content";
+heroCardsClearBtn.style.padding = "8px 12px";
+heroCardsClearBtn.style.borderRadius = "12px";
+heroCardsClearBtn.style.fontWeight = "900";
+heroCardsClearBtn.style.border = "1px solid rgba(255,255,255,.18)";
+heroCardsClearBtn.style.background = "rgba(255,255,255,.04)";
+heroCardsClearBtn.style.opacity = "0.92";
+
+heroCardsClearBtn.addEventListener("click", ()=>{
+  hand.heroCards = [null,null];
+  saveLogger();
+  renderLoggerSnapshotEditor({ mount, hand, heroPos, n });
+});
+
+heroCardsLine.appendChild(heroCardsLabel);
+heroCardsLine.appendChild(heroCardsVal);
+heroCardsLine.appendChild(heroCardsBtn);
+heroCardsLine.appendChild(heroCardsClearBtn);
+
+card.appendChild(heroCardsLine);
+  
   // Result (BB)
   const row2 = document.createElement("div");
   row2.style.display = "flex";
