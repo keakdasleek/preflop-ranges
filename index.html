@@ -3885,6 +3885,12 @@ function renderLoggerTable(){
 
   const n = Number(loggerState?.table?.maxPlayers || 8);
 
+  // Sync table visual to selected hand's BTN seat
+if(loggerState && loggerState.table){
+  loggerState.table.btnSeat = Number(hand.btnSeat || 0);
+}
+renderLoggerTable();
+  
   // Hard lock: hero always bottom (seat index 0)
   loggerState.table.heroSeat = 0;
 
