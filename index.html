@@ -5773,7 +5773,7 @@ const posOptions = posBySeatArr.filter(Boolean);
   // Note
   const note = document.createElement("textarea");
   note.placeholder = "Quick note (optional)…";
-  note.value = hand.snapNote || "";
+  note.value = hand.notes || "";
   note.style.minHeight = "80px";
   note.style.padding = "10px 12px";
   note.style.borderRadius = "12px";
@@ -5783,7 +5783,7 @@ const posOptions = posBySeatArr.filter(Boolean);
   note.style.resize = "vertical";
 
   note.addEventListener("change", ()=>{
-    hand.snapNote = note.value;
+    hand.notes = note.value;
     saveLogger();
   });
 
