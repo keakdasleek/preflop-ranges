@@ -595,7 +595,7 @@ select:focus{
 
 .loggerTable{
   position:relative;
-  width:min(520px, 100%);
+  width:min(420px, 100%);
   aspect-ratio: 1 / 1;
   margin:0 auto;
   border-radius:999px;
@@ -603,6 +603,24 @@ select:focus{
   background: radial-gradient(60% 60% at 50% 35%, rgba(255,255,255,.05), rgba(0,0,0,.22));
   box-shadow: 0 14px 30px rgba(0,0,0,.30);
   overflow:hidden;
+}
+
+.loggerTwoCol{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+@media (max-width: 980px){
+  .loggerTwoCol{
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Keeps the table from visually dominating the page */
+.loggerTablePanel{
+  padding-bottom: 8px;
 }
 
 .loggerTable::before{
@@ -1137,18 +1155,22 @@ select:focus{
 </div>
 
 
-      <div class="info" style="margin:0">
-        <h3>Table</h3>
-        <div id="loggerTableMount" class="kicker" style="color:var(--muted)">
-          (Table UI goes here — player always at 6 o’clock.)
-        </div>
-      </div>
+  <div class="loggerTwoCol">
 
-      <div class="info" style="margin:0">
-        <h3>Hand</h3>
-        <div id="loggerHandEditor" class="kicker" style="color:var(--muted)">
-          Select a session and click “Log new hand”.
+        <div class="info loggerTablePanel" style="margin:0">
+          <h3>Table</h3>
+          <div id="loggerTableMount" class="kicker" style="color:var(--muted)">
+            (Table UI goes here — player always at 6 o’clock.)
+          </div>
         </div>
+
+        <div class="info" style="margin:0">
+          <h3>Hand</h3>
+          <div id="loggerHandEditor" class="kicker" style="color:var(--muted)">
+            Select a session and click “Log new hand”.
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -5910,15 +5932,26 @@ const heroPos = posBySeatArr[0] || "HERO";
 
     gate.appendChild(t);
     gate.appendChild(d);
-    gate.appendChild(btn);
+// Buttons row: Full log primary, snapshot secondary
+const startRow = document.createElement("div");
+startRow.style.display = "flex";
+startRow.style.gap = "10px";
+startRow.style.flexWrap = "wrap";
+startRow.style.alignItems = "center";
 
-    // Quick snapshot path (in-session logging, no hero cards required)
+// Primary CTA (full log)
+startRow.appendChild(btn);
+
+// Quick snapshot path (secondary)
 const snapBtn = document.createElement("button");
-snapBtn.textContent = "Quick snapshot (flag for later)";
+snapBtn.textContent = "Quick snapshot";
 snapBtn.style.width = "fit-content";
-snapBtn.style.padding = "10px 14px";
+snapBtn.style.padding = "8px 12px";
 snapBtn.style.borderRadius = "12px";
 snapBtn.style.fontWeight = "900";
+snapBtn.style.border = "1px solid rgba(255,255,255,.18)";
+snapBtn.style.background = "rgba(255,255,255,.04)";
+snapBtn.style.opacity = "0.92";
 
 snapBtn.addEventListener("click", ()=>{
   hand.logMode = "SNAP";
@@ -5926,7 +5959,8 @@ snapBtn.addEventListener("click", ()=>{
   renderLoggerHandEditor(hand);
 });
 
-gate.appendChild(snapBtn);
+startRow.appendChild(snapBtn);
+gate.appendChild(startRow);
 
     mount.appendChild(gate);
 
@@ -7715,6 +7749,12 @@ mount.appendChild(actionsWrap);
 }
 // end of renderloggerhandeditor
 
+function scrollLoggerHandEditorIntoView(){
+  const el = document.getElementById("loggerHandEditor");
+  if(!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+  
 function createLoggerHand(){
   const active = getActiveSession();
   if(!active){
@@ -7770,6 +7810,7 @@ actions: [] // [{id, street, actorPos, action, amt, unit, toCall, note, createdA
       renderLoggerSessionSummary();
       renderLoggerHandsList();
       renderLoggerHandEditor(hand);
+      scrollLoggerHandEditorIntoView();
 
       // Auto-open hero card picker for new hands
       openLoggerCardPicker({
