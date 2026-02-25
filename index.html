@@ -4545,6 +4545,7 @@ function renderLoggerSessionReviewTable(){
       <th style="width:70px">Type</th>
       <th style="width:60px">HU/MW</th>
       <th style="width:80px">Eff</th>
+      <th style="width:72px">Res</th>
       <th>Derived</th>
     </tr>
   `;
@@ -4561,6 +4562,10 @@ function renderLoggerSessionReviewTable(){
     const label = (idx === 0) ? "Recent" : `#${idx + 1}`;
     const effTxt = (isFinite(d.eff) && d.eff > 0) ? `${d.eff}bb` : "—";
 
+    const resTxt = (h.resultBB != null && isFinite(Number(h.resultBB)))
+  ? ((Number(h.resultBB) > 0 ? "+" : "") + Number(h.resultBB).toFixed(1))
+  : "—";
+
     const chips = [];
     chips.push(`<span class="loggerTinyChip">${d.potType}</span>`);
     chips.push(`<span class="loggerTinyChip">${d.huMw}</span>`);
@@ -4576,6 +4581,7 @@ function renderLoggerSessionReviewTable(){
       <td>${d.potType}</td>
       <td>${d.huMw}</td>
       <td>${effTxt}</td>
+      <td>${resTxt}</td>
       <td>${chips.join(" ")}</td>
     `;
 
@@ -6404,6 +6410,42 @@ effInput.addEventListener("input", ()=>{
 effLine.appendChild(effLabel);
 effLine.appendChild(effInput);
 top.appendChild(effLine);
+
+// ===== Result (BB) =====
+const resLine = document.createElement("div");
+resLine.style.display = "flex";
+resLine.style.gap = "10px";
+resLine.style.flexWrap = "wrap";
+resLine.style.alignItems = "center";
+
+const resLabel = document.createElement("div");
+resLabel.style.fontWeight = "950";
+resLabel.textContent = "Result (BB)";
+
+const resInput = document.createElement("input");
+resInput.type = "number";
+resInput.step = "0.1";
+resInput.placeholder = "e.g. -35.5";
+resInput.value = (hand.resultBB != null) ? String(hand.resultBB) : "";
+resInput.style.width = "140px";
+resInput.style.borderRadius = "12px";
+resInput.style.border = "1px solid rgba(255,255,255,.12)";
+resInput.style.background = "rgba(255,255,255,.04)";
+resInput.style.color = "var(--text)";
+resInput.style.padding = "8px 10px";
+resInput.style.fontWeight = "900";
+
+resInput.addEventListener("change", ()=>{
+  const v = Number(resInput.value);
+  hand.resultBB = isFinite(v) ? v : null;
+  saveLogger();
+  renderLoggerSessionReviewTable?.();
+});
+
+resLine.appendChild(resLabel);
+resLine.appendChild(resInput);
+top.appendChild(resLine);
+// ===== /Result (BB) =====
 
 // ===== Showdown (optional) =====
 const sdWrap = document.createElement("div");
