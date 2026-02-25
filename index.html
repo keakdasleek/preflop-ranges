@@ -5891,6 +5891,10 @@ const posOptions = posBySeatArr.filter(Boolean);
     saveLogger();
   });
 
+// HARDEN: ensure SNAP street is always set even if user never touches dropdown
+streetSel.value = hand.snapStreet || "PREFLOP";
+hand.snapStreet = streetSel.value;
+  
   row1.appendChild(streetLabel);
   row1.appendChild(streetSel);
 
@@ -6089,20 +6093,25 @@ card.appendChild(heroCardsLine);
   saveBtn.style.borderRadius = "12px";
   saveBtn.style.fontWeight = "950";
 
-  saveBtn.addEventListener("click", ()=>{
-    hand.isSnapshot = true;
-    hand.completedAt = Date.now();
-    hand.viewMode = "REVIEW";
-    saveLogger();
+saveBtn.addEventListener("click", ()=>{
+  // HARDEN: persist street/type even if user never touched dropdowns
+  hand.snapStreet = hand.snapStreet || streetSel.value || "PREFLOP";
+  hand.snapType   = hand.snapType   || potSel.value   || "SRP";
 
-    loggerSelectedHandId = null;
+  hand.isSnapshot = true;
+  hand.completedAt = Date.now();
+  hand.viewMode = "REVIEW";
+  saveLogger();
 
-    renderLoggerTable();
-    renderLoggerHandsList();
-    renderLoggerSessionReviewTable?.();
-    renderLoggerHandEditor(null);
-    toast("Snapshot saved");
-  });
+  loggerSelectedHandId = null;
+
+  renderLoggerTable();
+  renderLoggerHandsList();
+  renderLoggerInsights?.();
+  renderLoggerSessionReviewTable?.();
+  renderLoggerHandEditor(null);
+  toast("Snapshot saved");
+});
 
   const fullBtn = document.createElement("button");
   fullBtn.textContent = "Switch to full log";
