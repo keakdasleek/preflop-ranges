@@ -1166,6 +1166,9 @@ select:focus{
       <!-- Session Review (bottom of left card) -->
       <div class="info" style="margin:0">
         <h3>Session Review</h3>
+        <div id="loggerInsights" class="kicker" style="margin:6px 0 10px;color:var(--muted);font-size:12px;line-height:1.45;font-weight:700">
+          —
+        </div>
         <div id="loggerSessionReview" class="kicker" style="color:var(--muted);font-size:12px;line-height:1.45;font-weight:700">
           —
         </div>
@@ -4517,6 +4520,162 @@ const heroPos = posBySeatArr[0] || "HERO";
   };
 }
 
+function renderLoggerInsights(){
+  const mount = document.getElementById("loggerInsights");
+  if(!mount) return;
+
+  const active = getActiveSession();
+  if(!active){
+    mount.textContent = "No session selected.";
+    return;
+  }
+
+  const hands = active.hands || [];
+  if(!hands.length){
+    mount.textContent = "No hands yet.";
+    return;
+  }
+
+  // Helper: pick a “decision street” for insights
+  const getStreet = (h) => {
+    if(h && h.snapStreet) return String(h.snapStreet);
+    if(h && Array.isArray(h.actions) && h.actions.length){
+      const last = h.actions[h.actions.length - 1];
+      if(last && last.street) return String(last.street);
+    }
+    return "—";
+  };
+
+  // Basic counts
+  const snapCt = hands.filter(h => h && h.logMode === "SNAP").length;
+  const fullCt = hands.filter(h => h && h.logMode === "FULL").length;
+
+  const handsWithRes = hands.filter(h => h && h.resultBB != null && isFinite(Number(h.resultBB)));
+  const resCt = handsWithRes.length;
+  const net = handsWithRes.reduce((s,h)=> s + Number(h.resultBB), 0);
+  const bbPerHand = resCt ? (net / resCt) : 0;
+
+  // Archetype aggregation: Street × PotType × EffBucket
+  // Uses your existing deriveHandForSessionReview() so we stay aligned with derived facts.
+  const agg = new Map();
+  handsWithRes.forEach(h => {
+    const d = deriveHandForSessionReview(h);
+    const street = getStreet(h);
+    const potType = d.potType || "—";
+    const effBucket = d.effBucket || "—";
+
+    const key = `${street} × ${potType} × ${effBucket}`;
+    const r = Number(h.resultBB);
+
+    if(!agg.has(key)){
+      agg.set(key, {
+        key,
+        street,
+        potType,
+        effBucket,
+        n: 0,
+        net: 0,
+        best: -Infinity,
+        worst: Infinity
+      });
+    }
+    const row = agg.get(key);
+    row.n += 1;
+    row.net += r;
+    if(r > row.best) row.best = r;
+    if(r < row.worst) row.worst = r;
+  });
+
+  const rows = Array.from(agg.values()).map(x => ({
+    ...x,
+    avg: x.n ? (x.net / x.n) : 0
+  }));
+
+  // Filter to avoid noisy 1-offs
+  const MIN_N = 2;
+  const stable = rows.filter(r => r.n >= MIN_N);
+
+  const worst = stable
+    .slice()
+    .sort((a,b)=> a.avg - b.avg)
+    .slice(0, 5);
+
+  const best = stable
+    .slice()
+    .sort((a,b)=> b.avg - a.avg)
+    .slice(0, 5);
+
+  // Render (minimal UI)
+  const fmt = (x) => {
+    const n = Number(x);
+    if(!isFinite(n)) return "—";
+    return (n > 0 ? "+" : "") + n.toFixed(1);
+  };
+
+  const header = `
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px">
+      <span class="loggerTinyChip">Net: ${fmt(net)} bb</span>
+      <span class="loggerTinyChip">BB/hand: ${fmt(bbPerHand)}</span>
+      <span class="loggerTinyChip">Result hands: ${resCt}/${hands.length}</span>
+      <span class="loggerTinyChip">SNAP: ${snapCt}</span>
+      <span class="loggerTinyChip">FULL: ${fullCt}</span>
+      <span class="loggerTinyChip">Archetypes (n≥${MIN_N}): ${stable.length}</span>
+    </div>
+  `;
+
+  const buildMiniTable = (title, list) => {
+    if(!list.length){
+      return `
+        <div style="margin-top:10px">
+          <div style="font-weight:900;margin-bottom:6px">${title}</div>
+          <div style="opacity:.9">Not enough repeated spots yet (need ≥${MIN_N} samples per archetype).</div>
+        </div>
+      `;
+    }
+
+    const rowsHtml = list.map(r => `
+      <tr>
+        <td style="padding:6px 8px;white-space:nowrap">${r.street}</td>
+        <td style="padding:6px 8px;white-space:nowrap">${r.potType}</td>
+        <td style="padding:6px 8px;white-space:nowrap">${r.effBucket}</td>
+        <td style="padding:6px 8px;text-align:right;font-weight:900">${r.n}</td>
+        <td style="padding:6px 8px;text-align:right;font-weight:900">${fmt(r.avg)}</td>
+        <td style="padding:6px 8px;text-align:right">${fmt(r.net)}</td>
+      </tr>
+    `).join("");
+
+    return `
+      <div style="margin-top:10px">
+        <div style="font-weight:900;margin-bottom:6px">${title}</div>
+        <div style="border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead style="background:rgba(255,255,255,.03)">
+              <tr>
+                <th style="text-align:left;padding:6px 8px">Street</th>
+                <th style="text-align:left;padding:6px 8px">Type</th>
+                <th style="text-align:left;padding:6px 8px">Eff</th>
+                <th style="text-align:right;padding:6px 8px">N</th>
+                <th style="text-align:right;padding:6px 8px">Avg</th>
+                <th style="text-align:right;padding:6px 8px">Net</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  };
+
+  mount.innerHTML = `
+    <div style="margin-bottom:6px;font-weight:900;color:rgba(231,236,255,.92)">Session Insights</div>
+    ${header}
+    ${buildMiniTable("Worst repeated archetypes", worst)}
+    ${buildMiniTable("Best repeated archetypes", best)}
+  `;
+}
+  
 function renderLoggerSessionReviewTable(){
   const mount = document.getElementById("loggerSessionReview");
   if(!mount) return;
@@ -4606,6 +4765,7 @@ function refreshLoggerUI(){
   renderLoggerSessionSummary();
   renderLoggerSessionSettings();
   renderLoggerHandsList();
+  renderLoggerInsights();
   renderLoggerSessionReviewTable(); // NEW
   renderLoggerHandEditor(null);
 }
