@@ -4442,9 +4442,16 @@ const heroPos = posBySeatArr[0] || "HERO";
   const pfRaises = pf.filter(a => ["RAISE","ALLIN","BET"].includes(String(a.action || "").toUpperCase()));
   const pfCalls  = pf.filter(a => String(a.action || "").toUpperCase() === "CALL");
 
-  let potType = "SRP";
+let potType = "SRP";
+
+// SNAP: trust the user's selected pot type
+if(hand && hand.snapType){
+  potType = String(hand.snapType);
+} else {
+  // FULL (or inferred): derive from actions
   if(pfRaises.length >= 2) potType = "3BP";
   else if(pfRaises.length === 0 && pfCalls.length > 0) potType = "Limped";
+}
 
   // HU vs MW (use postflop if present; else use preflop non-fold actors)
   const post = flop.length ? flop : (turn.length ? turn : (river.length ? river : []));
@@ -4561,7 +4568,7 @@ function renderLoggerInsights(){
   handsWithRes.forEach(h => {
     const d = deriveHandForSessionReview(h);
     const street = getStreet(h);
-    const potType = d.potType || "—";
+    const potType = (h && h.snapType) ? String(h.snapType) : (d.potType || "—");
     const effBucket = d.effBucket || "—";
 
     const key = `${street} × ${potType} × ${effBucket}`;
@@ -4600,10 +4607,13 @@ function renderLoggerInsights(){
     .sort((a,b)=> a.avg - b.avg)
     .slice(0, 5);
 
-  const best = stable
-    .slice()
-    .sort((a,b)=> b.avg - a.avg)
-    .slice(0, 5);
+ const worstKeys = new Set(worst.map(r => r.key));
+
+const best = stable
+  .filter(r => !worstKeys.has(r.key))
+  .slice()
+  .sort((a,b)=> b.avg - a.avg)
+  .slice(0, 5);
 
   // Render (minimal UI)
   const fmt = (x) => {
