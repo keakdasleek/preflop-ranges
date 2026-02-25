@@ -1123,6 +1123,8 @@ select:focus{
 
 <!-- LOGGER_VIEW_START -->
 <div id="loggerView" class="gridWrap" style="display:none">
+
+  <!-- LEFT: main logger card -->
   <div class="card">
     <div class="cardHd">
       <div>
@@ -1136,22 +1138,16 @@ select:focus{
       </div>
     </div>
 
+    <!-- Session + settings -->
     <div style="padding:16px;display:grid;gap:14px">
-     <div class="info">
-  <h3>Session</h3>
-  <div id="loggerSessionSummary" class="kicker">
-    No session selected.
-  </div>
+      <div class="info">
+        <h3>Session</h3>
+        <div id="loggerSessionSummary" class="kicker">No session selected.</div>
+        <div id="loggerSessionSettings" style="margin-top:10px"></div>
+      </div>
 
-  <div id="loggerSessionSettings" style="margin-top:10px"></div>
-
-</div>
-       
-</div>
-
-
-  <div class="loggerTwoCol">
-
+      <!-- Table + Hand (2-col) -->
+      <div class="loggerTwoCol">
         <div class="info loggerTablePanel" style="margin:0">
           <h3>Table</h3>
           <div id="loggerTableMount" class="kicker" style="color:var(--muted)">
@@ -1166,17 +1162,18 @@ select:focus{
           </div>
         </div>
       </div>
-  
-<div class="info" style="margin:0">
-  <h3>Session Review</h3>
-  <div id="loggerSessionReview" class="kicker" style="color:var(--muted);font-size:12px;line-height:1.45;font-weight:700">
-    —
-  </div>
-</div>
-    
-  </div>
+
+      <!-- Session Review (bottom of left card) -->
+      <div class="info" style="margin:0">
+        <h3>Session Review</h3>
+        <div id="loggerSessionReview" class="kicker" style="color:var(--muted);font-size:12px;line-height:1.45;font-weight:700">
+          —
+        </div>
+      </div>
+    </div>
   </div>
 
+  <!-- RIGHT: hands list card -->
   <div class="card side">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
       <div style="font-weight:900">Hands</div>
@@ -1193,6 +1190,7 @@ select:focus{
       v1 goal: fast logging flow (positions auto-populate from hero seat).
     </div>
   </div>
+
 </div>
 <!-- LOGGER_VIEW_END -->
 
