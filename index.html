@@ -4570,8 +4570,9 @@ function renderLoggerInsights(){
     const street = getStreet(h);
     const potType = (h && h.snapType) ? String(h.snapType) : (d.potType || "—");
     const effBucket = d.effBucket || "—";
+    const pressure = (h && h.snapPressure) ? String(h.snapPressure) : "NONE";
 
-    const key = `${street} × ${potType} × ${effBucket}`;
+    const key = `${street} × ${potType} × ${effBucket} × ${pressure}`;
     const r = Number(h.resultBB);
 
     if(!agg.has(key)){
@@ -4580,6 +4581,7 @@ function renderLoggerInsights(){
         street,
         potType,
         effBucket,
+        pressure,
         n: 0,
         net: 0,
         best: -Infinity,
@@ -4648,6 +4650,7 @@ const best = stable
         <td style="padding:6px 8px;white-space:nowrap">${r.street}</td>
         <td style="padding:6px 8px;white-space:nowrap">${r.potType}</td>
         <td style="padding:6px 8px;white-space:nowrap">${r.effBucket}</td>
+        <td style="padding:6px 8px;white-space:nowrap">${r.pressure}</td>
         <td style="padding:6px 8px;text-align:right;font-weight:900">${r.n}</td>
         <td style="padding:6px 8px;text-align:right;font-weight:900">${fmt(r.avg)}</td>
         <td style="padding:6px 8px;text-align:right">${fmt(r.net)}</td>
@@ -4664,6 +4667,7 @@ const best = stable
                 <th style="text-align:left;padding:6px 8px">Street</th>
                 <th style="text-align:left;padding:6px 8px">Type</th>
                 <th style="text-align:left;padding:6px 8px">Eff</th>
+                <th style="text-align:left;padding:6px 8px">Pressure</th>
                 <th style="text-align:right;padding:6px 8px">N</th>
                 <th style="text-align:right;padding:6px 8px">Avg</th>
                 <th style="text-align:right;padding:6px 8px">Net</th>
@@ -5929,6 +5933,44 @@ hand.snapStreet = streetSel.value;
   row1.appendChild(potLabel);
   row1.appendChild(potSel);
 
+    // Pressure (what you faced at the inflection point)
+  const presLabel = document.createElement("div");
+  presLabel.className = "kicker";
+  presLabel.style.color = "var(--muted)";
+  presLabel.style.fontWeight = "800";
+  presLabel.textContent = "Pressure";
+
+  const presSel = document.createElement("select");
+  presSel.style.padding = "8px 10px";
+  presSel.style.borderRadius = "10px";
+  presSel.style.border = "1px solid rgba(255,255,255,.15)";
+  presSel.style.background = "rgba(255,255,255,.05)";
+  presSel.style.color = "var(--text)";
+  presSel.style.fontWeight = "900";
+
+  const presOptions = [
+    {v:"NONE",  t:"None"},
+    {v:"BET",   t:"Faced bet"},
+    {v:"RAISE", t:"Faced raise"},
+    {v:"ALLIN", t:"Faced all-in"}
+  ];
+
+  presOptions.forEach(o=>{
+    const opt = document.createElement("option");
+    opt.value = o.v;
+    opt.textContent = o.t;
+    if((hand.snapPressure || "NONE") === o.v) opt.selected = true;
+    presSel.appendChild(opt);
+  });
+
+  presSel.addEventListener("change", ()=>{
+    hand.snapPressure = presSel.value;
+    saveLogger();
+  });
+
+  row1.appendChild(presLabel);
+  row1.appendChild(presSel);
+
   card.appendChild(row1);
 
   // Hero cards (optional, helps reconstruct later)
@@ -6097,6 +6139,7 @@ saveBtn.addEventListener("click", ()=>{
   // HARDEN: persist street/type even if user never touched dropdowns
   hand.snapStreet = hand.snapStreet || streetSel.value || "PREFLOP";
   hand.snapType   = hand.snapType   || potSel.value   || "SRP";
+  hand.snapPressure = hand.snapPressure || presSel.value || "NONE";
 
   hand.isSnapshot = true;
   hand.completedAt = Date.now();
