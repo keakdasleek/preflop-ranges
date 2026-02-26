@@ -4562,44 +4562,62 @@ function renderLoggerInsights(){
   const net = handsWithRes.reduce((s,h)=> s + Number(h.resultBB), 0);
   const bbPerHand = resCt ? (net / resCt) : 0;
 
-  // Archetype aggregation: Street × PotType × EffBucket
-  // Uses your existing deriveHandForSessionReview() so we stay aligned with derived facts.
-  const agg = new Map();
-  handsWithRes.forEach(h => {
-    const d = deriveHandForSessionReview(h);
-    const street = getStreet(h);
-    const potType = (h && h.snapType) ? String(h.snapType) : (d.potType || "—");
-    const effBucket = d.effBucket || "—";
-    const pressure = (h && h.snapPressure) ? String(h.snapPressure) : "NONE";
+// Archetype aggregation: Street × Type × Pressure (Eff is stored as mode, not grouped)
+const agg = new Map();
+handsWithRes.forEach(h => {
+  const d = deriveHandForSessionReview(h);
+  const street = getStreet(h);
+  const potType = (h && h.snapType) ? String(h.snapType) : (d.potType || "—");
+  const effBucket = d.effBucket || "—";
+  const pressure = (h && h.snapPressure) ? String(h.snapPressure) : "NONE";
 
-    const key = `${street} × ${potType} × ${effBucket} × ${pressure}`;
-    const r = Number(h.resultBB);
+  // Group WITHOUT effBucket
+  const key = `${street} × ${potType} × ${pressure}`;
+  const r = Number(h.resultBB);
 
-    if(!agg.has(key)){
-      agg.set(key, {
-        key,
-        street,
-        potType,
-        effBucket,
-        pressure,
-        n: 0,
-        net: 0,
-        best: -Infinity,
-        worst: Infinity
-      });
+  if(!agg.has(key)){
+    agg.set(key, {
+      key,
+      street,
+      potType,
+      pressure,
+      n: 0,
+      net: 0,
+      best: -Infinity,
+      worst: Infinity,
+      effCounts: {} // bucket -> count
+    });
+  }
+
+  const row = agg.get(key);
+  row.n += 1;
+  row.net += r;
+  if(r > row.best) row.best = r;
+  if(r < row.worst) row.worst = r;
+
+  // Track eff bucket distribution for later analysis
+  row.effCounts[effBucket] = (row.effCounts[effBucket] || 0) + 1;
+});
+
+// Compute derived fields (avg + dominant eff bucket)
+const rows = Array.from(agg.values()).map(x => {
+  let effMode = "—";
+  let effModeN = 0;
+
+  for(const [bucket, ct] of Object.entries(x.effCounts || {})){
+    if(ct > effModeN){
+      effMode = bucket;
+      effModeN = ct;
     }
-    const row = agg.get(key);
-    row.n += 1;
-    row.net += r;
-    if(r > row.best) row.best = r;
-    if(r < row.worst) row.worst = r;
-  });
+  }
 
-  const rows = Array.from(agg.values()).map(x => ({
+  return {
     ...x,
-    avg: x.n ? (x.net / x.n) : 0
-  }));
-
+    avg: x.n ? (x.net / x.n) : 0,
+    effMode,
+    effModeN
+  };
+});
   // Filter to avoid noisy 1-offs
   const MIN_N = 2;
   const stable = rows.filter(r => r.n >= MIN_N);
@@ -4649,7 +4667,7 @@ const best = stable
       <tr>
         <td style="padding:6px 8px;white-space:nowrap">${r.street}</td>
         <td style="padding:6px 8px;white-space:nowrap">${r.potType}</td>
-        <td style="padding:6px 8px;white-space:nowrap">${r.effBucket}</td>
+        <td style="padding:6px 8px;white-space:nowrap">${r.effMode || "—"}</td>
         <td style="padding:6px 8px;white-space:nowrap">${r.pressure}</td>
         <td style="padding:6px 8px;text-align:right;font-weight:900">${r.n}</td>
         <td style="padding:6px 8px;text-align:right;font-weight:900">${fmt(r.avg)}</td>
@@ -4666,7 +4684,7 @@ const best = stable
               <tr>
                 <th style="text-align:left;padding:6px 8px">Street</th>
                 <th style="text-align:left;padding:6px 8px">Type</th>
-                <th style="text-align:left;padding:6px 8px">Eff</th>
+                <th style="text-align:left;padding:6px 8px">Eff (mode)</th>
                 <th style="text-align:left;padding:6px 8px">Pressure</th>
                 <th style="text-align:right;padding:6px 8px">N</th>
                 <th style="text-align:right;padding:6px 8px">Avg</th>
