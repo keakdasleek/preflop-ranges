@@ -4674,7 +4674,7 @@ const best = stable
   .sort((a,b)=> b.avg - a.avg)
   .slice(0, 5);
 
- const buildBehaviorTable = (title, rows)=>{
+const buildBehaviorTable = (title, rows)=>{
   if(!rows.length){
     return `
       <div style="margin-bottom:12px">
@@ -4686,29 +4686,38 @@ const best = stable
 
   const body = rows.map(r=>`
     <tr>
-      <td style="padding:6px 8px">${r.action}</td>
-      <td style="padding:6px 8px;text-align:right">${r.n}</td>
-      <td style="padding:6px 8px;text-align:right">${fmt(r.avg)}</td>
-      <td style="padding:6px 8px;text-align:right">${fmt(r.net)}</td>
+      <td style="padding:6px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.action}</td>
+      <td style="padding:6px 10px;text-align:right;font-weight:900;white-space:nowrap">${r.n}</td>
+      <td style="padding:6px 10px;text-align:right;font-weight:900;white-space:nowrap">${fmt(r.avg)}</td>
+      <td style="padding:6px 10px;text-align:right;font-weight:900;white-space:nowrap">${fmt(r.net)}</td>
     </tr>
   `).join("");
 
   return `
     <div style="margin-bottom:12px">
-      <div style="font-weight:900;margin-bottom:4px">${title}</div>
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead>
-          <tr>
-            <th style="text-align:left;padding:6px 8px">Action</th>
-            <th style="text-align:right;padding:6px 8px">N</th>
-            <th style="text-align:right;padding:6px 8px">Avg</th>
-            <th style="text-align:right;padding:6px 8px">Net</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${body}
-        </tbody>
-      </table>
+      <div style="font-weight:900;margin-bottom:6px">${title}</div>
+
+      <div style="border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02)">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
+          <colgroup>
+            <col style="width:55%"/>
+            <col style="width:10%"/>
+            <col style="width:17.5%"/>
+            <col style="width:17.5%"/>
+          </colgroup>
+          <thead style="background:rgba(255,255,255,.03)">
+            <tr>
+              <th style="text-align:left;padding:6px 10px">Action</th>
+              <th style="text-align:right;padding:6px 10px">N</th>
+              <th style="text-align:right;padding:6px 10px">Avg</th>
+              <th style="text-align:right;padding:6px 10px">Net</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${body}
+          </tbody>
+        </table>
+      </div>
     </div>
   `;
 };
