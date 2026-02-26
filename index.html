@@ -2960,6 +2960,8 @@ function rangeText(map){
     }
   }
 
+
+  
   const fmt = arr => arr.slice().sort().join(", ");
   return `Raise: ${fmt(groups.R)}\n\nCall: ${fmt(groups.C)}\n\nMix: ${fmt(groups.M)}`;
 }
@@ -4562,6 +4564,43 @@ function renderLoggerInsights(){
   const net = handsWithRes.reduce((s,h)=> s + Number(h.resultBB), 0);
   const bbPerHand = resCt ? (net / resCt) : 0;
 
+  // -------------------------------
+// BEHAVIOR SUMMARY
+// -------------------------------
+
+const summarize = (filterFn)=>{
+  const subset = handsWithRes.filter(filterFn);
+  const map = {};
+  subset.forEach(h=>{
+    const action = h.snapHeroAction || "—";
+    if(!map[action]){
+      map[action] = { n:0, net:0 };
+    }
+    map[action].n += 1;
+    map[action].net += Number(h.resultBB);
+  });
+  return Object.entries(map).map(([action, v])=>({
+    action,
+    n: v.n,
+    net: v.net,
+    avg: v.n ? (v.net/v.n) : 0
+  })).sort((a,b)=> b.n - a.n);
+};
+
+const riverFacing = summarize(h =>
+  h.snapStreet === "RIVER" &&
+  h.snapPressure && h.snapPressure !== "NONE"
+);
+
+const turnNoPressure = summarize(h =>
+  h.snapStreet === "TURN" &&
+  h.snapPressure === "NONE"
+);
+
+const facingRaise = summarize(h =>
+  h.snapPressure === "RAISE" || h.snapPressure === "ALLIN"
+);
+
 // Archetype aggregation: Street × Type × Pressure (Eff is stored as mode, not grouped)
 const agg = new Map();
 handsWithRes.forEach(h => {
@@ -4635,6 +4674,45 @@ const best = stable
   .sort((a,b)=> b.avg - a.avg)
   .slice(0, 5);
 
+ const buildBehaviorTable = (title, rows)=>{
+  if(!rows.length){
+    return `
+      <div style="margin-bottom:12px">
+        <div style="font-weight:900;margin-bottom:4px">${title}</div>
+        <div style="opacity:.85">No data yet.</div>
+      </div>
+    `;
+  }
+
+  const body = rows.map(r=>`
+    <tr>
+      <td style="padding:6px 8px">${r.action}</td>
+      <td style="padding:6px 8px;text-align:right">${r.n}</td>
+      <td style="padding:6px 8px;text-align:right">${fmt(r.avg)}</td>
+      <td style="padding:6px 8px;text-align:right">${fmt(r.net)}</td>
+    </tr>
+  `).join("");
+
+  return `
+    <div style="margin-bottom:12px">
+      <div style="font-weight:900;margin-bottom:4px">${title}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:6px 8px">Action</th>
+            <th style="text-align:right;padding:6px 8px">N</th>
+            <th style="text-align:right;padding:6px 8px">Avg</th>
+            <th style="text-align:right;padding:6px 8px">Net</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${body}
+        </tbody>
+      </table>
+    </div>
+  `;
+};
+  
   // Render (minimal UI)
   const fmt = (x) => {
     const n = Number(x);
@@ -4700,8 +4778,20 @@ const best = stable
     `;
   };
 
-  mount.innerHTML = `
-    <div style="margin-bottom:6px;font-weight:900;color:rgba(231,236,255,.92)">Session Insights</div>
+ mount.innerHTML = `
+  <div style="margin-bottom:10px;font-weight:900;color:rgba(231,236,255,.92)">
+    Postflop Behavior Summary
+  </div>
+
+  ${buildBehaviorTable("River – Facing Pressure", riverFacing)}
+  ${buildBehaviorTable("Turn – No Pressure", turnNoPressure)}
+  ${buildBehaviorTable("Facing Raise / All-In (All Streets)", facingRaise)}
+
+  <hr style="margin:16px 0;border-color:rgba(255,255,255,.08)"/>
+
+  <div style="margin-bottom:6px;font-weight:900;color:rgba(231,236,255,.92)">
+    Archetype Insights
+  </div>
     ${header}
     ${buildMiniTable("Worst repeated archetypes", worst)}
     ${buildMiniTable("Best repeated archetypes", best)}
@@ -5989,6 +6079,38 @@ hand.snapStreet = streetSel.value;
   row1.appendChild(presLabel);
   row1.appendChild(presSel);
 
+    // Hero Action (what you chose at the inflection point)
+  const actLabel = document.createElement("div");
+  actLabel.className = "kicker";
+  actLabel.style.color = "var(--muted)";
+  actLabel.style.fontWeight = "800";
+  actLabel.textContent = "Hero Action";
+
+  const actSel = document.createElement("select");
+  actSel.style.padding = "8px 10px";
+  actSel.style.borderRadius = "10px";
+  actSel.style.border = "1px solid rgba(255,255,255,.15)";
+  actSel.style.background = "rgba(255,255,255,.05)";
+  actSel.style.color = "var(--text)";
+  actSel.style.fontWeight = "900";
+
+  const actOptions = ["CHECK","BET","CALL","RAISE","FOLD"];
+  actOptions.forEach(a=>{
+    const opt = document.createElement("option");
+    opt.value = a;
+    opt.textContent = a;
+    if((hand.snapHeroAction || "") === a) opt.selected = true;
+    actSel.appendChild(opt);
+  });
+
+  actSel.addEventListener("change", ()=>{
+    hand.snapHeroAction = actSel.value;
+    saveLogger();
+  });
+
+  row1.appendChild(actLabel);
+  row1.appendChild(actSel);
+
   card.appendChild(row1);
 
   // Hero cards (optional, helps reconstruct later)
@@ -6158,6 +6280,7 @@ saveBtn.addEventListener("click", ()=>{
   hand.snapStreet = hand.snapStreet || streetSel.value || "PREFLOP";
   hand.snapType   = hand.snapType   || potSel.value   || "SRP";
   hand.snapPressure = hand.snapPressure || presSel.value || "NONE";
+  hand.snapHeroAction = hand.snapHeroAction || actSel.value || "";
 
   hand.isSnapshot = true;
   hand.completedAt = Date.now();
