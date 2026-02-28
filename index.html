@@ -4529,6 +4529,139 @@ if(hand && hand.snapType){
   };
 }
 
+// -------------------------------
+// NOTES PARSER: board extraction + texture tags (lightweight)
+// -------------------------------
+
+// Card token like "Ac", "Td", "7h", "9s"
+function extractCardTokens(text){
+  const s = String(text || "");
+  const matches = s.match(/\b([2-9TJQKA][cdhs])\b/gi) || [];
+  return matches.map(x => x.toUpperCase());
+}
+
+// Try to extract street boards from natural language notes.
+// Supports patterns like:
+// "Flop 4c 6d Td", "Flop 4c6dTd", "Turn Ad", "River 9h"
+// Also supports "Board 5c Qc 4d 3h Qs" (5 cards)
+function parseBoardFromNotes(notes){
+  const s = String(notes || "");
+  const lower = s.toLowerCase();
+
+  const norm = s
+    .replace(/10/gi, "T"); // allow "10d" -> "Td"
+
+  const takeCardsNear = (keyword, maxTake)=>{
+    const idx = lower.indexOf(keyword);
+    if(idx === -1) return [];
+    const snippet = norm.slice(Math.max(0, idx), Math.min(norm.length, idx + 90));
+    // allow both spaced and stuck tokens like "4c6dTd"
+    const tokens = (snippet.match(/([2-9TJQKA][cdhs])/gi) || []).map(t=>t.toUpperCase());
+    // de-dup while keeping order
+    const out = [];
+    for(const t of tokens){
+      if(!out.includes(t)) out.push(t);
+      if(out.length >= maxTake) break;
+    }
+    return out;
+  };
+
+  // Prefer explicit streets if present
+  let flop  = takeCardsNear("flop", 3);
+  let turn  = takeCardsNear("turn", 1);
+  let river = takeCardsNear("river", 1);
+
+  // Fallback: if "board" exists with 5 cards, take that
+  if((!flop.length || flop.length < 3) && lower.includes("board")){
+    const b = takeCardsNear("board", 5);
+    if(b.length >= 3){
+      flop = b.slice(0,3);
+      if(b.length >= 4) turn  = [b[3]];
+      if(b.length >= 5) river = [b[4]];
+    }
+  }
+
+  // Final fallback: if notes just contain 5 card tokens anywhere and no street keywords
+  if((!flop.length || flop.length < 3) && !lower.includes("flop") && !lower.includes("turn") && !lower.includes("river")){
+    const all = extractCardTokens(norm);
+    if(all.length >= 5){
+      flop  = all.slice(0,3);
+      turn  = [all[3]];
+      river = [all[4]];
+    }
+  }
+
+  const board = [].concat(flop || [], turn || [], river || []);
+  return { flop: flop || [], turn: turn || [], river: river || [], board };
+}
+
+function rankOf(card){ return String(card || "")[0]; }
+function suitOf(card){ return String(card || "")[1]; }
+
+function computeTextureTags(parsed){
+  const tags = [];
+  const flop  = parsed.flop || [];
+  const turn  = parsed.turn || [];
+  const river = parsed.river || [];
+  const board = parsed.board || [];
+
+  if(flop.length === 3){
+    const flopRanks = flop.map(rankOf);
+    const flopSuits = flop.map(suitOf);
+
+    // Paired flop
+    const uniqRanks = new Set(flopRanks);
+    if(uniqRanks.size < 3) tags.push("PAIRED_FLOP");
+
+    // Monotone / two-tone / rainbow flop
+    const uniqSuits = new Set(flopSuits);
+    if(uniqSuits.size === 1) tags.push("MONOTONE_FLOP");
+    else if(uniqSuits.size === 2) tags.push("TWO_TONE_FLOP");
+    else tags.push("RAINBOW_FLOP");
+
+    // Broadway presence
+    if(flopRanks.some(r => ["T","J","Q","K","A"].includes(r))) tags.push("BROADWAY_FLOP");
+
+    // Connectedness heuristic
+    const map = { "2":2,"3":3,"4":4,"5":5,"6":6,"7":7,"8":8,"9":9,"T":10,"J":11,"Q":12,"K":13,"A":14 };
+    const vals = flopRanks.map(r => map[r]).filter(Boolean).sort((a,b)=>a-b);
+    if(vals.length === 3){
+      // "connected-ish" if overall span <= 5 (e.g., 9TJ, 456, TQK)
+      if((vals[2]-vals[0]) <= 5) tags.push("CONNECTED_FLOP");
+      // extra tag for very wet broadway
+      if(vals[0] >= 9 && (vals[2]-vals[0]) <= 4) tags.push("BROADWAY_CONNECTED");
+    }
+  }
+
+  // Turn/river pairing vs earlier ranks
+  if(turn.length === 1 && flop.length === 3){
+    const tr = rankOf(turn[0]);
+    const flopRanks = flop.map(rankOf);
+    if(flopRanks.includes(tr)) tags.push("PAIRED_TURN");
+  }
+  if(river.length === 1 && flop.length === 3){
+    const rr = rankOf(river[0]);
+    const seen = flop.map(rankOf).concat(turn.map(rankOf));
+    if(seen.includes(rr)) tags.push("PAIRED_RIVER");
+  }
+
+  // Flush density: how many of same suit appear on full parsed board
+  const suits = board.map(suitOf).filter(Boolean);
+  if(suits.length >= 3){
+    const counts = {};
+    suits.forEach(s => counts[s] = (counts[s]||0)+1);
+    const maxSuit = Math.max(...Object.values(counts));
+    if(maxSuit >= 3) tags.push("FLUSH_3");
+    if(maxSuit >= 4) tags.push("FLUSH_4");
+    if(maxSuit >= 5) tags.push("FLUSH_5");
+  }
+
+  // Marker: parse success
+  if(board.length >= 3) tags.push("BOARD_PARSED");
+
+  return tags;
+}
+
 function renderLoggerInsights(){
   const mount = document.getElementById("loggerInsights");
   if(!mount) return;
@@ -4561,6 +4694,41 @@ function renderLoggerInsights(){
 
   const handsWithRes = hands.filter(h => h && h.resultBB != null && isFinite(Number(h.resultBB)));
   const resCt = handsWithRes.length;
+  // -------------------------------
+// TEXTURE SUMMARY (from notes)
+// -------------------------------
+const parsedHands = handsWithRes.map(h=>{
+  const parsed = parseBoardFromNotes(h.notes || "");
+  const tags = computeTextureTags(parsed);
+  return { h, parsed, tags };
+});
+
+const parsedCt = parsedHands.filter(x => (x.parsed.board || []).length >= 3).length;
+
+// Aggregate net/avg by tag
+const tagAgg = new Map();
+parsedHands.forEach(x=>{
+  const r = Number(x.h.resultBB);
+  (x.tags || []).forEach(t=>{
+    if(!tagAgg.has(t)){
+      tagAgg.set(t, { tag:t, n:0, net:0 });
+    }
+    const row = tagAgg.get(t);
+    row.n += 1;
+    row.net += r;
+  });
+});
+
+const tagRowsAll = Array.from(tagAgg.values()).map(x=>({
+  ...x,
+  avg: x.n ? (x.net/x.n) : 0
+}));
+
+const TAG_MIN_N = 2;
+
+const tagRows = tagRowsAll
+  .filter(r => r.n >= TAG_MIN_N)
+  .sort((a,b)=> a.avg - b.avg);
   const net = handsWithRes.reduce((s,h)=> s + Number(h.resultBB), 0);
   const bbPerHand = resCt ? (net / resCt) : 0;
 
@@ -4795,6 +4963,65 @@ const buildBehaviorTable = (title, rows)=>{
   ${buildBehaviorTable("River – Facing Pressure", riverFacing)}
   ${buildBehaviorTable("Turn – No Pressure", turnNoPressure)}
   ${buildBehaviorTable("Facing Raise / All-In (All Streets)", facingRaise)}
+
+  <div style="margin-top:10px;margin-bottom:10px;font-weight:900;color:rgba(231,236,255,.92)">
+    Texture Summary (from notes)
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px">
+    <span class="loggerTinyChip">Boards parsed: ${parsedCt}/${resCt}</span>
+    <span class="loggerTinyChip">Tag min N: ${TAG_MIN_N}</span>
+  </div>
+
+  ${(() => {
+    if(!tagRows.length){
+      return `<div style="opacity:.85;margin-bottom:12px">Not enough repeated texture tags yet (need ≥${TAG_MIN_N}).</div>`;
+    }
+
+    const worstTags = tagRows.slice(0, 6);
+    const bestTags  = tagRows.slice().reverse().slice(0, 6);
+
+    const renderTagTable = (title, rows) => {
+      const body = rows.map(r=>`
+        <tr>
+          <td style="padding:6px 10px;white-space:nowrap">${r.tag}</td>
+          <td style="padding:6px 10px;text-align:right;font-weight:900;white-space:nowrap">${r.n}</td>
+          <td style="padding:6px 10px;text-align:right;font-weight:900;white-space:nowrap">${fmt(r.avg)}</td>
+          <td style="padding:6px 10px;text-align:right;font-weight:900;white-space:nowrap">${fmt(r.net)}</td>
+        </tr>
+      `).join("");
+
+      return `
+        <div style="margin-bottom:12px">
+          <div style="font-weight:900;margin-bottom:6px">${title}</div>
+          <div style="border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02)">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
+              <colgroup>
+                <col style="width:55%"/>
+                <col style="width:10%"/>
+                <col style="width:17.5%"/>
+                <col style="width:17.5%"/>
+              </colgroup>
+              <thead style="background:rgba(255,255,255,.03)">
+                <tr>
+                  <th style="text-align:left;padding:6px 10px">Tag</th>
+                  <th style="text-align:right;padding:6px 10px">N</th>
+                  <th style="text-align:right;padding:6px 10px">Avg</th>
+                  <th style="text-align:right;padding:6px 10px">Net</th>
+                </tr>
+              </thead>
+              <tbody>${body}</tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    };
+
+    return `
+      ${renderTagTable("Worst texture tags", worstTags)}
+      ${renderTagTable("Best texture tags", bestTags)}
+    `;
+  })()}
 
   <hr style="margin:16px 0;border-color:rgba(255,255,255,.08)"/>
 
