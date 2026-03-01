@@ -87,9 +87,6 @@ select:focus{
   box-shadow:0 0 0 2px rgba(255,255,255,0.08);
 }
 
-    button{cursor:pointer}
-    button:hover{filter:brightness(1.08)}
-
     .gridWrap{margin-top:16px;display:grid;grid-template-columns: 1fr 280px;gap:14px;align-items:start}
     @media (max-width: 900px){
       .gridWrap{grid-template-columns: 1fr;}
@@ -1353,6 +1350,22 @@ select:focus{
 <script>
   const ranks = ["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
 
+/* ============================================================
+   CODE MAP (v0.13.26.0)
+   ------------------------------------------------------------
+   1) Core constants + helpers
+   2) Range engine (scenarios/personas/buildRange)
+   3) Explorer UI (matrix + selected hand)
+   4) Postflop board picker (parseBoard/evaluate)
+   5) Trainer mode (range trainer)
+   6) Hand Logger (storage/model/UI)
+      6a) Logger table UI + seat mapping
+      6b) Snapshot logger editor
+      6c) Notes parser (board/texture extraction)
+      6d) Insights + session review table
+   ============================================================ */
+
+  
   // Action codes
   const ACT = {
     R: {label:"RAISE", cls:"act-raise", color:"var(--raise)"},
@@ -3499,7 +3512,15 @@ const defAdj = applyPersona(scenarios[key].def, key, personaLabel); // safe even
 
   const LS_PERSONA = "preflopPersona_v1";
 
-// ===== Hand Logger: data model (v0) =====
+/* ============================================================
+   HAND LOGGER (v0)
+   ------------------------------------------------------------
+   - Storage/model
+   - Table UI + seat mapping
+   - Hand editor (Snapshot + Full)
+   - Notes parser (board/texture)
+   - Insights + Session Review
+   ============================================================ */
 const LS_LOGGER = "handLogger_v0";
 
 let loggerState = {
@@ -4529,9 +4550,13 @@ if(hand && hand.snapType){
   };
 }
 
-// -------------------------------
-// NOTES PARSER: board extraction + texture tags (lightweight)
-// -------------------------------
+/* ============================================================
+   LOGGER NOTES PARSER (lightweight)
+   ------------------------------------------------------------
+   Goal: extract board + basic texture tags from natural notes.
+   - tolerant of variability
+   - “best effort” parsing (never breaks logging)
+   ============================================================ */
 
 // Card token like "Ac", "Td", "7h", "9s"
 function extractCardTokens(text){
