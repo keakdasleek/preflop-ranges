@@ -5081,6 +5081,70 @@ function renderLoggerSessionReviewTable(){
     mount.textContent = "No hands yet.";
     return;
   }
+  const topInteresting = getTopInterestingHandsV1(hands);
+  const topInterestingSection = document.createElement("div");
+  topInterestingSection.style.marginBottom = "10px";
+
+  if(topInteresting.length){
+    const rows = topInteresting.map((entry, idx) => {
+      const h = entry?.hand || {};
+      const interesting = entry?.interesting || {};
+
+      const heroCards = (Array.isArray(h.heroCards) &&
+        h.heroCards.length === 2 &&
+        h.heroCards[0] &&
+        h.heroCards[1])
+        ? `${cardToPretty(h.heroCards[0])} ${cardToPretty(h.heroCards[1])}`
+        : "-";
+
+      const scoreNum = Number(interesting.score);
+      const scoreTxt = isFinite(scoreNum) ? scoreNum.toFixed(1) : "0.0";
+
+      const absResNum = Number(interesting.absResultBB);
+      const absResTxt = isFinite(absResNum) ? absResNum.toFixed(1) : "0.0";
+
+      const allInNum = Number(interesting.allInCount);
+      const allInTxt = (isFinite(allInNum) && allInNum > 0) ? Math.floor(allInNum) : 0;
+
+      const noteRaw = String(h.notes || "").trim().replace(/\s+/g, " ");
+      const notePreview = noteRaw ? (noteRaw.length > 60 ? `${noteRaw.slice(0, 60)}...` : noteRaw) : "-";
+      const noteFull = noteRaw || "-";
+
+      return `
+        <details style="border-top:1px solid rgba(255,255,255,.06)">
+          <summary style="list-style:none;cursor:pointer;padding:8px 10px;display:grid;grid-template-columns:28px 120px 1fr;gap:10px;align-items:center">
+            <div style="font-weight:900">${idx + 1}</div>
+            <div>
+              <div style="font-weight:900">${heroCards}</div>
+              <div class="kicker">Score ${scoreTxt}</div>
+            </div>
+            <div class="kicker">Result ${absResTxt}bb - All-in ${allInTxt} - ${notePreview}</div>
+          </summary>
+          <div style="padding:0 10px 10px 10px">
+            <div class="kicker">Cards: ${heroCards}</div>
+            <div class="kicker">Score: ${scoreTxt} | Result: ${absResTxt}bb | All-in count: ${allInTxt}</div>
+            <div class="kicker">Notes: ${noteFull}</div>
+          </div>
+        </details>
+      `;
+    }).join("");
+
+    topInterestingSection.innerHTML = `
+      <div style="margin-bottom:6px;font-weight:900;color:rgba(231,236,255,.92)">
+        Top 5 Interesting Hands
+      </div>
+      <div style="border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02)">
+        ${rows}
+      </div>
+    `;
+  } else {
+    topInterestingSection.innerHTML = `
+      <div style="margin-bottom:6px;font-weight:900;color:rgba(231,236,255,.92)">
+        Top 5 Interesting Hands
+      </div>
+      <div class="kicker">No interesting hands yet.</div>
+    `;
+  }
 
   const table = document.createElement("table");
   table.className = "loggerReviewTable";
@@ -5147,6 +5211,7 @@ function renderLoggerSessionReviewTable(){
   table.appendChild(tbody);
 
   mount.innerHTML = "";
+  mount.appendChild(topInterestingSection);
   mount.appendChild(table);
 }
 
@@ -5827,6 +5892,39 @@ function scoreInterestingHandV1(hand){
     createdAt,
     id
   };
+}
+
+
+function getTopInterestingHandsV1(hands){
+  if(!Array.isArray(hands)) return [];
+
+  const scored = [];
+  for(const hand of hands){
+    if(!hand) continue;
+    scored.push({
+      hand,
+      interesting: scoreInterestingHandV1(hand)
+    });
+  }
+
+  const out = scored.slice();
+  out.sort((a, b) => {
+    const aScoreRaw = Number(a?.interesting?.score);
+    const bScoreRaw = Number(b?.interesting?.score);
+    const aScore = isFinite(aScoreRaw) ? aScoreRaw : 0;
+    const bScore = isFinite(bScoreRaw) ? bScoreRaw : 0;
+    if(bScore !== aScore) return bScore - aScore;
+
+    const aTsRaw = Number(a?.interesting?.createdAt);
+    const bTsRaw = Number(b?.interesting?.createdAt);
+    const aTs = isFinite(aTsRaw) ? aTsRaw : -Infinity;
+    const bTs = isFinite(bTsRaw) ? bTsRaw : -Infinity;
+    if(bTs !== aTs) return bTs - aTs;
+
+    return 0;
+  });
+
+  return out.slice(0, 5);
 }
 
 
@@ -9039,6 +9137,9 @@ if(loggerView && loggerView.style.display !== "none"){
 </script>
 </body>
 </html>
+
+
+
 
 
 
