@@ -4986,83 +4986,84 @@ const buildBehaviorTable = (title, rows)=>{
       </div>
     `;
   };
-
  mount.innerHTML = `
-  <div style="margin-bottom:10px;font-weight:900;color:rgba(231,236,255,.92)">
-    Postflop Behavior Summary
-  </div>
+  <details style="margin-bottom:10px">
+    <summary style="font-weight:900;color:rgba(231,236,255,.92);cursor:pointer">Postflop Behavior Summary</summary>
+    <div style="padding-top:8px">
+      ${buildBehaviorTable("River - Facing Pressure", riverFacing)}
+      ${buildBehaviorTable("Turn - No Pressure", turnNoPressure)}
+      ${buildBehaviorTable("Facing Raise / All-In (All Streets)", facingRaise)}
+    </div>
+  </details>
 
-  ${buildBehaviorTable("River - Facing Pressure", riverFacing)}
-  ${buildBehaviorTable("Turn - No Pressure", turnNoPressure)}
-  ${buildBehaviorTable("Facing Raise / All-In (All Streets)", facingRaise)}
+  <details style="margin-bottom:10px">
+    <summary style="font-weight:900;color:rgba(231,236,255,.92);cursor:pointer">Texture Summary (from notes)</summary>
+    <div style="padding-top:8px">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px">
+        <span class="loggerTinyChip">Boards parsed: ${parsedCt}/${resCt}</span>
+        <span class="loggerTinyChip">Tag min N: ${TAG_MIN_N}</span>
+      </div>
 
-  <div style="margin-top:10px;margin-bottom:10px;font-weight:900;color:rgba(231,236,255,.92)">
-    Texture Summary (from notes)
-  </div>
+      ${(() => {
+        if(!tagRows.length){
+          return `<div style="opacity:.85;margin-bottom:12px">Not enough repeated texture tags yet (need >=${TAG_MIN_N}).</div>`;
+        }
 
-  <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px">
-    <span class="loggerTinyChip">Boards parsed: ${parsedCt}/${resCt}</span>
-    <span class="loggerTinyChip">Tag min N: ${TAG_MIN_N}</span>
-  </div>
+        const worstTags = tagRows.slice(0, 6);
+        const bestTags  = tagRows.slice().reverse().slice(0, 6);
 
-  ${(() => {
-    if(!tagRows.length){
-      return `<div style="opacity:.85;margin-bottom:12px">Not enough repeated texture tags yet (need >=${TAG_MIN_N}).</div>`;
-    }
+        const renderTagTable = (title, rows) => {
+          const body = rows.map(r=>`
+            <tr>
+              <td style="padding:6px 10px;white-space:nowrap">${r.tag}</td>
+              <td style="padding:6px 10px;text-align:right;font-weight:900;white-space:nowrap">${r.n}</td>
+              <td style="padding:6px 10px;text-align:right;font-weight:900;white-space:nowrap">${fmt(r.avg)}</td>
+              <td style="padding:6px 10px;text-align:right;font-weight:900;white-space:nowrap">${fmt(r.net)}</td>
+            </tr>
+          `).join("");
 
-    const worstTags = tagRows.slice(0, 6);
-    const bestTags  = tagRows.slice().reverse().slice(0, 6);
+          return `
+            <div style="margin-bottom:12px">
+              <div style="font-weight:900;margin-bottom:6px">${title}</div>
+              <div style="border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02)">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
+                  <colgroup>
+                    <col style="width:55%"/>
+                    <col style="width:10%"/>
+                    <col style="width:17.5%"/>
+                    <col style="width:17.5%"/>
+                  </colgroup>
+                  <thead style="background:rgba(255,255,255,.03)">
+                    <tr>
+                      <th style="text-align:left;padding:6px 10px">Tag</th>
+                      <th style="text-align:right;padding:6px 10px">N</th>
+                      <th style="text-align:right;padding:6px 10px">Avg</th>
+                      <th style="text-align:right;padding:6px 10px">Net</th>
+                    </tr>
+                  </thead>
+                  <tbody>${body}</tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        };
 
-    const renderTagTable = (title, rows) => {
-      const body = rows.map(r=>`
-        <tr>
-          <td style="padding:6px 10px;white-space:nowrap">${r.tag}</td>
-          <td style="padding:6px 10px;text-align:right;font-weight:900;white-space:nowrap">${r.n}</td>
-          <td style="padding:6px 10px;text-align:right;font-weight:900;white-space:nowrap">${fmt(r.avg)}</td>
-          <td style="padding:6px 10px;text-align:right;font-weight:900;white-space:nowrap">${fmt(r.net)}</td>
-        </tr>
-      `).join("");
+        return `
+          ${renderTagTable("Worst texture tags", worstTags)}
+          ${renderTagTable("Best texture tags", bestTags)}
+        `;
+      })()}
+    </div>
+  </details>
 
-      return `
-        <div style="margin-bottom:12px">
-          <div style="font-weight:900;margin-bottom:6px">${title}</div>
-          <div style="border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02)">
-            <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
-              <colgroup>
-                <col style="width:55%"/>
-                <col style="width:10%"/>
-                <col style="width:17.5%"/>
-                <col style="width:17.5%"/>
-              </colgroup>
-              <thead style="background:rgba(255,255,255,.03)">
-                <tr>
-                  <th style="text-align:left;padding:6px 10px">Tag</th>
-                  <th style="text-align:right;padding:6px 10px">N</th>
-                  <th style="text-align:right;padding:6px 10px">Avg</th>
-                  <th style="text-align:right;padding:6px 10px">Net</th>
-                </tr>
-              </thead>
-              <tbody>${body}</tbody>
-            </table>
-          </div>
-        </div>
-      `;
-    };
-
-    return `
-      ${renderTagTable("Worst texture tags", worstTags)}
-      ${renderTagTable("Best texture tags", bestTags)}
-    `;
-  })()}
-
-  <hr style="margin:16px 0;border-color:rgba(255,255,255,.08)"/>
-
-  <div style="margin-bottom:6px;font-weight:900;color:rgba(231,236,255,.92)">
-    Archetype Insights
-  </div>
-    ${header}
-    ${buildMiniTable("Worst repeated archetypes", worst)}
-    ${buildMiniTable("Best repeated archetypes", best)}
+  <details>
+    <summary style="font-weight:900;color:rgba(231,236,255,.92);cursor:pointer">Archetype Insights</summary>
+    <div style="padding-top:8px">
+      ${header}
+      ${buildMiniTable("Worst repeated archetypes", worst)}
+      ${buildMiniTable("Best repeated archetypes", best)}
+    </div>
+  </details>
   `;
 }
   
@@ -5081,6 +5082,16 @@ function renderLoggerSessionReviewTable(){
     mount.textContent = "No hands yet.";
     return;
   }
+
+  const jumpLinks = document.createElement("div");
+  jumpLinks.className = "kicker";
+  jumpLinks.style.marginBottom = "8px";
+  jumpLinks.innerHTML = `
+    <a href="#session-review-top5" style="color:var(--call);text-decoration:none">Top 5 Interesting Hands</a>
+    <span style="opacity:.65"> | </span>
+    <a href="#session-review-history" style="color:var(--call);text-decoration:none">Hand History</a>
+  `;
+
   const topInteresting = getTopInterestingHandsV1(hands);
   const topInterestingSection = document.createElement("div");
   topInterestingSection.style.marginBottom = "10px";
@@ -5130,19 +5141,19 @@ function renderLoggerSessionReviewTable(){
     }).join("");
 
     topInterestingSection.innerHTML = `
-      <div style="margin-bottom:6px;font-weight:900;color:rgba(231,236,255,.92)">
-        Top 5 Interesting Hands
-      </div>
-      <div style="border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02)">
-        ${rows}
-      </div>
+      <details id="session-review-top5" open>
+        <summary style="margin-bottom:6px;font-weight:900;color:rgba(231,236,255,.92);cursor:pointer">Top 5 Interesting Hands</summary>
+        <div style="border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02)">
+          ${rows}
+        </div>
+      </details>
     `;
   } else {
     topInterestingSection.innerHTML = `
-      <div style="margin-bottom:6px;font-weight:900;color:rgba(231,236,255,.92)">
-        Top 5 Interesting Hands
-      </div>
-      <div class="kicker">No interesting hands yet.</div>
+      <details id="session-review-top5" open>
+        <summary style="margin-bottom:6px;font-weight:900;color:rgba(231,236,255,.92);cursor:pointer">Top 5 Interesting Hands</summary>
+        <div class="kicker">No interesting hands yet.</div>
+      </details>
     `;
   }
 
@@ -5210,9 +5221,26 @@ function renderLoggerSessionReviewTable(){
 
   table.appendChild(tbody);
 
+  const handHistorySection = document.createElement("div");
+  const handHistoryDetails = document.createElement("details");
+  handHistoryDetails.id = "session-review-history";
+  handHistoryDetails.open = true;
+
+  const handHistorySummary = document.createElement("summary");
+  handHistorySummary.style.marginBottom = "6px";
+  handHistorySummary.style.fontWeight = "900";
+  handHistorySummary.style.color = "rgba(231,236,255,.92)";
+  handHistorySummary.style.cursor = "pointer";
+  handHistorySummary.textContent = "Hand History";
+
+  handHistoryDetails.appendChild(handHistorySummary);
+  handHistoryDetails.appendChild(table);
+  handHistorySection.appendChild(handHistoryDetails);
+
   mount.innerHTML = "";
+  mount.appendChild(jumpLinks);
   mount.appendChild(topInterestingSection);
-  mount.appendChild(table);
+  mount.appendChild(handHistorySection);
 }
 
   
@@ -9137,6 +9165,8 @@ if(loggerView && loggerView.style.display !== "none"){
 </script>
 </body>
 </html>
+
+
 
 
 
