@@ -106,3 +106,23 @@ NEXT\_PROMPT.md should define the next development task clearly so a new chat ca
 
 Use Git checkpoints before and after meaningful tasks.  
 Do not assume uncommitted local changes are safe.  
+
+## Milestone Memory Maintenance Protocol
+
+Codex must treat project memory files as persistent state for development continuity.
+
+When a feature milestone is completed, Codex should update:
+
+- docs/SESSION_LOG.md
+- docs/NEXT_PROMPT.md
+
+SESSION_LOG.md must record:
+- version number
+- version name
+- summary of the change
+- QA notes
+- next development step
+
+NEXT_PROMPT.md must contain the exact prompt that lets a new chat continue development immediately without extra setup.
+
+Codex should consider docs/SESSION_LOG.md and docs/NEXT_PROMPT.md the persistent memory of the project and keep them current at each milestone.
