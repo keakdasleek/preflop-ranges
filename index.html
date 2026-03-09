@@ -5783,6 +5783,52 @@ function countAllInActionsV1(hand){
   return count;
 }
 
+function scoreInterestingHandV1(hand){
+  const swingRaw = Number(scoreSwingV1(hand));
+  const allInRaw = Number(scoreAllInV1(hand));
+  const aggressionRaw = Number(scoreAggressionV1(hand));
+  const textureRaw = Number(scoreTextureV1(hand));
+
+  const swing = isFinite(swingRaw) ? swingRaw : 0;
+  const allIn = isFinite(allInRaw) ? allInRaw : 0;
+  const aggression = isFinite(aggressionRaw) ? aggressionRaw : 0;
+  const texture = isFinite(textureRaw) ? textureRaw : 0;
+
+  let allInCountRaw = 0;
+  if(typeof countAllInActionsV1 === "function"){
+    allInCountRaw = Number(countAllInActionsV1(hand));
+  } else {
+    const actions = Array.isArray(hand?.actions) ? hand.actions : [];
+    let ct = 0;
+    for(const a of actions){
+      const t = String(a?.action || "").toUpperCase();
+      if(t === "ALLIN") ct++;
+    }
+    allInCountRaw = ct;
+  }
+  const allInCount = (isFinite(allInCountRaw) && allInCountRaw > 0) ? Math.floor(allInCountRaw) : 0;
+
+  const resultNum = Number(hand?.resultBB);
+  const absResultBB = isFinite(resultNum) ? Math.abs(resultNum) : 0;
+
+  const createdAt = (hand && hand.createdAt != null) ? hand.createdAt : "";
+  const id = (hand && hand.id != null) ? hand.id : "";
+
+  const score = swing + allIn + aggression + texture;
+
+  return {
+    score,
+    swing,
+    allIn,
+    aggression,
+    texture,
+    allInCount,
+    absResultBB,
+    createdAt,
+    id
+  };
+}
+
 
 function renderBoardSummaryInto(el, hand, mode){
   if(!el) return;
@@ -8993,6 +9039,8 @@ if(loggerView && loggerView.style.display !== "none"){
 </script>
 </body>
 </html>
+
+
 
 
 
