@@ -1,34 +1,29 @@
-\# Next Prompt
+﻿# Next Prompt
 
 Current task:
 
-Explore implementation of:
-
-Top 5 Most Interesting Hands
+Add lightweight filtering controls to Top 5 Interesting Hands in Session Review.
 
 Instructions for AI assistant:
 
-Inspect the logger data structure stored under:
+Work only in `index.html`.
 
-\`\`\`  
-localStorage\["handLogger\_v0"\]  
-\`\`\`
+Constraints:
+- No schema changes
+- No localStorage changes
+- No save/load changes
+- No refactor
+- No new files
+- Keep UI change local to Top 5 Interesting Hands
 
-Determine what signals exist that could identify interesting hands.
+Build:
+1. Add small filter chips above Top 5 cards:
+   - All
+   - All-ins only
+   - River pressure only
+2. Filter should apply only to rendered Top 5 cards, not to score computation.
+3. Keep default selection as All.
+4. Preserve current details/summary card behavior and anchors.
+5. Keep collapsed card height compact and readable.
 
-Possible signals:
-
-\- largest pot  
-\- biggest win/loss  
-\- all-in situations  
-\- insight tags from deriveInsightsV1  
-\- unusual aggression
-
-Please:
-
-1\. Inspect logger data structure  
-2\. Identify usable fields  
-3\. Propose a simple scoring system  
-4\. Explain where this feature should be implemented
-
-Do NOT write code yet.  
+Do not rewrite Session Review or scoring helpers.

@@ -5111,29 +5111,60 @@ function renderLoggerSessionReviewTable(){
       const scoreNum = Number(interesting.score);
       const scoreTxt = isFinite(scoreNum) ? scoreNum.toFixed(1) : "0.0";
 
-      const absResNum = Number(interesting.absResultBB);
-      const absResTxt = isFinite(absResNum) ? absResNum.toFixed(1) : "0.0";
+      const resultNum = Number(h.resultBB);
+      const resultTxt = isFinite(resultNum)
+        ? `${resultNum > 0 ? "+" : ""}${resultNum.toFixed(1)}bb`
+        : "-";
 
       const allInNum = Number(interesting.allInCount);
       const allInTxt = (isFinite(allInNum) && allInNum > 0) ? Math.floor(allInNum) : 0;
 
+      const streetTxt = String(h.snapStreet || "-");
+      const typeTxt = String(h.snapType || "-");
+      const pressureTxt = String(h.snapPressure || "NONE");
+      const heroActTxt = String(h.snapHeroAction || "-");
+
+      const boardObj = h.board || {};
+      const flop = Array.isArray(boardObj.flop) ? boardObj.flop : [null, null, null];
+      const turn = boardObj.turn || null;
+      const river = boardObj.river || null;
+      const boardCards = [flop[0], flop[1], flop[2], turn, river].filter(Boolean);
+      const boardTxt = boardCards.length
+        ? `${cardToPretty(flop[0])} ${cardToPretty(flop[1])} ${cardToPretty(flop[2])} | ${cardToPretty(turn)} | ${cardToPretty(river)}`
+        : "-";
+
       const noteRaw = String(h.notes || "").trim().replace(/\s+/g, " ");
-      const notePreview = noteRaw ? (noteRaw.length > 60 ? `${noteRaw.slice(0, 60)}...` : noteRaw) : "-";
+      const notePreview = noteRaw ? (noteRaw.length > 72 ? `${noteRaw.slice(0, 72)}...` : noteRaw) : "-";
       const noteFull = noteRaw || "-";
 
       return `
         <details style="border-top:1px solid rgba(255,255,255,.06)">
-          <summary style="list-style:none;cursor:pointer;padding:8px 10px;display:grid;grid-template-columns:28px 120px 1fr;gap:10px;align-items:center">
-            <div style="font-weight:900">${idx + 1}</div>
-            <div>
-              <div style="font-weight:900">${heroCards}</div>
-              <div class="kicker">Score ${scoreTxt}</div>
+          <summary style="list-style:none;cursor:pointer;padding:8px 10px;display:grid;gap:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-weight:900;min-width:22px">${idx + 1}</span>
+                <span style="font-weight:900">${heroCards}</span>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px">
+                <span class="loggerTinyChip">Score ${scoreTxt}</span>
+                <span class="loggerTinyChip">Result ${resultTxt}</span>
+                <span class="loggerTinyChip">All-ins ${allInTxt}</span>
+              </div>
             </div>
-            <div class="kicker">Result ${absResTxt}bb - All-in ${allInTxt} - ${notePreview}</div>
+            <div class="kicker" style="display:flex;flex-wrap:wrap;gap:6px">
+              <span class="loggerTinyChip">${typeTxt}</span>
+              <span class="loggerTinyChip">${streetTxt}</span>
+              <span class="loggerTinyChip">${pressureTxt}</span>
+              <span class="loggerTinyChip">${heroActTxt}</span>
+            </div>
+            <div class="kicker">Board ${boardTxt}</div>
+            <div class="kicker">${notePreview}</div>
           </summary>
           <div style="padding:0 10px 10px 10px">
             <div class="kicker">Cards: ${heroCards}</div>
-            <div class="kicker">Score: ${scoreTxt} | Result: ${absResTxt}bb | All-in count: ${allInTxt}</div>
+            <div class="kicker">Board: ${boardTxt}</div>
+            <div class="kicker">Score: ${scoreTxt} | Result: ${resultTxt} | All-ins: ${allInTxt}</div>
+            <div class="kicker">Spot: ${typeTxt} | ${streetTxt} | ${pressureTxt} | ${heroActTxt}</div>
             <div class="kicker">Notes: ${noteFull}</div>
           </div>
         </details>
@@ -9165,6 +9196,7 @@ if(loggerView && loggerView.style.display !== "none"){
 </script>
 </body>
 </html>
+
 
 
 
