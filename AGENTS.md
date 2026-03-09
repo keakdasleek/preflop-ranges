@@ -78,6 +78,30 @@ Avoid broad prompts like:
 
 Read \`docs/NEXT\_PROMPT.md\` for the immediate next task.
 
+\#\# Automatic Project Memory Updates
+
+For milestone patches, Codex must update project memory files automatically.
+
+When a feature milestone is implemented, Codex should update:
+
+\- docs/SESSION\_LOG.md  
+\- docs/NEXT\_PROMPT.md
+
+Allowed files for milestone patches:
+
+\- index.html  
+\- docs/SESSION\_LOG.md  
+\- docs/NEXT\_PROMPT.md
+
+SESSION\_LOG.md should record:  
+\- version number  
+\- version name  
+\- summary of changes  
+\- QA notes  
+\- next development step
+
+NEXT\_PROMPT.md should define the next development task clearly so a new chat can resume the project immediately.
+
 \#\# Git and safety
 
 Use Git checkpoints before and after meaningful tasks.  
