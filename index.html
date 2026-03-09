@@ -1,4 +1,9 @@
-<!-- Casey's Poker Tool — Single File Application -->
+﻿<!--
+Casey's Poker Tool
+Version: v0.13.26.2
+-->
+
+<!-- Casey's Poker Tool - Single File Application -->
 
 <!doctype html>
 <html lang="en">
@@ -169,7 +174,7 @@ select:focus{
   );
 }
 
-/* Optional: show that a cell is truly “mixed” (not 100/0/0) */
+/* Optional: show that a cell is truly "mixed" (not 100/0/0) */
 .cell.isMixed{
   outline: 1px dashed rgba(246,196,69,0.35);
   outline-offset: -2px;
@@ -913,8 +918,8 @@ select:focus{
       <div class="title">
         <h1>Casey's Poker Tool (Interactive)</h1>
         <div class="sub">
-          Built for <span class="tag">8-max</span> <span class="tag">$0.05/$0.10</span> <span class="tag">$0.05 ante</span> <span class="tag">4% rake (cap fast)</span> and typical <span class="tag">3–4x</span> opens.
-          <br/>Tip: click any hand to see the action and why it’s there.
+          Built for <span class="tag">8-max</span> <span class="tag">$0.05/$0.10</span> <span class="tag">$0.05 ante</span> <span class="tag">4% rake (cap fast)</span> and typical <span class="tag">3-4x</span> opens.
+          <br/>Tip: click any hand to see the action and why it's there.
         </div>
       </div>
 <div class="controls">
@@ -940,10 +945,10 @@ select:focus{
       <div class="card">
         <div class="cardHd">
           <div>
-            <div style="font-weight:900" id="scenarioTitle">—</div>
-            <div class="kicker" id="scenarioKicker">—</div>
+            <div style="font-weight:900" id="scenarioTitle">-</div>
+            <div class="kicker" id="scenarioKicker">-</div>
           </div>
-          <div class="kicker" id="mixNote">Green = Raise/Open/3B • Blue = Call • Red = Fold • Yellow = Mix</div>
+          <div class="kicker" id="mixNote">Green = Raise/Open/3B - Blue = Call - Red = Fold - Yellow = Mix</div>
         </div>
         <div class="matrixScroll"><div class="matrix" id="matrix"></div></div>
       </div>
@@ -951,7 +956,7 @@ select:focus{
       <div class="card side">
 <div class="boardRow">
   <div id="boardSlots" class="boardSlots"></div>
-  <div id="boardSummary" class="kicker" style="margin-top:8px">Flop: —</div>
+  <div id="boardSummary" class="kicker" style="margin-top:8px">Flop: -</div>
 
 <div class="boardControls">
   <button id="boardPick">Pick board</button>
@@ -972,10 +977,10 @@ select:focus{
 
 
         <div class="legend">
-          <div class="pill"><div style="display:flex;align-items:center;gap:10px"><div class="dot raise"></div><b>Raise</b></div><span id="cntRaise">—</span></div>
-          <div class="pill"><div style="display:flex;align-items:center;gap:10px"><div class="dot call"></div><b>Call</b></div><span id="cntCall">—</span></div>
-          <div class="pill"><div style="display:flex;align-items:center;gap:10px"><div class="dot mix"></div><b>Mix</b></div><span id="cntMix">—</span></div>
-          <div class="pill"><div style="display:flex;align-items:center;gap:10px"><div class="dot fold"></div><b>Fold</b></div><span id="cntFold">—</span></div>
+          <div class="pill"><div style="display:flex;align-items:center;gap:10px"><div class="dot raise"></div><b>Raise</b></div><span id="cntRaise">-</span></div>
+          <div class="pill"><div style="display:flex;align-items:center;gap:10px"><div class="dot call"></div><b>Call</b></div><span id="cntCall">-</span></div>
+          <div class="pill"><div style="display:flex;align-items:center;gap:10px"><div class="dot mix"></div><b>Mix</b></div><span id="cntMix">-</span></div>
+          <div class="pill"><div style="display:flex;align-items:center;gap:10px"><div class="dot fold"></div><b>Fold</b></div><span id="cntFold">-</span></div>
         </div>
 
 <div class="info">
@@ -983,7 +988,7 @@ select:focus{
   <div class="kv">
     <div>
       <div class="k">Hand</div>
-      <div class="v" id="selHand">—</div>
+      <div class="v" id="selHand">-</div>
     </div>
 
 <div style="grid-column:1 / -1">
@@ -996,7 +1001,7 @@ select:focus{
     
     <div>
       <div class="k">Action</div>
-      <div class="v" id="selAct">—</div>
+      <div class="v" id="selAct">-</div>
     </div>
 
     <div style="grid-column:1 / -1">
@@ -1010,7 +1015,7 @@ select:focus{
     <div style="grid-column:1 / -1">
       <div class="k">Standard vs Persona</div>
       <div class="v" id="selDelta" style="font-size:12px;font-weight:800;color:var(--muted);line-height:1.35">
-        —
+        -
       </div>
     </div>
   </div>
@@ -1038,7 +1043,7 @@ select:focus{
         <div class="cardHd">
           <div>
             <div style="font-weight:900">Trainer Mode</div>
-            <div class="kicker" id="trainerKicker">Random spot + random hand. Choose the action you’d take.</div>
+            <div class="kicker" id="trainerKicker">Random spot + random hand. Choose the action you'd take.</div>
           </div>
 <div class="trainerTopControls">
   <select id="trainerScenario" title="Scenario"></select>
@@ -1054,7 +1059,7 @@ select:focus{
         </div>
 
         <div style="padding:16px;display:grid;gap:14px">
-          <div class="trainerPrompt" id="trainerPrompt">—</div>
+          <div class="trainerPrompt" id="trainerPrompt">-</div>
 
           <div class="miniWrap" id="trainerRef" style="display:none">
             <div class="miniTitle">Reference grid (current scenario)</div>
@@ -1062,7 +1067,7 @@ select:focus{
           </div>
 
           <div class="trainerHandRow">
-            <div class="trainerHand" id="trainerHand">—</div>
+            <div class="trainerHand" id="trainerHand">-</div>
             <div class="trainerBtns">
               <button class="btnAct raise" id="btnRaise">Raise</button>
               <button class="btnAct call" id="btnCall">Call</button>
@@ -1074,14 +1079,14 @@ select:focus{
             <div class="trainerResultTop">
               <div>
                 <div class="kicker">Result</div>
-                <div style="font-weight:900;font-size:16px" id="trainerResultTitle">—</div>
+                <div style="font-weight:900;font-size:16px" id="trainerResultTitle">-</div>
               </div>
-              <div class="trainerBadge" id="trainerBadge">—</div>
+              <div class="trainerBadge" id="trainerBadge">-</div>
             </div>
 
-           <div class="trainerExplain" id="trainerChoiceLine" style="margin-top:8px">—</div>
-<div class="trainerExplain" id="trainerPersonaLine">—</div>
-<div class="trainerExplain" id="trainerExplain">—</div>
+           <div class="trainerExplain" id="trainerChoiceLine" style="margin-top:8px">-</div>
+<div class="trainerExplain" id="trainerPersonaLine">-</div>
+<div class="trainerExplain" id="trainerExplain">-</div>
 
           </div>
         </div>
@@ -1101,13 +1106,13 @@ select:focus{
             <div><div class="k">Streak</div><div class="v" id="stStreak">0</div></div>
             <div style="grid-column:1 / -1">
               <div class="k">Missed hands (recent)</div>
-              <div class="v" id="stMissed" style="font-size:12px;font-weight:700;color:var(--muted);line-height:1.35">—</div>
+              <div class="v" id="stMissed" style="font-size:12px;font-weight:700;color:var(--muted);line-height:1.35">-</div>
             </div>
           </div>
         </div>
 
         <div class="footerNote">
-          Tip: Start with “Playable hands only” to build intuition, then switch to “All hands” to eliminate leaks.
+          Tip: Start with "Playable hands only" to build intuition, then switch to "All hands" to eliminate leaks.
           <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
             <button id="trainerReset">Reset session</button>
             <button id="trainerClearHistory">Clear missed list</button>
@@ -1150,14 +1155,14 @@ select:focus{
         <div class="info loggerTablePanel" style="margin:0">
           <h3>Table</h3>
           <div id="loggerTableMount" class="kicker" style="color:var(--muted)">
-            (Table UI goes here — player always at 6 o’clock.)
+            (Table UI goes here - player always at 6 o'clock.)
           </div>
         </div>
 
         <div class="info" style="margin:0">
           <h3>Hand</h3>
           <div id="loggerHandEditor" class="kicker" style="color:var(--muted)">
-            Select a session and click “Log new hand”.
+            Select a session and click "Log new hand".
           </div>
         </div>
       </div>
@@ -1166,10 +1171,10 @@ select:focus{
       <div class="info" style="margin:0">
         <h3>Session Review</h3>
         <div id="loggerInsights" class="kicker" style="margin:6px 0 10px;color:var(--muted);font-size:12px;line-height:1.45;font-weight:700">
-          —
+          -
         </div>
         <div id="loggerSessionReview" class="kicker" style="color:var(--muted);font-size:12px;line-height:1.45;font-weight:700">
-          —
+          -
         </div>
       </div>
     </div>
@@ -1184,7 +1189,7 @@ select:focus{
 
     <div class="info" style="margin-top:10px">
       <div id="loggerHandsList" class="kicker" style="color:var(--muted);font-size:12px;line-height:1.45;font-weight:700">
-        —
+        -
       </div>
     </div>
 
@@ -1252,7 +1257,7 @@ select:focus{
       <div class="gKey">What is this?</div>
       <div class="gVal">
         This is an interactive training and exploration tool for learning practical, rake-aware poker strategy.
-        It helps you understand which hands to play, why they’re played, and how table dynamics change decisions.
+        It helps you understand which hands to play, why they're played, and how table dynamics change decisions.
       </div>
     </div>
 
@@ -1301,19 +1306,19 @@ select:focus{
 
   <div class="gloss">
 
-          <div class="gRow"><div class="gKey">RFI</div><div class="gVal"><b>Raise First In</b> — you are the first player to open the pot (no one has raised before you).</div></div>
-          <div class="gRow"><div class="gKey">UTG</div><div class="gVal"><b>Under the Gun</b> — first position to act preflop (8-max).</div></div>
-          <div class="gRow"><div class="gKey">UTG+1</div><div class="gVal">The next seat after UTG. In this app it’s grouped as <b>LJ / UTG+1</b> for 8-max.</div></div>
-          <div class="gRow"><div class="gKey">LJ / HJ / CO / BTN</div><div class="gVal"><b>LoJack</b>, <b>HiJack</b>, <b>Cutoff</b>, <b>Button</b> — progressively later positions with more stealing power.</div></div>
-          <div class="gRow"><div class="gKey">SB / BB</div><div class="gVal"><b>Small Blind</b> / <b>Big Blind</b> — the two forced blind positions.</div></div>
+          <div class="gRow"><div class="gKey">RFI</div><div class="gVal"><b>Raise First In</b> - you are the first player to open the pot (no one has raised before you).</div></div>
+          <div class="gRow"><div class="gKey">UTG</div><div class="gVal"><b>Under the Gun</b> - first position to act preflop (8-max).</div></div>
+          <div class="gRow"><div class="gKey">UTG+1</div><div class="gVal">The next seat after UTG. In this app it's grouped as <b>LJ / UTG+1</b> for 8-max.</div></div>
+          <div class="gRow"><div class="gKey">LJ / HJ / CO / BTN</div><div class="gVal"><b>LoJack</b>, <b>HiJack</b>, <b>Cutoff</b>, <b>Button</b> - progressively later positions with more stealing power.</div></div>
+          <div class="gRow"><div class="gKey">SB / BB</div><div class="gVal"><b>Small Blind</b> / <b>Big Blind</b> - the two forced blind positions.</div></div>
           <div class="gRow"><div class="gKey">3x / 4x</div><div class="gVal">Open size in big blinds (e.g., 3x = raise to 3×BB).</div></div>
           <div class="gRow"><div class="gKey">Mix</div><div class="gVal">Either action can be fine. In Trainer Mode, <b>Raise or Call</b> counts as correct when the chart says MIX.</div></div>
           <div class="gRow"><div class="gKey">Why so tight early?</div><div class="gVal">This game has big antes and a rake cap that hits fast. Marginal, dominated hands (especially offsuit) lose money without initiative.</div></div>
         </div>
-        <div class="kicker" style="margin-top:12px">Tip: On mobile, open this Help from the top bar whenever a label isn’t intuitive.</div>
-        <div class="gRow"><div class="gKey">Persona</div><div class="gVal"><b>Opponent profile</b> — Personas shift the baseline strategy to reflect different table dynamics and tendencies.</div></div>
-<div class="gRow"><div class="gKey">Standard</div><div class="gVal">Baseline, “solid regs + normal pool.” Balanced, rake-aware ranges.</div></div>
-<div class="gRow"><div class="gKey">Tight</div><div class="gVal">Opponents defend less and apply less pressure. You can value-bet more, but don’t overbluff. Some marginal opens/defends tighten up.</div></div>
+        <div class="kicker" style="margin-top:12px">Tip: On mobile, open this Help from the top bar whenever a label isn't intuitive.</div>
+        <div class="gRow"><div class="gKey">Persona</div><div class="gVal"><b>Opponent profile</b> - Personas shift the baseline strategy to reflect different table dynamics and tendencies.</div></div>
+<div class="gRow"><div class="gKey">Standard</div><div class="gVal">Baseline, "solid regs + normal pool." Balanced, rake-aware ranges.</div></div>
+<div class="gRow"><div class="gKey">Tight</div><div class="gVal">Opponents defend less and apply less pressure. You can value-bet more, but don't overbluff. Some marginal opens/defends tighten up.</div></div>
 <div class="gRow"><div class="gKey">Loose</div><div class="gVal">Opponents continue too wide and make more postflop mistakes. You can defend a bit wider and prioritize hands with good equity realization.</div></div>
 <div class="gRow"><div class="gKey">Aggro 3bettor</div><div class="gVal">Players 3-bet more and apply pressure. You tighten marginal opens, and some playable continues shift toward raise/3-bet to avoid getting squeezed.</div></div>
 <div class="gRow"><div class="gKey">Limper</div><div class="gVal">Passive pool tendency (calls more, raises less). Opens get called more often. Prefer hands that realize equity well; less need for bluff-3-betting.</div></div>
@@ -1329,7 +1334,7 @@ select:focus{
     <div class="modalHd">
       <div>
         <div id="boardTitle" style="font-weight:950">Pick a flop</div>
-        <div class="kicker">Click cards to fill Flop 1 → Flop 2 → Flop 3 (auto-advances).</div>
+        <div class="kicker">Click cards to fill Flop 1 -> Flop 2 -> Flop 3 (auto-advances).</div>
       </div>
       <button id="boardClose">Close</button>
     </div>
@@ -1464,10 +1469,10 @@ function buildTrainerPersonaDeltaText(hand, scenarioKey){
 
   // Always show scenario + persona; show delta only if meaningful
   if(stdShort === pShort){
-    return `Persona: ${personaName} • (Same as Standard for this hand)`;
+    return `Persona: ${personaName} - (Same as Standard for this hand)`;
   }
 
-  return `Persona: ${personaName} • Standard: ${stdShort} → ${personaName}: ${pShort}`;
+  return `Persona: ${personaName} - Standard: ${stdShort} -> ${personaName}: ${pShort}`;
 }
 
   
@@ -1494,7 +1499,7 @@ function getBaseAndPersonaDistsForHand(hand, scenarioKey){
 function explainDelta(hand, scenarioKey, baseDist, personaDist){
   const baseCode = distToCode(baseDist);
   const pCode = distToCode(personaDist);
-  if(baseCode === pCode && baseCode !== "M") return "No change: persona doesn’t meaningfully shift this hand here.";
+  if(baseCode === pCode && baseCode !== "M") return "No change: persona doesn't meaningfully shift this hand here.";
   if(baseCode === "M" && pCode === "M") return "Still a mix, but frequencies may shift with opponent tendencies.";
 
   const isRFI = scenarioKey.includes("_RFI");
@@ -1502,17 +1507,17 @@ function explainDelta(hand, scenarioKey, baseDist, personaDist){
   const p = PERSONA_CODE[personaSel?.value || "Standard"] || "STD";
 
   if(isRFI){
-    if(p === "TIGHT") return "Tight table: fewer steals succeed and pots play tougher → trim marginal opens.";
-    if(p === "LOOSE") return "Loose table: wider defenses and more postflop mistakes → open slightly wider for EV.";
-    if(p === "AGGRO3B") return "Aggro 3-bettor: more pressure behind → tighten marginal opens / favor hands that continue well.";
-    if(p === "LIMPER") return "Passive/limpy dynamics: opens get called more → prioritize hands that realize equity well.";
+    if(p === "TIGHT") return "Tight table: fewer steals succeed and pots play tougher -> trim marginal opens.";
+    if(p === "LOOSE") return "Loose table: wider defenses and more postflop mistakes -> open slightly wider for EV.";
+    if(p === "AGGRO3B") return "Aggro 3-bettor: more pressure behind -> tighten marginal opens / favor hands that continue well.";
+    if(p === "LIMPER") return "Passive/limpy dynamics: opens get called more -> prioritize hands that realize equity well.";
   }
 
   if(isDef){
-    if(p === "TIGHT") return "Tight opponents: narrower ranges and less spew → defend tighter, bluff less.";
-    if(p === "LOOSE") return "Loose opponents: wider opens and more mistakes → defend wider and realize more equity.";
-    if(p === "AGGRO3B") return "Aggro opponents: more pressure → shift some flats into raises and defend a bit wider.";
-    if(p === "LIMPER") return "Passive opponents: less 3-bet pressure → more calls, fewer bluffs.";
+    if(p === "TIGHT") return "Tight opponents: narrower ranges and less spew -> defend tighter, bluff less.";
+    if(p === "LOOSE") return "Loose opponents: wider opens and more mistakes -> defend wider and realize more equity.";
+    if(p === "AGGRO3B") return "Aggro opponents: more pressure -> shift some flats into raises and defend a bit wider.";
+    if(p === "LIMPER") return "Passive opponents: less 3-bet pressure -> more calls, fewer bluffs.";
   }
 
   return "Persona nudges the baseline frequencies based on tighter/looser and more/less aggressive opponents.";
@@ -1556,7 +1561,7 @@ function updateSelectedHandPanel(scenarioKey){
   if(code === "M"){
     selAct.textContent = `MIX (${distPretty(d)})`;
     const base = (notes && notes[h]) || defaultNoteFor("M", h, scenarioKey);
-    selNote.textContent = `${base} Preferred: ${primaryAction(d)} • ${distPretty(d)}.`;
+    selNote.textContent = `${base} Preferred: ${primaryAction(d)} - ${distPretty(d)}.`;
   } else {
     selAct.textContent = prettyAction(code);
     selNote.textContent = (notes && notes[h]) || defaultNoteFor(code, h, scenarioKey);
@@ -1890,7 +1895,7 @@ function cbetPlanSRP(texture, personaCode){
     plan = {
       freqLabel: "High",
       sizeLabel: "Small",
-      why: "Paired/dry boards miss most ranges — range-bet small at high frequency."
+      why: "Paired/dry boards miss most ranges - range-bet small at high frequency."
     };
   }
   // Very dry rainbow/unconnected => high small
@@ -1898,7 +1903,7 @@ function cbetPlanSRP(texture, personaCode){
     plan = {
       freqLabel: "High",
       sizeLabel: "Small",
-      why: "Dry rainbow boards favor the preflop raiser — small c-bets win often."
+      why: "Dry rainbow boards favor the preflop raiser - small c-bets win often."
     };
   }
   // Monotone => lower freq, small size
@@ -1906,7 +1911,7 @@ function cbetPlanSRP(texture, personaCode){
     plan = {
       freqLabel: "Low",
       sizeLabel: "Small",
-      why: "Monotone boards reduce fold equity — bet less often and keep size small."
+      why: "Monotone boards reduce fold equity - bet less often and keep size small."
     };
   }
   // Very wet/connected => lower freq, larger size when betting
@@ -1914,7 +1919,7 @@ function cbetPlanSRP(texture, personaCode){
     plan = {
       freqLabel: "Low",
       sizeLabel: "Large",
-      why: "Wet/connected boards hit defenders — check more; when betting, go more polarized."
+      why: "Wet/connected boards hit defenders - check more; when betting, go more polarized."
     };
   }
   // Middle textures
@@ -1922,7 +1927,7 @@ function cbetPlanSRP(texture, personaCode){
     plan = {
       freqLabel: "Medium",
       sizeLabel: (texture.twoTone ? "Medium" : "Small"),
-      why: "Mixed texture — mix bets and checks; size up a bit if draw-heavy."
+      why: "Mixed texture - mix bets and checks; size up a bit if draw-heavy."
     };
   }
 
@@ -1937,26 +1942,26 @@ function cbetPlanSRP(texture, personaCode){
   if(p === "TIGHT"){
     plan.freqLabel = bumpFreq(plan.freqLabel, +1);
     plan.sizeLabel = bumpSize(plan.sizeLabel, -1);
-    plan.why += " vs Tight: more fold equity → c-bet a bit more, keep it small.";
+    plan.why += " vs Tight: more fold equity -> c-bet a bit more, keep it small.";
 
   } else if(p === "LOOSE"){
     plan.freqLabel = bumpFreq(plan.freqLabel, -1);
     plan.sizeLabel = bumpSize(plan.sizeLabel, +1);
-    plan.why += " vs Loose: gets called wider → c-bet a bit less; when betting, size up.";
+    plan.why += " vs Loose: gets called wider -> c-bet a bit less; when betting, size up.";
 
   } else if(p === "AGGRO3B"){
     plan.freqLabel = bumpFreq(plan.freqLabel, -1);
     plan.sizeLabel = bumpSize(plan.sizeLabel, +1);
-    plan.why += " vs Aggro: more resistance → check more; bets trend more polarized.";
+    plan.why += " vs Aggro: more resistance -> check more; bets trend more polarized.";
 
   } else if(p === "LIMPER"){
-    // Only boost frequency on drier boards; don’t force it on wet textures
+    // Only boost frequency on drier boards; don't force it on wet textures
     if(texture.wetness <= 30){
       plan.freqLabel = bumpFreq(plan.freqLabel, +1);
       plan.sizeLabel = bumpSize(plan.sizeLabel, -1);
       plan.why += " vs Passive: take stabs on dry boards; keep sizing small.";
     } else {
-      plan.why += " vs Passive: still respect wet boards—don’t auto-stab into strong continues.";
+      plan.why += " vs Passive: still respect wet boards-don't auto-stab into strong continues.";
     }
   }
 
@@ -2142,7 +2147,7 @@ function buildRange(def){
   const scenarios = {
     "BTN_RFI": {
       name: "BTN Open (RFI)",
-      kicker: "8-max • rake/ante aware • open ~3x",
+      kicker: "8-max - rake/ante aware - open ~3x",
       def: {
         raises: [
           "22+",
@@ -2155,7 +2160,7 @@ function buildRange(def){
           "86s+"
         ],
         notes: {
-          "AJo":"Prefer 3-bet-or-fold vs earlier opens; as RFI it’s strong enough.",
+          "AJo":"Prefer 3-bet-or-fold vs earlier opens; as RFI it's strong enough.",
           "KTo":"Late-position steal; be ready to barrel selectively on good textures.",
           "86s":"Lowest suited connector we open here in this rake environment."
         }
@@ -2164,7 +2169,7 @@ function buildRange(def){
 
     "CO_RFI": {
       name: "CO Open (RFI)",
-      kicker: "8-max • open ~3x",
+      kicker: "8-max - open ~3x",
       def: {
         raises: [
           "22+",
@@ -2176,7 +2181,7 @@ function buildRange(def){
           "98s"
         ],
         notes: {
-          "KJo":"Often a fold vs 3-bet OOP; don’t overcall with it.",
+          "KJo":"Often a fold vs 3-bet OOP; don't overcall with it.",
           "A7s":"Good wheel/backdoor properties; avoid calling 3-bets OOP too wide."
         }
       }
@@ -2184,7 +2189,7 @@ function buildRange(def){
 
     "HJ_RFI": {
       name: "HJ Open (RFI)",
-      kicker: "8-max • open ~3.5x",
+      kicker: "8-max - open ~3.5x",
       def: {
         raises: [
           "22+",
@@ -2199,7 +2204,7 @@ function buildRange(def){
 
     "LJ_RFI": {
       name: "LJ / UTG+1 Open (RFI)",
-      kicker: "8-max • open ~3.5x",
+      kicker: "8-max - open ~3.5x",
       def: {
         raises: [
           "22+",
@@ -2213,7 +2218,7 @@ function buildRange(def){
 
     "UTG_RFI": {
       name: "UTG Open (RFI)",
-      kicker: "8-max • rake-sensitive • open ~3.5–4x",
+      kicker: "8-max - rake-sensitive - open ~3.5-4x",
       def: {
         raises: [
           "22+",
@@ -2225,7 +2230,7 @@ function buildRange(def){
 
    "BB_vs_BTN_3x": {
   name: "BB Defend vs BTN Open (3x)",
-  kicker: "Call with playable equity • 3-bet linear/value-heavy • some wheel-ace mixes",
+  kicker: "Call with playable equity - 3-bet linear/value-heavy - some wheel-ace mixes",
   def: {
     raises: [
       "88+",
@@ -2251,7 +2256,7 @@ function buildRange(def){
       "A4s": { R: 0.30, C: 0.70 },
       "A5s": { R: 0.55, C: 0.45 },
 
-      // light pressure vs wide BTN (keep these small so it’s not “spewy”)
+      // light pressure vs wide BTN (keep these small so it's not "spewy")
       "K9s": { R: 0.15, C: 0.85 },
       "Q9s": { R: 0.10, C: 0.90 }
     },
@@ -2269,7 +2274,7 @@ function buildRange(def){
 
    "BB_vs_BTN_4x": {
   name: "BB Defend vs BTN Open (4x)",
-  kicker: "Tighter vs bigger size • prioritize suited + connected • wheel aces mostly-call mixes",
+  kicker: "Tighter vs bigger size - prioritize suited + connected - wheel aces mostly-call mixes",
   def: {
     raises: [
       "99+",
@@ -2308,7 +2313,7 @@ function buildRange(def){
 
   "BB_vs_CO_3x": {
   name: "BB Defend vs CO Open (3x)",
-  kicker: "CO is tighter than BTN • defend tighter • wheel aces mostly-call mixes",
+  kicker: "CO is tighter than BTN - defend tighter - wheel aces mostly-call mixes",
   def: {
     raises: [
       "99+",
@@ -2347,7 +2352,7 @@ function buildRange(def){
 
    "BB_vs_CO_4x": {
   name: "BB Defend vs CO Open (4x)",
-  kicker: "Tightest of these spots • fewer offsuit continues • wheel aces mostly-call mixes",
+  kicker: "Tightest of these spots - fewer offsuit continues - wheel aces mostly-call mixes",
   def: {
     raises: [
       "TT+",
@@ -2384,7 +2389,7 @@ function buildRange(def){
 
     "SB_vs_BTN_3betFold": {
       name: "SB vs BTN (3-bet or Fold)",
-      kicker: "No flatting in SB • 3-bet linear + suited blockers",
+      kicker: "No flatting in SB - 3-bet linear + suited blockers",
       def: {
         raises: [
           "88+",
@@ -2449,7 +2454,7 @@ function applyPersona(def, scenarioKey, persona){
 // - Loose: calls wider, folds less, raises slightly more but not maniac
 // - Aggro 3bettor: shifts more of playable hands into raise/3b buckets
 // - Limper: (for now) behaves like loose-passive from our POV (more calls, less 3b)
-//   NOTE: true "limper" exploitation needs limp scenarios; we’ll add those later.
+//   NOTE: true "limper" exploitation needs limp scenarios; we'll add those later.
 
 // Map dropdown labels -> internal model codes
 const PERSONA_CODE = {
@@ -2743,9 +2748,9 @@ function renderExplorerHandAwareness(){
     // If you already have a real evaluator function, use it here instead.
     // We do a simple, reliable classification that matches your existing labels.
     const txt = classifyExplorerHandVsFlop(handCode, flop);
-    selHandAwareness.textContent = txt || "—";
+    selHandAwareness.textContent = txt || "-";
   }catch(e){
-    selHandAwareness.textContent = "—";
+    selHandAwareness.textContent = "-";
   }
 }
 
@@ -2811,7 +2816,7 @@ const bs = flopCards.map(cardSuit).filter(Boolean);
       else if(pairRank === mid) which = "Middle pair";
       else if(pairRank === bot) which = "Bottom pair";
 
-      // “strong kicker” heuristic
+      // "strong kicker" heuristic
       const strongKick = ["A","K","Q","J"].includes(kicker);
       if(which === "Top pair" && strongKick) return "Top pair (strong kicker)";
       if(which === "Top pair") return "Top pair";
@@ -2827,7 +2832,7 @@ const bs = flopCards.map(cardSuit).filter(Boolean);
   const uniqRanks = [...new Set([r1, r2, ...br])];
   const idxs = uniqRanks.map(rankIndex).filter(x=>Number.isFinite(x)).sort((a,b)=>a-b);
 
-  // If 4 cards fall within a 5-rank window -> “straight draw possible”
+  // If 4 cards fall within a 5-rank window -> "straight draw possible"
   let straighty = false;
   for(let i=0;i<idxs.length;i++){
     const window = idxs.filter(x => x >= idxs[i] && x <= idxs[i] + 4);
@@ -2835,7 +2840,7 @@ const bs = flopCards.map(cardSuit).filter(Boolean);
   }
   if(straighty) drawBits.push("Straight draw possible");
 
-  if(drawBits.length) return `Air (${drawBits.join(" • ")})`;
+  if(drawBits.length) return `Air (${drawBits.join(" - ")})`;
   return "Air";
 }
 
@@ -2881,8 +2886,8 @@ function getExplorerFlop(){
       const connTxt = tex.straighty ? "Connected" : "Unconnected";
 
       postflopLine.textContent =
-        `Board: ${tex.ranks} • ${tex.textureLabel} (${suitTxt}, ${pairTxt}, ${connTxt}, wetness ${tex.wetness})\n` +
-        `C-bet: ${plan.freqLabel} freq • Size: ${plan.sizeLabel}\n` +
+        `Board: ${tex.ranks} - ${tex.textureLabel} (${suitTxt}, ${pairTxt}, ${connTxt}, wetness ${tex.wetness})\n` +
+        `C-bet: ${plan.freqLabel} freq - Size: ${plan.sizeLabel}\n` +
         `${plan.why}`;
 
       postflopLine.style.whiteSpace = "pre-line";
@@ -2896,7 +2901,7 @@ function getExplorerFlop(){
     }
 
     if(spot.type === "3BP_SBET"){
-      postflopLine.textContent = "3-bet pot logic is a separate ruleset — foundation comes after SRP.";
+      postflopLine.textContent = "3-bet pot logic is a separate ruleset - foundation comes after SRP.";
       return;
     }
 
@@ -2945,7 +2950,7 @@ function mixPreferred(weights){
 
    
   function prettyAction(code){
-    return ACT[code]?.label || "—";
+    return ACT[code]?.label || "-";
   }
 
 function computeCounts(map){
@@ -3036,7 +3041,7 @@ el.style.setProperty("--r", (d.R * 100).toFixed(0));
 el.style.setProperty("--c", (d.C * 100).toFixed(0));
 el.style.setProperty("--f", (d.F * 100).toFixed(0));
 
-// Add a mixed marker if it’s not a pure 100% action
+// Add a mixed marker if it's not a pure 100% action
 if(isMix(d)) el.classList.add("isMixed");
 
 if(selectedHandCode && h === selectedHandCode){
@@ -3070,8 +3075,8 @@ el.addEventListener("click", ()=>{
 
         matrixEl.appendChild(el);
         if(!selectedFirst){
-          selHand.textContent = "—";
-          selAct.textContent = "—";
+          selHand.textContent = "-";
+          selAct.textContent = "-";
           selNote.textContent = "Click a cell";
           selectedFirst = true;
         }
@@ -3234,7 +3239,7 @@ let flopActive = 0;               // 0..2
 
 
 function chipLabel(card){
-  if(!card) return "—";
+  if(!card) return "-";
   const r = card[0];
   const s = card[1];
   const suitObj = PF_SUITS.find(x => x.s === s);
@@ -3243,7 +3248,7 @@ function chipLabel(card){
 
 
 function chipParts(card){
-  if(!card) return { rank:"—", suitSym:"", suitCls:"" };
+  if(!card) return { rank:"-", suitSym:"", suitCls:"" };
   const r = card[0];
   const s = card[1];
   const suitObj = PF_SUITS.find(x => x.s === s);
@@ -3271,7 +3276,7 @@ function renderBoardSlots(){
       slot.textContent = r + (suitObj?.label || s);
       slot.classList.add(suitObj?.cls || "black");
     } else {
-      slot.textContent = "—";
+      slot.textContent = "-";
     }
 
 slot.addEventListener("click", () => {
@@ -3351,7 +3356,7 @@ function renderBoardModalChips(){
       const suitObj = PF_SUITS.find(x => x.s === s);
       chip.innerHTML = `${r}<span class="${suitObj?.cls || ""}">${suitObj?.label || ""}</span>`;
     } else {
-      chip.textContent = "—";
+      chip.textContent = "-";
     }
 
     // Clicking a chip sets the active slot (nice UX inside modal)
@@ -3368,7 +3373,7 @@ function renderBoardSummary(){
   const el = document.getElementById("boardSummary");
   if(!el) return;
 
-  const txt = flopSel.every(Boolean) ? flopSel.join(" ") : "—";
+  const txt = flopSel.every(Boolean) ? flopSel.join(" ") : "-";
   el.textContent = `Flop: ${txt}`;
 }
 
@@ -3577,7 +3582,7 @@ function getActiveSession(){
 
 // ===== Hand Logger: Table UI (v0) =====
 function seatAngleDeg(i, n){
-  // Seat 0 is Hero at 6 o’clock (bottom). Then CLOCKWISE.
+  // Seat 0 is Hero at 6 o'clock (bottom). Then CLOCKWISE.
   return 90 - (360 / n) * i;
 }
 
@@ -3674,7 +3679,7 @@ let loggerCardPicker = {
 function isRedSuit(suitKey){ return suitKey === "h" || suitKey === "d"; }
 
 function cardToPretty(card){
-  if(!card) return "—";
+  if(!card) return "-";
   const r = card[0];
   const s = card[1];
   const suit = LOGGER_SUITS.find(x=>x.key===s);
@@ -3709,11 +3714,11 @@ function renderLoggerCardSlots(){
 
     const rank = document.createElement("div");
     rank.className = "pfRank";
-    rank.textContent = pretty === "—" ? "—" : pretty[0];
+    rank.textContent = pretty === "-" ? "-" : pretty[0];
 
     const suit = document.createElement("div");
-    suit.className = "pfSuit " + (pretty === "—" ? "pfSuitBlk" : (isRedSuit(card[1]) ? "pfSuitRed" : "pfSuitBlk"));
-    suit.textContent = pretty === "—" ? "" : pretty.slice(1);
+    suit.className = "pfSuit " + (pretty === "-" ? "pfSuitBlk" : (isRedSuit(card[1]) ? "pfSuitRed" : "pfSuitBlk"));
+    suit.textContent = pretty === "-" ? "" : pretty.slice(1);
 
     slot.appendChild(rank);
     slot.appendChild(suit);
@@ -4049,7 +4054,7 @@ seat.addEventListener("click", ()=>{
     // If editing a hand, keep it consistent
     if(curHand){
       curHand.btnSeat = i;
-      // If user changes BTN mid-hand (rare), positions change—clear actor selection
+      // If user changes BTN mid-hand (rare), positions change-clear actor selection
       loggerState.table.selectedActorPos = null;
     }
 
@@ -4080,7 +4085,7 @@ seat.addEventListener("click", ()=>{
   legend.innerHTML =
     `<span><span class="loggerLegendDot hero"></span> Hero</span>` +
     `<span><span class="loggerLegendDot btn"></span> Button</span>` +
-    `<span>• Positions auto-populate from Button</span>`;
+    `<span>- Positions auto-populate from Button</span>`;
 
   wrap.appendChild(controls);
   wrap.appendChild(table);
@@ -4133,7 +4138,7 @@ function savePersona(){
     const acc = session.total ? (session.correct/session.total*100).toFixed(1) : "0.0";
     stAcc.textContent = `${acc}%`;
     stStreak.textContent = session.streak;
-    stMissed.textContent = session.missed.length ? session.missed.slice(0, 10).join(" • ") : "—";
+    stMissed.textContent = session.missed.length ? session.missed.slice(0, 10).join(" - ") : "-";
   }
 
   function randomChoice(arr){
@@ -4238,7 +4243,7 @@ function savePersona(){
     return `Mix: both actions are OK here. Frequency guidance: ${mixText(w)} (preferred: ${mixPreferred(w)}).`;
   }
 
-  return "—";
+  return "-";
 }
 
 function mixPctLabelFromDist(d){
@@ -4339,7 +4344,7 @@ current = {
   prettyHand: prettyHandFromCode(hand)
 };
 
-    trainerPrompt.textContent = `${scenarioLabel(key)} — What do you do with:`;
+    trainerPrompt.textContent = `${scenarioLabel(key)} - What do you do with:`;
     trainerHandEl.textContent = current.prettyHand;
 
     trainerResult.style.display = "none";
@@ -4400,7 +4405,7 @@ const ok = isCorrect(userAct, correctAct, current.correctRaw);
     trainerResult.style.display = "block";
 
     if(trainerChoiceLine){
-  trainerChoiceLine.textContent = `You chose: ${prettyAction(userAct)} • Correct: ${prettyAction(correctAct)}`;
+  trainerChoiceLine.textContent = `You chose: ${prettyAction(userAct)} - Correct: ${prettyAction(correctAct)}`;
 }
 
 if(trainerPersonaLine){
@@ -4494,25 +4499,25 @@ if(hand && hand.snapType){
 
   // Eff stack bucket (BB)
   const eff = Number(hand.effStackBB || 0);
-  let effBucket = "—";
+  let effBucket = "-";
   if(isFinite(eff) && eff > 0){
     if(eff < 25) effBucket = "<25bb";
-    else if(eff < 50) effBucket = "25–50bb";
-    else if(eff < 100) effBucket = "50–100bb";
+    else if(eff < 50) effBucket = "25-50bb";
+    else if(eff < 100) effBucket = "50-100bb";
     else effBucket = "100bb+";
   }
 
   // Pattern flags (objective, simple)
   const flags = [];
 
-  // Call flop → fold turn (hero only)
+  // Call flop -> fold turn (hero only)
   const heroFlopCall = flop.some(a =>
     a.actorPos === heroPos && String(a.action || "").toUpperCase() === "CALL"
   );
   const heroTurnFold = turn.some(a =>
     a.actorPos === heroPos && String(a.action || "").toUpperCase() === "FOLD"
   );
-  if(heroFlopCall && heroTurnFold) flags.push("Call flop → fold turn");
+  if(heroFlopCall && heroTurnFold) flags.push("Call flop -> fold turn");
 
   // Faced river bet + hero response
   const riverAggIdx = river.findIndex(a => {
@@ -4557,7 +4562,7 @@ if(hand && hand.snapType){
    ------------------------------------------------------------
    Goal: extract board + basic texture tags from natural notes.
    - tolerant of variability
-   - “best effort” parsing (never breaks logging)
+   - "best effort" parsing (never breaks logging)
    ============================================================ */
 
 // Card token like "Ac", "Td", "7h", "9s"
@@ -4705,14 +4710,14 @@ function renderLoggerInsights(){
     return;
   }
 
-  // Helper: pick a “decision street” for insights
+  // Helper: pick a "decision street" for insights
   const getStreet = (h) => {
     if(h && h.snapStreet) return String(h.snapStreet);
     if(h && Array.isArray(h.actions) && h.actions.length){
       const last = h.actions[h.actions.length - 1];
       if(last && last.street) return String(last.street);
     }
-    return "—";
+    return "-";
   };
 
   // Basic counts
@@ -4767,7 +4772,7 @@ const summarize = (filterFn)=>{
   const subset = handsWithRes.filter(filterFn);
   const map = {};
   subset.forEach(h=>{
-    const action = h.snapHeroAction || "—";
+    const action = h.snapHeroAction || "-";
     if(!map[action]){
       map[action] = { n:0, net:0 };
     }
@@ -4801,8 +4806,8 @@ const agg = new Map();
 handsWithRes.forEach(h => {
   const d = deriveHandForSessionReview(h);
   const street = getStreet(h);
-  const potType = (h && h.snapType) ? String(h.snapType) : (d.potType || "—");
-  const effBucket = d.effBucket || "—";
+  const potType = (h && h.snapType) ? String(h.snapType) : (d.potType || "-");
+  const effBucket = d.effBucket || "-";
   const pressure = (h && h.snapPressure) ? String(h.snapPressure) : "NONE";
 
   // Group WITHOUT effBucket
@@ -4835,7 +4840,7 @@ handsWithRes.forEach(h => {
 
 // Compute derived fields (avg + dominant eff bucket)
 const rows = Array.from(agg.values()).map(x => {
-  let effMode = "—";
+  let effMode = "-";
   let effModeN = 0;
 
   for(const [bucket, ct] of Object.entries(x.effCounts || {})){
@@ -4920,7 +4925,7 @@ const buildBehaviorTable = (title, rows)=>{
   // Render (minimal UI)
   const fmt = (x) => {
     const n = Number(x);
-    if(!isFinite(n)) return "—";
+    if(!isFinite(n)) return "-";
     return (n > 0 ? "+" : "") + n.toFixed(1);
   };
 
@@ -4931,7 +4936,7 @@ const buildBehaviorTable = (title, rows)=>{
       <span class="loggerTinyChip">Result hands: ${resCt}/${hands.length}</span>
       <span class="loggerTinyChip">SNAP: ${snapCt}</span>
       <span class="loggerTinyChip">FULL: ${fullCt}</span>
-      <span class="loggerTinyChip">Archetypes (n≥${MIN_N}): ${stable.length}</span>
+      <span class="loggerTinyChip">Archetypes (n>=${MIN_N}): ${stable.length}</span>
     </div>
   `;
 
@@ -4940,7 +4945,7 @@ const buildBehaviorTable = (title, rows)=>{
       return `
         <div style="margin-top:10px">
           <div style="font-weight:900;margin-bottom:6px">${title}</div>
-          <div style="opacity:.9">Not enough repeated spots yet (need ≥${MIN_N} samples per archetype).</div>
+          <div style="opacity:.9">Not enough repeated spots yet (need >=${MIN_N} samples per archetype).</div>
         </div>
       `;
     }
@@ -4949,7 +4954,7 @@ const buildBehaviorTable = (title, rows)=>{
       <tr>
         <td style="padding:6px 8px;white-space:nowrap">${r.street}</td>
         <td style="padding:6px 8px;white-space:nowrap">${r.potType}</td>
-        <td style="padding:6px 8px;white-space:nowrap">${r.effMode || "—"}</td>
+        <td style="padding:6px 8px;white-space:nowrap">${r.effMode || "-"}</td>
         <td style="padding:6px 8px;white-space:nowrap">${r.pressure}</td>
         <td style="padding:6px 8px;text-align:right;font-weight:900">${r.n}</td>
         <td style="padding:6px 8px;text-align:right;font-weight:900">${fmt(r.avg)}</td>
@@ -4987,8 +4992,8 @@ const buildBehaviorTable = (title, rows)=>{
     Postflop Behavior Summary
   </div>
 
-  ${buildBehaviorTable("River – Facing Pressure", riverFacing)}
-  ${buildBehaviorTable("Turn – No Pressure", turnNoPressure)}
+  ${buildBehaviorTable("River - Facing Pressure", riverFacing)}
+  ${buildBehaviorTable("Turn - No Pressure", turnNoPressure)}
   ${buildBehaviorTable("Facing Raise / All-In (All Streets)", facingRaise)}
 
   <div style="margin-top:10px;margin-bottom:10px;font-weight:900;color:rgba(231,236,255,.92)">
@@ -5002,7 +5007,7 @@ const buildBehaviorTable = (title, rows)=>{
 
   ${(() => {
     if(!tagRows.length){
-      return `<div style="opacity:.85;margin-bottom:12px">Not enough repeated texture tags yet (need ≥${TAG_MIN_N}).</div>`;
+      return `<div style="opacity:.85;margin-bottom:12px">Not enough repeated texture tags yet (need >=${TAG_MIN_N}).</div>`;
     }
 
     const worstTags = tagRows.slice(0, 6);
@@ -5104,16 +5109,16 @@ function renderLoggerSessionReviewTable(){
     tr.className = "loggerReviewRow" + (h.id === loggerSelectedHandId ? " sel" : "");
 
     const label = (idx === 0) ? "Recent" : `#${idx + 1}`;
-    const effTxt = (isFinite(d.eff) && d.eff > 0) ? `${d.eff}bb` : "—";
+    const effTxt = (isFinite(d.eff) && d.eff > 0) ? `${d.eff}bb` : "-";
 
     const resTxt = (h.resultBB != null && isFinite(Number(h.resultBB)))
   ? ((Number(h.resultBB) > 0 ? "+" : "") + Number(h.resultBB).toFixed(1))
-  : "—";
+  : "-";
 
     const chips = [];
     chips.push(`<span class="loggerTinyChip">${d.potType}</span>`);
     chips.push(`<span class="loggerTinyChip">${d.huMw}</span>`);
-    if(d.effBucket !== "—") chips.push(`<span class="loggerTinyChip">${d.effBucket}</span>`);
+    if(d.effBucket !== "-") chips.push(`<span class="loggerTinyChip">${d.effBucket}</span>`);
     if(d.wentToShowdown) chips.push(`<span class="loggerTinyChip">Showdown</span>`);
     d.flags.slice(0, 4).forEach(f => chips.push(`<span class="loggerTinyChip">${f}</span>`));
     if(d.flags.length > 4) chips.push(`<span class="loggerTinyChip">+${d.flags.length - 4} more</span>`);
@@ -5207,7 +5212,7 @@ toast("New session created");
 }
 
 function parseStakes(stakesStr){
-  // Accepts strings like "$0.05/$0.10", "0.05/0.10", "€0.5/1"
+  // Accepts strings like "$0.05/$0.10", "0.05/0.10", "EUR0.5/1"
   const s = String(stakesStr || "").trim();
 
   // Grab leading currency symbol if present
@@ -5280,7 +5285,7 @@ function estimatePotFromLoggedBetsBB(hand){
     const v = Number(a.amt || 0);
     if(!isFinite(v) || v <= 0) continue;
 
-    // "to" semantics → just track max contribution per player
+    // "to" semantics -> just track max contribution per player
     contrib[who] = Math.max(contrib[who] || 0, v);
   }
 
@@ -5350,7 +5355,7 @@ function estimatePotByStreetBB(hand){
     perStreet[st] = sum;
   }
 
-  // “Pot after street” (cumulative)
+  // "Pot after street" (cumulative)
   const potAfter = {
     PREFLOP: base + perStreet.PREFLOP,
     FLOP: 0,
@@ -5432,11 +5437,11 @@ function derivePatternFlagsV1(hand, heroPos){
   const heroFlop = flop.filter(a => a.actorPos === heroPos);
   const heroTurn = turn.filter(a => a.actorPos === heroPos);
 
-  // Hero called flop → folded turn
+  // Hero called flop -> folded turn
   const heroCalledFlop = heroFlop.some(a => String(a.action||"").toUpperCase() === "CALL");
   const heroFoldedTurn = heroTurn.some(a => String(a.action||"").toUpperCase() === "FOLD");
   if(heroCalledFlop && heroFoldedTurn){
-    flags.push("Hero: call flop → fold turn");
+    flags.push("Hero: call flop -> fold turn");
   }
 
   // Faced river bet + response
@@ -5717,6 +5722,67 @@ function deriveInsightsV1(hand){
   return tags;
 }
 
+function scoreSwingV1(hand){
+  const raw = hand?.resultBB;
+  if(raw == null) return 0;
+
+  const n = Number(raw);
+  if(!isFinite(n)) return 0;
+
+  return Math.min(35, Math.abs(n) * 2);
+}
+
+function scoreAllInV1(hand){
+  const allInCount = countAllInActionsV1(hand);
+  if(allInCount <= 0) return 0;
+
+  const score = 18 + Math.max(0, allInCount - 1) * 6;
+  return Math.min(30, score);
+}
+
+function scoreAggressionV1(hand){
+  let checkRaiseCount = 0;
+  if(didCheckRaise(hand, "FLOP")) checkRaiseCount++;
+  if(didCheckRaise(hand, "TURN")) checkRaiseCount++;
+  if(didCheckRaise(hand, "RIVER")) checkRaiseCount++;
+
+  const checkRaiseScore = Math.min(16, checkRaiseCount * 8);
+  const donkScore = didDonkBet(hand) ? 6 : 0;
+  const riverFacingScore = heroFacedAggressionOnStreet(hand, "RIVER") ? 6 : 0;
+
+  return Math.min(20, checkRaiseScore + donkScore + riverFacingScore);
+}
+
+function scoreTextureV1(hand){
+  const notes = String(hand?.notes || "");
+  const parsed = parseBoardFromNotes(notes);
+  const tags = computeTextureTags(parsed);
+  const tagSet = new Set(Array.isArray(tags) ? tags : []);
+
+  let score = 0;
+  if(tagSet.has("MONOTONE_FLOP")) score += 6;
+  if(tagSet.has("PAIRED_FLOP")) score += 4;
+  if(tagSet.has("BROADWAY_CONNECTED")) score += 7;
+  if(tagSet.has("FLUSH_4")) score += 6;
+  if(tagSet.has("FLUSH_5")) score += 10;
+  if(tagSet.has("PAIRED_TURN")) score += 3;
+  if(tagSet.has("PAIRED_RIVER")) score += 3;
+
+  return Math.min(15, score);
+}
+
+function countAllInActionsV1(hand){
+  const actions = Array.isArray(hand?.actions) ? hand.actions : [];
+  let count = 0;
+
+  for(const a of actions){
+    const t = String(a?.action || "").toUpperCase();
+    if(t === "ALLIN") count++;
+  }
+
+  return count;
+}
+
 
 function renderBoardSummaryInto(el, hand, mode){
   if(!el) return;
@@ -5726,14 +5792,14 @@ function renderBoardSummaryInto(el, hand, mode){
   const river = hand.board ? hand.board.river : null;
 
   function cardTxt(c){
-    if(!c) return "—";
+    if(!c) return "-";
     if(typeof c === "string") return c;
     // common shapes
     if(c.r && c.suit) return String(c.r) + String(c.suit);
     if(c.rank && c.suit) return String(c.rank) + String(c.suit);
     if(c.r && c.s) return String(c.r) + String(c.s);
     if(c.rank && c.s) return String(c.rank) + String(c.s);
-    return "—";
+    return "-";
   }
 
   let showFlop = false, showTurn = false, showRiver = false;
@@ -5751,11 +5817,11 @@ function renderBoardSummaryInto(el, hand, mode){
     showRiver = true;
   }
 
-  const f1 = showFlop ? cardTxt(flop[0]) : "—";
-  const f2 = showFlop ? cardTxt(flop[1]) : "—";
-  const f3 = showFlop ? cardTxt(flop[2]) : "—";
-  const t  = showTurn ? cardTxt(turn) : "—";
-  const r  = showRiver ? cardTxt(river) : "—";
+  const f1 = showFlop ? cardTxt(flop[0]) : "-";
+  const f2 = showFlop ? cardTxt(flop[1]) : "-";
+  const f3 = showFlop ? cardTxt(flop[2]) : "-";
+  const t  = showTurn ? cardTxt(turn) : "-";
+  const r  = showRiver ? cardTxt(river) : "-";
 
   el.textContent = `${f1} ${f2} ${f3}  |  ${t}  |  ${r}`;
 }
@@ -5768,7 +5834,7 @@ function getSortedActions(hand){
 }
 
 function formatActionForTimeline(a){
-  const who = a.actorPos || "—";
+  const who = a.actorPos || "-";
   const k = String(a.action || "").toUpperCase();
 
   // Map actions to nice short text
@@ -5789,7 +5855,7 @@ function formatActionForTimeline(a){
 
   // Optional note (keep short)
   const note = String(a.note || "").trim();
-  const noteTxt = note ? ` — ${note}` : "";
+  const noteTxt = note ? ` - ${note}` : "";
 
   return `${who} ${verb}${amtTxt}${noteTxt}`;
 }
@@ -5832,7 +5898,7 @@ function renderLoggerSessionSummary(){
   const btnSeat = Number(loggerState?.table?.btnSeat ?? 0);
   
   loggerSessionSummary.textContent =
-    `Active session created ${created} • Hands: ${handsCount} • Button seat: ${Number(loggerState.table.btnSeat) + 1}`;
+    `Active session created ${created} - Hands: ${handsCount} - Button seat: ${Number(loggerState.table.btnSeat) + 1}`;
 }
 
 function renderLoggerSessionSettings(){
@@ -6080,7 +6146,7 @@ doneBtn.addEventListener("click", ()=>{
   derived.style.fontWeight = "750";
   derived.textContent = bbAmt
     ? `Derived BB = ${fmtMoney(parsed.currency, bbAmt)} (used for BB-based bet entry later)`
-    : `Derived BB = — (enter stakes like $0.05/$0.10)`;
+    : `Derived BB = - (enter stakes like $0.05/$0.10)`;
 
   wrap.appendChild(title);
   wrap.appendChild(grid);
@@ -6096,13 +6162,13 @@ function renderLoggerHandsList(){
 
   const active = getActiveSession();
   if(!active){
-    el.textContent = "—";
+    el.textContent = "-";
     return;
   }
 
   const hands = active.hands || [];
   if(!hands.length){
-    el.textContent = "No hands yet. Click “Log new hand”.";
+    el.textContent = "No hands yet. Click Log new hand.";
     return;
   }
 
@@ -6138,7 +6204,7 @@ left.style.textOverflow = "ellipsis";
 left.style.whiteSpace = "nowrap";
 
 const right = document.createElement("span");
-right.textContent = `${dt} • BTN ${Number(h.btnSeat) + 1}`;
+right.textContent = `${dt} - BTN ${Number(h.btnSeat) + 1}`;
 right.style.whiteSpace = "nowrap";
 right.style.opacity = "0.95";
 right.style.fontWeight = "800";
@@ -6394,7 +6460,7 @@ heroCardsVal.className = "kicker";
 heroCardsVal.style.fontWeight = "900";
 heroCardsVal.textContent = (hand.heroCards && hand.heroCards.length === 2 && hand.heroCards[0] && hand.heroCards[1])
   ? `${cardToPretty(hand.heroCards[0])} ${cardToPretty(hand.heroCards[1])}`
-  : "—";
+  : "-";
 
 const heroCardsBtn = document.createElement("button");
 heroCardsBtn.textContent = "Pick hero cards";
@@ -6508,7 +6574,7 @@ card.appendChild(heroCardsLine);
 
   // Note
   const note = document.createElement("textarea");
-  note.placeholder = "Quick note (optional)…";
+  note.placeholder = "Quick note (optional)...";
   note.value = hand.notes || "";
   note.style.minHeight = "80px";
   note.style.padding = "10px 12px";
@@ -6587,12 +6653,12 @@ function renderLoggerHandEditor(hand){
 
   const active = getActiveSession();
   if(!active){
-    mount.textContent = "Select a session and click “Log new hand”.";
+    mount.textContent = "Click Log new hand.";
     return;
   }
 
   if(!hand){
-    mount.textContent = "Click “Log new hand” to begin.";
+    mount.textContent = "Click Log new hand.";
     return;
   }
 
@@ -6726,13 +6792,13 @@ gate.appendChild(startRow);
 
   const title = document.createElement("div");
   title.style.fontWeight = "950";
-  title.textContent = `Editing hand • Hero position: ${heroPos}`;
+  title.textContent = `Editing hand - Hero position: ${heroPos}`;
   
 
   const meta = document.createElement("div");
   meta.className = "kicker";
   meta.style.color = "var(--muted)";
-  meta.textContent = `BTN seat: ${Number(hand.btnSeat) + 1} • Hero seat: 1 • Players: ${n}`;
+  meta.textContent = `BTN seat: ${Number(hand.btnSeat) + 1} - Hero seat: 1 - Players: ${n}`;
 
   // Allow correcting BTN seat after hand start (remaps existing actor positions)
 const btnSeatLine = document.createElement("div");
@@ -6887,7 +6953,7 @@ heroVal.className = "kicker";
 heroVal.style.fontWeight = "900";
 heroVal.textContent = hand.heroCards && hand.heroCards.length === 2
   ? `${cardToPretty(hand.heroCards[0])} ${cardToPretty(hand.heroCards[1])}`
-  : "—";
+  : "-";
 
 const heroBtn = document.createElement("button");
 heroBtn.textContent = "Pick hero cards (start hand)";
@@ -7180,7 +7246,7 @@ potLine.style.fontWeight = "900";
 
 const pot = estimatePotByStreetBB(hand);
 potLine.textContent =
-  `Pot (approx): pre ${pot.potAfter.PREFLOP.toFixed(1)}bb • flop ${pot.potAfter.FLOP.toFixed(1)}bb • turn ${pot.potAfter.TURN.toFixed(1)}bb • river ${pot.potAfter.RIVER.toFixed(1)}bb`;
+  `Pot (approx): pre ${pot.potAfter.PREFLOP.toFixed(1)}bb - flop ${pot.potAfter.FLOP.toFixed(1)}bb - turn ${pot.potAfter.TURN.toFixed(1)}bb - river ${pot.potAfter.RIVER.toFixed(1)}bb`;
 
 actionsWrap.appendChild(potLine);
 
@@ -7248,14 +7314,14 @@ const eff = document.createElement("div");
 eff.className = "kicker";
 eff.style.color = "var(--muted)";
 eff.style.fontWeight = "900";
-eff.textContent = hand.effStackBB ? `Eff: ${Number(hand.effStackBB).toFixed(0)}bb` : "Eff: —";
+eff.textContent = hand.effStackBB ? `Eff: ${Number(hand.effStackBB).toFixed(0)}bb` : "Eff: -";
 
 recapTop.appendChild(spot);
 recapTop.appendChild(eff);
 
 // ===== Showdown readout (Review) =====
 function fmtCard(cc){
-  if(!cc) return "—";
+  if(!cc) return "-";
   const r = cc[0];
   const s = cc[1];
   const suitObj = PF_SUITS.find(x => x.s === s);
@@ -7272,8 +7338,8 @@ if(!hand.wentToShowdown){
 } else {
   const vPos = (hand.villainShow?.pos || "").trim();
   const cards = (hand.villainShow?.cards || []).filter(Boolean);
-  const cardTxt = cards.length ? cards.map(fmtCard).join(" ") : "—";
-  sdRead.textContent = `Showdown: Yes • Villain ${vPos ? vPos : "—"} • Cards: ${cardTxt}`;
+  const cardTxt = cards.length ? cards.map(fmtCard).join(" ") : "-";
+  sdRead.textContent = `Showdown: Yes - Villain ${vPos ? vPos : "-"} - Cards: ${cardTxt}`;
 }
 
 recap.appendChild(sdRead);
@@ -7324,7 +7390,7 @@ if(flags.length){
   flagLine.className = "kicker";
   flagLine.style.color = "var(--muted)";
   flagLine.style.fontWeight = "900";
-  flagLine.textContent = flags.join(" • ");
+  flagLine.textContent = flags.join(" - ");
   recap.appendChild(flagLine);
 }
 
@@ -7362,8 +7428,8 @@ if(hand.effStackBB !== "" && hand.effStackBB != null){
   const n = Number(hand.effStackBB);
   if(isFinite(n) && n > 0){
     if(n < 40) addSummaryChip("Eff <40bb");
-    else if(n < 80) addSummaryChip("Eff 40–80bb");
-    else if(n < 150) addSummaryChip("Eff 80–150bb");
+    else if(n < 80) addSummaryChip("Eff 40-80bb");
+    else if(n < 150) addSummaryChip("Eff 80-150bb");
     else addSummaryChip("Eff 150bb+");
   }
 }
@@ -7403,7 +7469,7 @@ function streetLabel(st){
   if(s === "FLOP")    return "Flop";
   if(s === "TURN")    return "Turn";
   if(s === "RIVER")   return "River";
-  return s || "—";
+  return s || "-";
 }
 
 const streets = ["PREFLOP","FLOP","TURN","RIVER"];
@@ -7456,7 +7522,7 @@ rows.forEach((a, idx)=>{
   who.style.color = "var(--muted)";
   who.style.fontWeight = "950";
   who.style.textAlign = "right";
-  who.textContent = a.actorPos || "—";
+  who.textContent = a.actorPos || "-";
 
 // Call out HERO position in the timeline for fast scanning
 if((a.actorPos || "") === heroPosLocal){
@@ -7538,7 +7604,7 @@ actionsWrap.appendChild(tl);
     const empty = document.createElement("div");
     empty.className = "kicker";
     empty.style.color = "var(--muted)";
-    empty.textContent = "No insights yet — add more actions to this hand.";
+    empty.textContent = "No insights yet - add more actions to this hand.";
     insightsBody.appendChild(empty);
   } else {
     for(const txt of insights){
@@ -7638,7 +7704,7 @@ streetSel.style.flex = "0 0 140px";
 
   
 const nextStreetBtn = document.createElement("button");
-nextStreetBtn.textContent = "Next street →";
+nextStreetBtn.textContent = "Next street ->";
 nextStreetBtn.style.padding = "10px 12px";
 nextStreetBtn.style.borderRadius = "12px";
 nextStreetBtn.style.fontWeight = "900";
@@ -7832,7 +7898,7 @@ function parseBetSize(raw){
   m = s.match(/^(\d*\.?\d+)\s*%$/);
   if(m) return { type:"PERCENT", value: Number(m[1]) };
 
-  // pure number → BB
+  // pure number -> BB
   if(!isNaN(s)) return { type:"BB", value:Number(s) };
 
   return null;
@@ -7875,7 +7941,7 @@ function addActionQuick(street, action, presetAmt){
 obj.norm = parseBetSize(obj.amt);
 
 // If this is a sizing action and no preset amount was provided,
-// DON'T log a row yet — just prefill the form and focus amount.
+// DON'T log a row yet - just prefill the form and focus amount.
 if(needsAmount(action) && (presetAmt == null || presetAmt === "")){
   setForm(street, action);
 
@@ -7944,7 +8010,7 @@ if(needsAmount(action)){
     }
   }, 0);
 
-// Prefill form for “next action” speed (don’t just repeat the same action)
+// Prefill form for "next action" speed (don't just repeat the same action)
 let nextAction = action;
 
 // After an aggressive action, most often the next logged action is a response (CALL/FOLD)
@@ -7986,7 +8052,7 @@ function renderQuickTemplates(){
 
   const st = streetSel.value || "PREFLOP";
 
-  // Per-street “most used” quick buttons
+  // Per-street "most used" quick buttons
   if(st === "PREFLOP"){
     tplRow.appendChild(mkTpl("Fold", "PREFLOP", "FOLD"));
     tplRow.appendChild(mkTpl("Call", "PREFLOP", "CALL"));
@@ -7999,7 +8065,7 @@ function renderQuickTemplates(){
     tplRow.appendChild(mkTpl("Call", st, "CALL"));
   }
 
-  // “More…” dropdown (keeps UI clean)
+  // "More..." dropdown (keeps UI clean)
   const moreSel = document.createElement("select");
   moreSel.style.borderRadius = "12px";
   moreSel.style.border = "1px solid rgba(255,255,255,.10)";
@@ -8010,7 +8076,7 @@ function renderQuickTemplates(){
   moreSel.style.minWidth = "120px";
 
   const opts = [
-    {v:"", label:"More…"},
+    {v:"", label:"More..."},
     {v:"CALL",  label:"Call"},
     {v:"CHECK", label:"Check"},
     {v:"BET",   label:"Bet"},
@@ -8019,10 +8085,10 @@ function renderQuickTemplates(){
     {v:"ALLIN", label:"All-in"},
   ];
 
-  // Preflop doesn’t use “Check” in most logging; still allow via More if you want,
+  // Preflop doesn't use "Check" in most logging; still allow via More if you want,
   // but keep the quick row clean.
   if(st === "PREFLOP"){
-    // (leave all options; it’s fine)
+    // (leave all options; it's fine)
   }
 
   for(const o of opts){
@@ -8253,7 +8319,7 @@ function isTypingContext(el){
 const __loggerHotkeyHandler = (e)=>{
   if(!isLoggerEditorActive()) return;
 
-  // Don’t fire hotkeys while typing, except:
+  // Don't fire hotkeys while typing, except:
   // - Enter in Amount input should submit Add
   const ae = document.activeElement;
 
@@ -8386,7 +8452,7 @@ function renderActionsList(){
         amt.textContent = `${a.amt}bb`;
       }
     }else{
-      amt.textContent = "—";
+      amt.textContent = "-";
     }
 
     const note = document.createElement("div");
@@ -8472,7 +8538,7 @@ function updateReplayNow(){
     return;
   }
   const a = actions[hand.replayIdx];
-  replayNow.textContent = `(${hand.replayIdx + 1}/${total}) ${a.street} • ${a.actorPos} • ${a.action}`;
+  replayNow.textContent = `(${hand.replayIdx + 1}/${total}) ${a.street} - ${a.actorPos} - ${a.action}`;
 }
 
 updateReplayNow();
@@ -8684,7 +8750,7 @@ actions: [] // [{id, street, actorPos, action, amt, unit, toCall, note, createdA
 // Auto-open hero cards for SNAPSHOT (optional)
 openLoggerCardPicker({
   title: "Pick hero cards (snapshot)",
-  sub: "Optional — helps reconstruct later.",
+  sub: "Optional - helps reconstruct later.",
   slots: (hand.heroCards || [null,null]).slice(),
   exclude: new Set([
     ...(hand.board?.flop || []),
@@ -8805,12 +8871,12 @@ if(loggerNewHandBtn){
 }
 
 function resetSelectedHandUI(){
-  selHand.textContent = "—";
-  selAct.textContent = "—";
+  selHand.textContent = "-";
+  selAct.textContent = "-";
   selNote.textContent = "Click a cell";
 
   const selDeltaEl = document.getElementById("selDelta");
-  if(selDeltaEl) selDeltaEl.textContent = "—";
+  if(selDeltaEl) selDeltaEl.textContent = "-";
   if(selHandAwareness) selHandAwareness.textContent = "Pick a flop and click Apply.";
 }
 
@@ -8927,4 +8993,14 @@ if(loggerView && loggerView.style.display !== "none"){
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
 
