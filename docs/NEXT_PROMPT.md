@@ -6,101 +6,113 @@ Project: Casey's Poker Tool
 
 Current Version
 
-v0.15.0 — Study Queue + Review Workflow Improvements
+v0.17.0 — Structured Street Notes Template
 
 
 
-Current Capabilities
+Recent Improvements
 
-
-
-Logger
-
-\- Tracks meaningful decision hands
-
-\- Structured notes capture full hand lines
-
-\- Snapshot tags capture key decision spots
-
-
-
-Session Review
+\- Study Queue system
 
 \- Card-based hand history
 
-\- Top 5 Interesting Hands
+\- Note reconstruction engine
 
-\- Study Queue
+\- Showdown extraction improvements
 
-
-
-Study Queue v1 categories
-
-\- Biggest losing hands
-
-\- Failed bluff attempts
-
-\- Huge-pot losses
-
-\- High-score negative-result hands
-
-\- Pressure spots
+\- Structured notes template for new hands
 
 
 
-Analytics
-
-\- Multi-session analytics
-
-\- Pot size performance
-
-\- Bluff success rate
-
-\- Bluff success by street
-
-\- Aggression profile
-
-\- Texture summary
-
-\- Archetype insights
+Current Logging Flow
 
 
 
-Important context
-
-\- Notes are often more trustworthy than snapshot tags for full hand lines
-
-\- Snapshot chips represent tagged decision moments, not authoritative hand histories
-
-\- Logger captures a representative sample of playable or interesting spots rather than every hand
+New hands initialize notes with:
 
 
 
-Next Development Target
+Pre:
+
+Flop:
+
+Turn:
+
+River:
+
+End:
 
 
 
-Study Queue v2
+The cursor is automatically placed after "Pre:" to allow fast logging.
 
 
 
-Potential improvements
-
-\- Review Priority Score
-
-\- Duplicate suppression across categories
-
-\- Better ranking for pressure situations
-
-\- Highlight biggest mistakes automatically
+The user logs hands in natural action order.
 
 
 
-Longer-term ideas
+Example
 
-\- Hand replay trainer
 
-\- Automatic tag extraction from notes
 
-\- Pattern alerts across sessions
+Pre: HJ opens 3BB, I call BTN, BB calls. 3way.
+
+Flop: Ac Td 6s. BB checks, HJ bets 6BB, I call, BB folds. HU.
+
+Turn: 2d. HJ checks, I bet 24BB, HJ calls.
+
+River: Ts. HJ checks, I bet 30BB, HJ folds.
+
+End: Won without showdown.
+
+
+
+Next Development Targets
+
+
+
+1\. Improve reconstructed action summaries
+
+&nbsp;  Example:
+
+&nbsp;  Flop: I bet 10BB → call
+
+&nbsp;  Turn: I bet 24BB → call
+
+&nbsp;  River: I bet 30BB → fold
+
+
+
+2\. Extract villain actions more reliably
+
+
+
+3\. Detect patterns
+
+&nbsp;  - single barrel
+
+&nbsp;  - double barrel
+
+&nbsp;  - triple barrel
+
+&nbsp;  - river bluff
+
+&nbsp;  - missed value
+
+
+
+4\. Pot growth visualization
+
+
+
+Important Constraints
+
+
+
+\- Logging must remain extremely fast (live poker environment)
+
+\- Do not introduce rigid input forms
+
+\- Preserve the single notes box workflow
 

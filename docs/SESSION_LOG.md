@@ -10,6 +10,46 @@ Each entry corresponds to a version commit and summarizes:
 
 \---
 
+## v0.17.0 — Structured Street Notes Template
+
+Summary
+Improved hand note consistency by introducing a lightly preformatted street template for new hands.
+
+New behavior
+New hands now initialize notes with:
+
+Pre:
+Flop:
+Turn:
+River:
+End:
+
+This encourages a consistent street-by-street structure while still allowing natural action-order writing.
+
+Example note format
+
+Pre: CO opens 3BB, I call BTN, BB calls. 3way.
+Flop: Ac Td 6s. BB checks, CO bets 6BB, I call, BB folds. HU.
+Turn: 2d. CO checks, I bet 24BB, CO calls.
+River: Ts. CO checks, I bet 30BB, CO folds.
+End: Won without showdown.
+
+UX improvement
+When a new hand is created, the cursor automatically focuses after "Pre:" so the user can immediately begin typing.
+
+Purpose
+The template improves parsing reliability for:
+- reconstructed street actions
+- showdown detection
+- future hand-line extraction
+- pot growth analysis
+
+Stability
+- No schema changes
+- No storage changes
+- No analytics logic changes
+- Existing hands remain unchanged
+
 ## v0.15.0 — Study Queue + Review Workflow Improvements
 
 Summary

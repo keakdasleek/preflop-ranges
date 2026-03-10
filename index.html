@@ -5601,6 +5601,84 @@ function renderLoggerSessionReviewTable(){
   `;
   const topInteresting = getTopInterestingHandsV1(hands);
 
+  function reconstructHandFromNotesV1(hand){
+    const notesRaw = String(hand?.notes || "").trim();
+    if(!notesRaw) return [];
+
+    const notes = notesRaw.replace(/\s+/g, " ");
+    const lower = notes.toLowerCase();
+    const lines = [];
+
+    const streets = [
+      { key: "preflop", label: "Preflop" },
+      { key: "flop", label: "Flop" },
+      { key: "turn", label: "Turn" },
+      { key: "river", label: "River" }
+    ];
+
+    const found = [];
+    streets.forEach(s => {
+      const idx = lower.indexOf(s.key);
+      if(idx >= 0) found.push({ idx, ...s });
+    });
+    found.sort((a,b)=> a.idx - b.idx);
+
+    const actionMap = {
+      "3bet": "3bet",
+      "4bet": "4bet",
+      "cbet": "bet",
+      "c-bet": "bet",
+      "raise": "raise",
+      "bet": "bet",
+      "call": "call",
+      "fold": "fold",
+      "check": "check",
+      "jam": "jam",
+      "shove": "jam"
+    };
+
+    const toTitle = (s) => {
+      const x = String(s || "");
+      if(!x) return "";
+      return x.charAt(0).toUpperCase() + x.slice(1);
+    };
+
+    found.forEach((f, i) => {
+      const end = (i + 1 < found.length) ? found[i + 1].idx : notes.length;
+      const seg = notes.slice(f.idx, end).trim();
+      const segLower = seg.toLowerCase();
+
+      let heroAction = "";
+      const heroMatch = segLower.match(/\bi\s+(3bet|4bet|c-?bet|raise|bet|call|fold|check|jam|shove)\b/);
+      if(heroMatch){
+        const k = String(heroMatch[1] || "").replace(/\s+/g, "");
+        heroAction = actionMap[k] || k;
+      }
+
+      let villainResp = "";
+      if(/\b(gets villain to fold|villain folds|everyone folds|villain folded)\b/.test(segLower)){
+        villainResp = "Villain folds";
+      } else {
+        const vm = segLower.match(/\b(villain|he|they)\s+(folds?|calls?|raises?|checks?|jams?|shoves?)\b/);
+        if(vm) villainResp = `Villain ${String(vm[2] || "").toLowerCase()}`;
+      }
+
+      if(heroAction){
+        lines.push(`${f.label}: I ${heroAction}${villainResp ? ` | ${villainResp}` : ""}`);
+      } else if(f.key === "preflop"){
+        const clipped = seg.replace(/^preflop\s*[:\-]?\s*/i, "").trim();
+        if(clipped) lines.push(`Preflop: ${clipped.length > 90 ? clipped.slice(0, 90) + "..." : clipped}`);
+      }
+    });
+
+    const showMatch = notes.match(/([^.!?]*\b(showdown|reveals?|shows?|mucks?|has|had)\b[^.!?]*[.!?]?)/i);
+    if(showMatch && showMatch[1]){
+      const txt = showMatch[1].trim().replace(/\s+/g, " ");
+      if(txt) lines.push(`Showdown: ${txt}`);
+    }
+
+    return lines.slice(0, 6);
+  }
   const renderReviewHandCardV1 = (entry, idx, opts = {}) => {
     const h = entry?.hand || {};
     const interesting = entry?.interesting || {};
@@ -5707,7 +5785,19 @@ function renderLoggerSessionReviewTable(){
           </div>
         `;
       } else {
-        actionsHtml = `<div class="kicker" style="margin-bottom:8px">No structured actions logged. See notes for hand line.</div>`;
+        const reconstructed = reconstructHandFromNotesV1(h);
+        if(reconstructed.length){
+          actionsHtml = `
+            <div style="margin-bottom:8px">
+              <div class="kicker" style="margin-bottom:4px;font-weight:900">Reconstructed from notes</div>
+              <div style="display:grid;gap:3px">
+                ${reconstructed.map(x => `<div class="kicker">${x}</div>`).join("")}
+              </div>
+            </div>
+          `;
+        } else {
+          actionsHtml = `<div class="kicker" style="margin-bottom:8px">No structured actions logged. See notes for hand line.</div>`;
+        }
       }
     }
 
@@ -8091,6 +8181,13 @@ if(hand.wentToShowdown){
         hand.villainShow.cards = [newSlots[0] || null, newSlots[1] || null];
         saveLogger();
         renderLoggerHandEditor(hand);
+      setTimeout(()=>{
+        const notesEl = document.querySelector("#loggerHandEditor textarea");
+        if(notesEl && notesEl.value === LOGGER_NOTES_TEMPLATE){
+          notesEl.focus();
+          notesEl.setSelectionRange("Pre:".length, "Pre:".length);
+        }
+      }, 0);
       }
     });
   });
@@ -9336,6 +9433,13 @@ function renderActionsList(){
       actions.splice(idx, 1);
       saveLogger();
       renderLoggerHandEditor(hand);
+      setTimeout(()=>{
+        const notesEl = document.querySelector("#loggerHandEditor textarea");
+        if(notesEl && notesEl.value === LOGGER_NOTES_TEMPLATE){
+          notesEl.focus();
+          notesEl.setSelectionRange("Pre:".length, "Pre:".length);
+        }
+      }, 0);
       renderLoggerHandsList();
     });
 
@@ -9558,6 +9662,8 @@ function scrollLoggerHandEditorIntoView(){
   el.scrollIntoView({ behavior: "smooth", block: "start" });
 }
   
+const LOGGER_NOTES_TEMPLATE = "Pre:\nFlop:\nTurn:\nRiver:\nEnd:";
+
 function createLoggerHand(){
   const active = getActiveSession();
   if(!active){
@@ -9574,7 +9680,7 @@ function createLoggerHand(){
       maxPlayers: Number(loggerState?.table?.maxPlayers || 8),
       heroSeat: 0,
       btnSeat: Number(loggerState.table.btnSeat),
-      notes: "",
+      notes: LOGGER_NOTES_TEMPLATE,
       completedAt: null,
       effStackBB: "",            // user-entered, e.g. 100
       wentToShowdown: false,     // optional
@@ -9614,6 +9720,13 @@ actions: [] // [{id, street, actorPos, action, amt, unit, toCall, note, createdA
       renderLoggerSessionSummary();
       renderLoggerHandsList();
       renderLoggerHandEditor(hand);
+      setTimeout(()=>{
+        const notesEl = document.querySelector("#loggerHandEditor textarea");
+        if(notesEl && notesEl.value === LOGGER_NOTES_TEMPLATE){
+          notesEl.focus();
+          notesEl.setSelectionRange("Pre:".length, "Pre:".length);
+        }
+      }, 0);
       scrollLoggerHandEditorIntoView();
 
 // Auto-open hero cards for SNAPSHOT (optional)
@@ -9862,6 +9975,12 @@ if(loggerView && loggerView.style.display !== "none"){
 </script>
 </body>
 </html>
+
+
+
+
+
+
 
 
 
