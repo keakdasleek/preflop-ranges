@@ -10,6 +10,29 @@ Each entry corresponds to a version commit and summarizes:
 
 \---
 
+## v0.13.27.0 — Pot Size Performance Analytics
+
+Summary
+Added a session analytics feature that groups logged hands by pot size and reports hands, net BB, and average BB for each category.
+
+Buckets:
+- Small (<10BB)
+- Medium (10–30BB)
+- Big (30–100BB)
+- Huge (100BB+)
+
+This provides a quick view into where large gains or losses occur during a session.
+
+QA Notes
+- Verified section renders above Top 5 Interesting Hands
+- Verified values populate correctly from logged hands
+- No console errors
+- No changes to scoring, storage, or schema
+- Existing hand review features unchanged
+
+Next Development Step
+Add bluff success rate analytics to evaluate river aggression effectiveness.
+
 \# v0.13.26.2 â€” Add interesting-hand scoring helpers (partial)
 
 Date:  
@@ -132,3 +155,25 @@ Older entries follow the same structure.
 
 
 
+# v0.13.26.5 - Session Review pot size performance summary
+
+Date:  
+March 10, 2026
+
+Summary:  
+Added a new Pot Size Performance summary in Session Review that groups hands by absolute result size and reports hands, net BB, and average BB per bucket.
+
+QA notes:
+
+- New section renders above Top 5 Interesting Hands
+- Buckets included: Small (<10BB), Medium (10-30BB), Big (30-100BB), Huge (100BB+)
+- Uses Number()/isFinite guards for missing or invalid values
+- Read-only analysis only; no hand mutation
+- No scoring/ranking logic changes
+- No schema, save/load, or localStorage changes
+
+Next development step:
+
+Add optional interactive bucket filters so clicking a pot-size bucket narrows the Hand History table display without changing stored data or scoring.
+
+---

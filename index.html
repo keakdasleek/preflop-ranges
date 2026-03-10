@@ -5093,6 +5093,80 @@ function renderLoggerSessionReviewTable(){
     <a href="#session-review-history" style="color:var(--call);text-decoration:none">Hand History</a>
   `;
 
+  const potSizeBuckets = [
+    { key: "small", label: "Small (<10BB)", min: 0, max: 10, hands: 0, net: 0 },
+    { key: "medium", label: "Medium (10-30BB)", min: 10, max: 30, hands: 0, net: 0 },
+    { key: "big", label: "Big (30-100BB)", min: 30, max: 100, hands: 0, net: 0 },
+    { key: "huge", label: "Huge (100BB+)", min: 100, max: Infinity, hands: 0, net: 0 }
+  ];
+
+  const pickPotBucket = (absBb) => {
+    if(absBb < 10) return potSizeBuckets[0];
+    if(absBb < 30) return potSizeBuckets[1];
+    if(absBb < 100) return potSizeBuckets[2];
+    return potSizeBuckets[3];
+  };
+
+  const fmtBbSigned = (v) => {
+    const n = Number(v);
+    if(!isFinite(n)) return "0.0BB";
+    return `${n > 0 ? "+" : ""}${n.toFixed(1)}BB`;
+  };
+
+  hands.forEach((h) => {
+    if(!h) return;
+
+    const interesting = (typeof scoreInterestingHandV1 === "function")
+      ? scoreInterestingHandV1(h)
+      : null;
+
+    const resultRaw = Number(h.resultBB);
+    const resultValid = isFinite(resultRaw);
+
+    const absFromInterestingRaw = Number(interesting?.absResultBB);
+    const absFromInterestingValid = isFinite(absFromInterestingRaw);
+
+    if(!resultValid && !absFromInterestingValid) return;
+
+    const absResultBB = absFromInterestingValid ? absFromInterestingRaw : Math.abs(resultRaw);
+    const bucket = pickPotBucket(absResultBB);
+
+    bucket.hands += 1;
+    bucket.net += resultValid ? resultRaw : 0;
+  });
+
+  const potSizeRows = potSizeBuckets.map((b) => {
+    const avg = b.hands ? (b.net / b.hands) : 0;
+    return `
+      <tr>
+        <td>${b.label}</td>
+        <td>${b.hands}</td>
+        <td>${fmtBbSigned(b.net)}</td>
+        <td>${fmtBbSigned(avg)}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const potSizeSection = document.createElement("div");
+  potSizeSection.style.marginBottom = "10px";
+  potSizeSection.innerHTML = `
+    <details open>
+      <summary style="margin-bottom:6px;font-weight:900;color:rgba(231,236,255,.92);cursor:pointer">Pot Size Performance</summary>
+      <table class="loggerReviewTable">
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th style="width:70px">Hands</th>
+            <th style="width:90px">Net</th>
+            <th style="width:90px">Avg</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${potSizeRows}
+        </tbody>
+      </table>
+    </details>
+  `;
   const topInteresting = getTopInterestingHandsV1(hands);
   const topInterestingSection = document.createElement("div");
   topInterestingSection.style.marginBottom = "10px";
@@ -5302,6 +5376,7 @@ function renderLoggerSessionReviewTable(){
 
   mount.innerHTML = "";
   mount.appendChild(jumpLinks);
+  mount.appendChild(potSizeSection);
   mount.appendChild(topInterestingSection);
   mount.appendChild(handHistorySection);
 }
@@ -9228,6 +9303,8 @@ if(loggerView && loggerView.style.display !== "none"){
 </script>
 </body>
 </html>
+
+
 
 
 
