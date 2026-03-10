@@ -1,34 +1,68 @@
 # Next Prompt
 
-Context: Casey's Poker Tool
+Project: Casey’s Poker Tool
 
-Current Version
-v0.13.27.0 — Pot Size Performance Analytics
 
-Recent Change
-Added pot size performance analytics to the session review page.
 
-Hands are grouped into:
-- Small (<10BB)
-- Medium (10–30BB)
-- Big (30–100BB)
-- Huge (100BB+)
+Current Version: v0.14.0  
 
-Metrics shown:
-- hands
-- net BB
-- average BB
+Milestone: Session Review + Multi-Session Analytics
 
-This section renders above Top 5 Interesting Hands.
 
-Next Feature
-Add Bluff Success Rate analytics.
 
-Goal:
-Measure effectiveness of river bluffs by tracking attempts, success rate, and net BB impact.
+Key capabilities
 
-Constraints:
-- read-only analysis
-- no schema changes
-- no storage changes
-- operate on existing logged hand notes and resultBB values.
+\- Hand logger with structured notes
+
+\- Top 5 Interesting Hands scoring
+
+\- Card-based hand review UI
+
+\- Multi-session analytics
+
+\- Pot size performance analysis
+
+\- Bluff success tracking
+
+\- Aggression profile summary
+
+\- Texture and archetype insights
+
+
+
+Next Feature Target
+
+Study Queue v1
+
+
+
+Goal
+
+Surface the most useful hands to review automatically.
+
+
+
+Candidate categories
+
+\- Biggest losing hands
+
+\- Failed bluff attempts
+
+\- Huge pot losses
+
+\- High-score negative-result hands
+
+\- Pressure situations (facing raises or all-ins)
+
+
+
+Constraints
+
+\- Read-only analytics
+
+\- No schema changes
+
+\- No storage changes
+
+\- Build on existing scoring functions
+

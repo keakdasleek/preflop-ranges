@@ -10,6 +10,34 @@ Each entry corresponds to a version commit and summarizes:
 
 \---
 
+## v0.14.0 — Session Review + Multi-Session Analytics
+
+Major milestone introducing structured hand review and cross-session analytics.
+
+### New analytics
+- Multi-session analytics dashboard
+- Pot size performance across sessions
+- Bluff success rate
+- Bluff success by street (turn vs river)
+- Aggression profile (flop / turn / river action distribution)
+
+### Review UI
+- Card-based hand history
+- Shared renderer for Top 5 Interesting Hands and Hand History
+- Expandable hand cards with notes + actions
+- Section grouping: Overall Patterns / This Session / Review Hands
+
+### UX improvements
+- Pot size chips (Small / Medium / Big / Huge)
+- Simplified metadata chips
+- Reduced chip size to avoid visual dominance
+- Cleaner card layout for hand review
+
+### Stability
+- No schema changes
+- No localStorage changes
+- No save/load behavior changes
+
 ## v0.13.27.0 — Pot Size Performance Analytics
 
 Summary

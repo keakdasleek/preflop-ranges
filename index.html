@@ -4987,6 +4987,8 @@ const buildBehaviorTable = (title, rows)=>{
     `;
   };
  mount.innerHTML = `
+  <div style="margin:0 0 6px 0;font-weight:900;color:rgba(231,236,255,.96)">This Session</div>
+  <div class="kicker" style="margin-bottom:8px">Includes Pot Size Performance, Bluff Success Rate, Aggression Profile, Postflop Behavior Summary, Texture Summary, and Archetype Insights.</div>
   <details style="margin-bottom:10px">
     <summary style="font-weight:900;color:rgba(231,236,255,.92);cursor:pointer">Postflop Behavior Summary</summary>
     <div style="padding-top:8px">
@@ -5025,7 +5027,6 @@ const buildBehaviorTable = (title, rows)=>{
           return `
             <div style="margin-bottom:12px">
               <div style="font-weight:900;margin-bottom:6px">${title}</div>
-              <style>.loggerTop5Row[open] .loggerTop5Preview{display:none}</style>
         <div style="border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02)">
                 <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
                   <colgroup>
@@ -5093,6 +5094,220 @@ function renderLoggerSessionReviewTable(){
     <a href="#session-review-history" style="color:var(--call);text-decoration:none">Hand History</a>
   `;
 
+  const makeGroupHeader = (title, subtitle) => {
+    const el = document.createElement("div");
+    el.style.margin = "10px 0 6px 0";
+    el.innerHTML = `
+      <div style="font-weight:900;color:rgba(231,236,255,.96)">${title}</div>
+      ${subtitle ? `<div class="kicker" style="margin-top:2px">${subtitle}</div>` : ""}
+    `;
+    return el;
+  };
+
+  const overallPatternsHeader = makeGroupHeader(
+    "Overall Patterns",
+    "Rollups across all logged sessions."
+  );
+
+  const thisSessionHeader = makeGroupHeader(
+    "This Session",
+    "Active session analytics and tendencies."
+  );
+
+  const reviewHandsHeader = makeGroupHeader(
+    "Review Hands",
+    "Interesting spots and full hand history."
+  );
+
+  const allSessions = Array.isArray(loggerState?.sessions) ? loggerState.sessions : [];
+  const allHands = [];
+  allSessions.forEach((s) => {
+    const hs = Array.isArray(s?.hands) ? s.hands : [];
+    hs.forEach((h) => { if(h) allHands.push(h); });
+  });
+
+  const msPotBuckets = [
+    { key: "small", label: "Small (<10BB)", min: 0, max: 10, hands: 0, net: 0 },
+    { key: "medium", label: "Medium (10-30BB)", min: 10, max: 30, hands: 0, net: 0 },
+    { key: "big", label: "Big (30-100BB)", min: 30, max: 100, hands: 0, net: 0 },
+    { key: "huge", label: "Huge (100BB+)", min: 100, max: Infinity, hands: 0, net: 0 }
+  ];
+
+  const pickMsPotBucket = (absBb) => {
+    if(absBb < 10) return msPotBuckets[0];
+    if(absBb < 30) return msPotBuckets[1];
+    if(absBb < 100) return msPotBuckets[2];
+    return msPotBuckets[3];
+  };
+
+  const msFmtBb = (v) => {
+    const n = Number(v);
+    if(!isFinite(n)) return "0.0BB";
+    return `${n > 0 ? "+" : ""}${n.toFixed(1)}BB`;
+  };
+
+  const msBluffTermRe = /\b(bluff|stab|take it down|take the hand|take the pot|get the fold|gets villain to fold)\b/i;
+  const msFoldTermRe = /\b(everyone folds|villain folds|villain folded|folds to|folded to|gets villain to fold|get the fold|hero gets a fold)\b/i;
+  const msNoShowdownRe = /\b(no showdown|without showdown|did not show|didn't show)\b/i;
+  const msBluffAggressiveActions = new Set(["BET", "RAISE"]);
+  const msBluffLateStreets = new Set(["TURN", "RIVER"]);
+
+  let msBluffAttempts = 0;
+  let msBluffSuccessful = 0;
+  let msBluffNet = 0;
+
+  const msBluffStreet = {
+    TURN: { attempts: 0, successful: 0, net: 0 },
+    RIVER: { attempts: 0, successful: 0, net: 0 }
+  };
+
+  allHands.forEach((h) => {
+    const resultRaw = Number(h?.resultBB);
+    const resultValid = isFinite(resultRaw);
+
+    const interesting = (typeof scoreInterestingHandV1 === "function")
+      ? scoreInterestingHandV1(h)
+      : null;
+
+    const absFromInterestingRaw = Number(interesting?.absResultBB);
+    const absFromInterestingValid = isFinite(absFromInterestingRaw);
+
+    if(resultValid || absFromInterestingValid){
+      const absResultBB = absFromInterestingValid ? absFromInterestingRaw : Math.abs(resultRaw);
+      const b = pickMsPotBucket(absResultBB);
+      b.hands += 1;
+      b.net += resultValid ? resultRaw : 0;
+    }
+
+    const notes = String(h?.notes || "");
+    const notesLower = notes.toLowerCase();
+
+    const snapHeroAction = String(h?.snapHeroAction || "").toUpperCase();
+    const snapStreet = String(h?.snapStreet || "").toUpperCase();
+
+    const hasBluffPhrase = msBluffTermRe.test(notesLower);
+    const hasFoldPhrase = msFoldTermRe.test(notesLower);
+    const hasNoShowdownPhrase = msNoShowdownRe.test(notesLower);
+
+    const isLateAggressive =
+      msBluffAggressiveActions.has(snapHeroAction) &&
+      msBluffLateStreets.has(snapStreet);
+
+    const isAttempt = hasBluffPhrase || (isLateAggressive && (hasFoldPhrase || hasNoShowdownPhrase));
+    if(!isAttempt) return;
+
+    msBluffAttempts += 1;
+    const isSuccess = hasFoldPhrase;
+    if(isSuccess) msBluffSuccessful += 1;
+    if(resultValid) msBluffNet += resultRaw;
+
+    if(msBluffStreet[snapStreet]){
+      msBluffStreet[snapStreet].attempts += 1;
+      if(isSuccess) msBluffStreet[snapStreet].successful += 1;
+      if(resultValid) msBluffStreet[snapStreet].net += resultRaw;
+    }
+  });
+
+  const msPotRows = msPotBuckets.map((b) => {
+    const avg = b.hands ? (b.net / b.hands) : 0;
+    return `
+      <tr>
+        <td>${b.label}</td>
+        <td>${b.hands}</td>
+        <td>${msFmtBb(b.net)}</td>
+        <td>${msFmtBb(avg)}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const msBluffRate = msBluffAttempts ? (msBluffSuccessful / msBluffAttempts) * 100 : 0;
+  const msBluffAvg = msBluffAttempts ? (msBluffNet / msBluffAttempts) : 0;
+
+  const msStreetRate = (successful, attempts) => attempts ? `${((successful / attempts) * 100).toFixed(1)}%` : "0.0%";
+  const msStreetAvg = (net, attempts) => attempts ? (net / attempts) : 0;
+
+  const msTurn = msBluffStreet.TURN;
+  const msRiver = msBluffStreet.RIVER;
+
+  const multiSessionSection = document.createElement("div");
+  multiSessionSection.style.marginBottom = "10px";
+  multiSessionSection.innerHTML = `
+    <details open>
+      <summary style="margin-bottom:6px;font-weight:900;color:rgba(231,236,255,.92);cursor:pointer">Multi-Session Analytics (All Logged Sessions)</summary>
+      <div class="kicker" style="margin-bottom:6px">Sessions ${allSessions.length} | Hands ${allHands.length}</div>
+
+      <div class="kicker" style="font-weight:700;margin:4px 0">Pot Size Performance (All Sessions)</div>
+      <table class="loggerReviewTable">
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th style="width:70px">Hands</th>
+            <th style="width:90px">Net</th>
+            <th style="width:90px">Avg</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${msPotRows}
+        </tbody>
+      </table>
+
+      <div class="kicker" style="font-weight:700;margin:8px 0 4px 0">Bluff Success Rate (All Sessions)</div>
+      <table class="loggerReviewTable">
+        <thead>
+          <tr>
+            <th style="width:90px">Attempts</th>
+            <th style="width:90px">Successful</th>
+            <th style="width:110px">Success Rate</th>
+            <th style="width:90px">Net</th>
+            <th style="width:90px">Avg</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>${msBluffAttempts}</td>
+            <td>${msBluffSuccessful}</td>
+            <td>${msBluffRate.toFixed(1)}%</td>
+            <td>${msFmtBb(msBluffNet)}</td>
+            <td>${msFmtBb(msBluffAvg)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="kicker" style="font-weight:700;margin:8px 0 4px 0">Bluff Success by Street (All Sessions)</div>
+      <table class="loggerReviewTable">
+        <thead>
+          <tr>
+            <th>Street</th>
+            <th style="width:90px">Attempts</th>
+            <th style="width:90px">Successful</th>
+            <th style="width:110px">Success Rate</th>
+            <th style="width:90px">Net</th>
+            <th style="width:90px">Avg</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Turn</td>
+            <td>${msTurn.attempts}</td>
+            <td>${msTurn.successful}</td>
+            <td>${msStreetRate(msTurn.successful, msTurn.attempts)}</td>
+            <td>${msFmtBb(msTurn.net)}</td>
+            <td>${msFmtBb(msStreetAvg(msTurn.net, msTurn.attempts))}</td>
+          </tr>
+          <tr>
+            <td>River</td>
+            <td>${msRiver.attempts}</td>
+            <td>${msRiver.successful}</td>
+            <td>${msStreetRate(msRiver.successful, msRiver.attempts)}</td>
+            <td>${msFmtBb(msRiver.net)}</td>
+            <td>${msFmtBb(msStreetAvg(msRiver.net, msRiver.attempts))}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="kicker" style="margin-top:6px">Read-only rollup across all logged sessions.</div>
+    </details>
+  `;
   const potSizeBuckets = [
     { key: "small", label: "Small (<10BB)", min: 0, max: 10, hands: 0, net: 0 },
     { key: "medium", label: "Medium (10-30BB)", min: 10, max: 30, hands: 0, net: 0 },
@@ -5167,114 +5382,378 @@ function renderLoggerSessionReviewTable(){
       </table>
     </details>
   `;
+  const bluffTermRe = /\b(bluff|stab|take it down|take the hand|take the pot|get the fold|gets villain to fold)\b/i;
+  const foldTermRe = /\b(everyone folds|villain folds|villain folded|folds to|folded to|gets villain to fold|get the fold|hero gets a fold)\b/i;
+  const noShowdownRe = /\b(no showdown|without showdown|did not show|didn't show)\b/i;
+
+  const bluffAggressiveActions = new Set(["BET", "RAISE"]);
+  const bluffLateStreets = new Set(["TURN", "RIVER"]);
+
+  let bluffAttempts = 0;
+  let bluffSuccessful = 0;
+  let bluffNet = 0;
+
+  const bluffStreet = {
+    TURN: { attempts: 0, successful: 0, net: 0 },
+    RIVER: { attempts: 0, successful: 0, net: 0 }
+  };
+
+  hands.forEach((h) => {
+    if(!h) return;
+
+    const notes = String(h.notes || "");
+    const notesLower = notes.toLowerCase();
+
+    const snapHeroAction = String(h.snapHeroAction || "").toUpperCase();
+    const snapStreet = String(h.snapStreet || "").toUpperCase();
+
+    const hasBluffPhrase = bluffTermRe.test(notesLower);
+    const hasFoldPhrase = foldTermRe.test(notesLower);
+    const hasNoShowdownPhrase = noShowdownRe.test(notesLower);
+
+    const isLateAggressive =
+      bluffAggressiveActions.has(snapHeroAction) &&
+      bluffLateStreets.has(snapStreet);
+
+    const isAttempt = hasBluffPhrase || (isLateAggressive && (hasFoldPhrase || hasNoShowdownPhrase));
+    if(!isAttempt) return;
+
+    bluffAttempts += 1;
+
+    const resultRaw = Number(h.resultBB);
+    const resultValid = isFinite(resultRaw);
+
+    const isSuccess = hasFoldPhrase;
+    if(isSuccess) bluffSuccessful += 1;
+    if(resultValid) bluffNet += resultRaw;
+
+    if(bluffStreet[snapStreet]){
+      bluffStreet[snapStreet].attempts += 1;
+      if(isSuccess) bluffStreet[snapStreet].successful += 1;
+      if(resultValid) bluffStreet[snapStreet].net += resultRaw;
+    }
+  });
+
+  const bluffRate = bluffAttempts ? (bluffSuccessful / bluffAttempts) * 100 : 0;
+  const bluffAvg = bluffAttempts ? (bluffNet / bluffAttempts) : 0;
+
+  const bluffFmtBb = (v) => {
+    const n = Number(v);
+    if(!isFinite(n)) return "0.0BB";
+    return `${n > 0 ? "+" : ""}${n.toFixed(1)}BB`;
+  };
+
+  const streetRate = (successful, attempts) => attempts ? `${((successful / attempts) * 100).toFixed(1)}%` : "0.0%";
+  const streetAvg = (net, attempts) => attempts ? (net / attempts) : 0;
+
+  const turnAttempts = bluffStreet.TURN.attempts;
+  const turnSuccessful = bluffStreet.TURN.successful;
+  const turnNet = bluffStreet.TURN.net;
+
+  const riverAttempts = bluffStreet.RIVER.attempts;
+  const riverSuccessful = bluffStreet.RIVER.successful;
+  const riverNet = bluffStreet.RIVER.net;
+
+  const bluffSection = document.createElement("div");
+  bluffSection.style.marginBottom = "10px";
+  bluffSection.innerHTML = `
+    <details open>
+      <summary style="margin-bottom:6px;font-weight:900;color:rgba(231,236,255,.92);cursor:pointer">Bluff Success Rate</summary>
+      <table class="loggerReviewTable">
+        <thead>
+          <tr>
+            <th style="width:90px">Attempts</th>
+            <th style="width:90px">Successful</th>
+            <th style="width:110px">Success Rate</th>
+            <th style="width:90px">Net</th>
+            <th style="width:90px">Avg</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>${bluffAttempts}</td>
+            <td>${bluffSuccessful}</td>
+            <td>${bluffRate.toFixed(1)}%</td>
+            <td>${bluffFmtBb(bluffNet)}</td>
+            <td>${bluffFmtBb(bluffAvg)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table class="loggerReviewTable" style="margin-top:8px">
+        <thead>
+          <tr>
+            <th>Street</th>
+            <th style="width:90px">Attempts</th>
+            <th style="width:90px">Successful</th>
+            <th style="width:110px">Success Rate</th>
+            <th style="width:90px">Net</th>
+            <th style="width:90px">Avg</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Turn</td>
+            <td>${turnAttempts}</td>
+            <td>${turnSuccessful}</td>
+            <td>${streetRate(turnSuccessful, turnAttempts)}</td>
+            <td>${bluffFmtBb(turnNet)}</td>
+            <td>${bluffFmtBb(streetAvg(turnNet, turnAttempts))}</td>
+          </tr>
+          <tr>
+            <td>River</td>
+            <td>${riverAttempts}</td>
+            <td>${riverSuccessful}</td>
+            <td>${streetRate(riverSuccessful, riverAttempts)}</td>
+            <td>${bluffFmtBb(riverNet)}</td>
+            <td>${bluffFmtBb(streetAvg(riverNet, riverAttempts))}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="kicker" style="margin-top:6px">Heuristic, notes-based estimate only.</div>
+    </details>
+  `;
+  const trackedStreets = ["FLOP", "TURN", "RIVER"];
+  const trackedActions = ["BET", "RAISE", "CHECK", "CALL", "FOLD"];
+
+  const aggressionProfile = {
+    FLOP:  { BET: 0, RAISE: 0, CHECK: 0, CALL: 0, FOLD: 0 },
+    TURN:  { BET: 0, RAISE: 0, CHECK: 0, CALL: 0, FOLD: 0 },
+    RIVER: { BET: 0, RAISE: 0, CHECK: 0, CALL: 0, FOLD: 0 }
+  };
+
+  const normalizeTrackedAction = (raw) => {
+    const k = String(raw || "").toUpperCase();
+    if(k === "ALLIN") return "RAISE";
+    return trackedActions.includes(k) ? k : "";
+  };
+
+  hands.forEach((h) => {
+    if(!h) return;
+
+    let countedFromFullActions = false;
+
+    const rawActions = Array.isArray(h.actions) ? h.actions : [];
+    if(rawActions.length){
+      const heroPos = getHeroPosForHand(h);
+      const sorted = getSortedActions(h);
+
+      sorted.forEach((a) => {
+        const who = String(a?.actorPos || "");
+        if(!who || who !== heroPos) return;
+
+        const st = String(a?.street || "").toUpperCase();
+        if(!trackedStreets.includes(st)) return;
+
+        const act = normalizeTrackedAction(a?.action);
+        if(!act) return;
+
+        aggressionProfile[st][act] += 1;
+        countedFromFullActions = true;
+      });
+    }
+
+    if(!countedFromFullActions){
+      const st = String(h?.snapStreet || "").toUpperCase();
+      if(!trackedStreets.includes(st)) return;
+
+      const act = normalizeTrackedAction(h?.snapHeroAction);
+      if(!act) return;
+
+      aggressionProfile[st][act] += 1;
+    }
+  });
+
+  const aggressionRows = trackedStreets.map((st) => `
+    <tr>
+      <td>${st}</td>
+      <td>${aggressionProfile[st].BET}</td>
+      <td>${aggressionProfile[st].RAISE}</td>
+      <td>${aggressionProfile[st].CHECK}</td>
+      <td>${aggressionProfile[st].CALL}</td>
+      <td>${aggressionProfile[st].FOLD}</td>
+    </tr>
+  `).join("");
+
+  const aggressionProfileSection = document.createElement("div");
+  aggressionProfileSection.style.marginBottom = "10px";
+  aggressionProfileSection.innerHTML = `
+    <details open>
+      <summary style="margin-bottom:6px;font-weight:900;color:rgba(231,236,255,.92);cursor:pointer">Aggression Profile</summary>
+      <table class="loggerReviewTable">
+        <thead>
+          <tr>
+            <th>Street</th>
+            <th style="width:72px">Bet</th>
+            <th style="width:72px">Raise</th>
+            <th style="width:72px">Check</th>
+            <th style="width:72px">Call</th>
+            <th style="width:72px">Fold</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${aggressionRows}
+        </tbody>
+      </table>
+      <div class="kicker" style="margin-top:6px">Logged action profile only; not a complete tracker stat.</div>
+    </details>
+  `;
   const topInteresting = getTopInterestingHandsV1(hands);
+
+  const renderReviewHandCardV1 = (entry, idx, opts = {}) => {
+    const h = entry?.hand || {};
+    const interesting = entry?.interesting || {};
+
+    const heroCards = (Array.isArray(h.heroCards) &&
+      h.heroCards.length === 2 &&
+      h.heroCards[0] &&
+      h.heroCards[1])
+      ? `${cardToPretty(h.heroCards[0])} ${cardToPretty(h.heroCards[1])}`
+      : "-";
+
+    const scoreNum = Number(interesting.score);
+    const scoreTxt = isFinite(scoreNum) ? scoreNum.toFixed(1) : "0.0";
+
+    const resultNum = Number(h.resultBB);
+    const resultTxt = isFinite(resultNum)
+      ? `${resultNum > 0 ? "+" : ""}${resultNum.toFixed(1)}bb`
+      : "-";
+
+    const allInNum = Number(interesting.allInCount);
+    const allInTxt = (isFinite(allInNum) && allInNum > 0) ? Math.floor(allInNum) : 0;
+
+    const streetTxt = String(h.snapStreet || "-").toUpperCase();
+    const typeTxt = String(h.snapType || "-").toUpperCase();
+    const pressureTxt = String(h.snapPressure || "NONE").toUpperCase();
+    const heroActTxt = String(h.snapHeroAction || "-").toUpperCase();
+
+    const toTitle = (s) => {
+      const raw = String(s || "").toLowerCase();
+      if(!raw || raw === "-") return "-";
+      return raw.charAt(0).toUpperCase() + raw.slice(1);
+    };
+
+    const absResultBB = isFinite(resultNum) ? Math.abs(resultNum) : 0;
+    const potSizeTxt = isFinite(resultNum)
+      ? (absResultBB < 10 ? "Small (<10BB)"
+        : absResultBB < 30 ? "Medium (10-30BB)"
+        : absResultBB < 100 ? "Big (30-100BB)"
+        : "Huge (100BB+)")
+      : "-";
+
+    const spotChip = (typeTxt && typeTxt !== "-" && typeTxt !== "NONE") ? typeTxt : "";
+    const decisionChip = (streetTxt && streetTxt !== "-" && heroActTxt && heroActTxt !== "-")
+      ? `${toTitle(streetTxt)} ${toTitle(heroActTxt)}`
+      : "";
+    const pressureChip = (pressureTxt && pressureTxt !== "-" && pressureTxt !== "NONE")
+      ? `Facing ${toTitle(pressureTxt)}`
+      : "";
+
+    const boardObj = h.board || {};
+    const flop = Array.isArray(boardObj.flop) ? boardObj.flop : [null, null, null];
+    const turn = boardObj.turn || null;
+    const river = boardObj.river || null;
+
+    const noteSource = String(h.notes || "");
+    const normNotes = noteSource.replace(/10/gi, "T");
+    const lowerNotes = normNotes.toLowerCase();
+
+    const extractStreetCards = (street, maxTake) => {
+      const i = lowerNotes.indexOf(street);
+      if(i < 0) return [];
+      const snippet = normNotes.slice(Math.max(0, i), Math.min(normNotes.length, i + 120));
+      const rawTokens = snippet.match(/([2-9TJQKA][cdhs])/gi) || [];
+      const out = [];
+      for(const tok of rawTokens){
+        const tt = `${tok[0].toUpperCase()}${tok[1].toLowerCase()}`;
+        if(!out.includes(tt)) out.push(tt);
+        if(out.length >= maxTake) break;
+      }
+      return out;
+    };
+
+    const flopFromNotes = extractStreetCards("flop", 3);
+    const turnFromNotes = extractStreetCards("turn", 1);
+    const riverFromNotes = extractStreetCards("river", 1);
+
+    const mergedFlop = [
+      flop[0] || flopFromNotes[0] || null,
+      flop[1] || flopFromNotes[1] || null,
+      flop[2] || flopFromNotes[2] || null
+    ];
+    const mergedTurn = turn || turnFromNotes[0] || null;
+    const mergedRiver = river || riverFromNotes[0] || null;
+
+    const boardCards = [mergedFlop[0], mergedFlop[1], mergedFlop[2], mergedTurn, mergedRiver].filter(Boolean);
+    const boardTxt = boardCards.length
+      ? `${cardToPretty(mergedFlop[0])} ${cardToPretty(mergedFlop[1])} ${cardToPretty(mergedFlop[2])} | ${cardToPretty(mergedTurn)} | ${cardToPretty(mergedRiver)}`
+      : "-";
+
+    const noteRaw = noteSource.trim().replace(/\s+/g, " ");
+    const notePreview = noteRaw ? (noteRaw.length > 72 ? `${noteRaw.slice(0, 72)}...` : noteRaw) : "-";
+    const noteFull = noteRaw || "-";
+
+    let actionsHtml = "";
+    if(opts.showActions){
+      const actions = getSortedActions(h);
+      if(actions.length){
+        actionsHtml = `
+          <div style="margin-bottom:8px">
+            <div class="kicker" style="margin-bottom:4px;font-weight:900">Street actions</div>
+            <div style="display:grid;gap:3px">
+              ${actions.map(a => `<div class="kicker">${formatActionForTimeline(a)}</div>`).join("")}
+            </div>
+          </div>
+        `;
+      } else {
+        actionsHtml = `<div class="kicker" style="margin-bottom:8px">No street actions logged.</div>`;
+      }
+    }
+
+    const rankLabel = opts.rankLabel != null ? String(opts.rankLabel) : String(idx + 1);
+
+    const chipStyle = "font-size:10px;padding:1px 6px;opacity:.78";
+
+    return `
+      <details class="loggerTop5Row" style="border-top:1px solid rgba(255,255,255,.06)">
+        <summary style="list-style:none;cursor:pointer;padding:8px 10px;display:grid;gap:6px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+            <div style="display:flex;align-items:flex-start;gap:8px;min-width:0">
+              <span style="font-weight:900;min-width:22px;line-height:1.2">${rankLabel}</span>
+              <div style="min-width:0">
+                <div style="font-weight:900;line-height:1.2">${heroCards}</div>
+                <div class="kicker" style="line-height:1.2;margin-top:2px">Board ${boardTxt}</div>
+              </div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <span class="loggerTinyChip" style="${chipStyle}">Score ${scoreTxt}</span>
+              <span class="loggerTinyChip" style="${chipStyle}">Result ${resultTxt}</span>
+              <span class="loggerTinyChip" style="${chipStyle}">Pot ${potSizeTxt}</span>
+              <span class="loggerTinyChip" style="${chipStyle}">All-ins ${allInTxt}</span>
+            </div>
+          </div>
+          <div class="kicker" style="display:flex;flex-wrap:wrap;gap:6px">
+            ${spotChip ? `<span class="loggerTinyChip" style="${chipStyle}">${spotChip}</span>` : ""}
+            ${decisionChip ? `<span class="loggerTinyChip" style="${chipStyle}">${decisionChip}</span>` : ""}
+            ${pressureChip ? `<span class="loggerTinyChip" style="${chipStyle}">${pressureChip}</span>` : ""}
+          </div>
+          <div class="kicker loggerTop5Preview">${notePreview}</div>
+        </summary>
+        <div style="padding:0 10px 10px 10px">
+          ${actionsHtml}
+          <div class="kicker">${noteFull}</div>
+        </div>
+      </details>
+    `;
+  };
   const topInterestingSection = document.createElement("div");
   topInterestingSection.style.marginBottom = "10px";
 
   if(topInteresting.length){
-    const rows = topInteresting.map((entry, idx) => {
-      const h = entry?.hand || {};
-      const interesting = entry?.interesting || {};
-
-      const heroCards = (Array.isArray(h.heroCards) &&
-        h.heroCards.length === 2 &&
-        h.heroCards[0] &&
-        h.heroCards[1])
-        ? `${cardToPretty(h.heroCards[0])} ${cardToPretty(h.heroCards[1])}`
-        : "-";
-
-      const scoreNum = Number(interesting.score);
-      const scoreTxt = isFinite(scoreNum) ? scoreNum.toFixed(1) : "0.0";
-
-      const resultNum = Number(h.resultBB);
-      const resultTxt = isFinite(resultNum)
-        ? `${resultNum > 0 ? "+" : ""}${resultNum.toFixed(1)}bb`
-        : "-";
-
-      const allInNum = Number(interesting.allInCount);
-      const allInTxt = (isFinite(allInNum) && allInNum > 0) ? Math.floor(allInNum) : 0;
-
-      const streetTxt = String(h.snapStreet || "-");
-      const typeTxt = String(h.snapType || "-");
-      const pressureTxt = String(h.snapPressure || "NONE");
-      const heroActTxt = String(h.snapHeroAction || "-");
-
-      const boardObj = h.board || {};
-      const flop = Array.isArray(boardObj.flop) ? boardObj.flop : [null, null, null];
-      const turn = boardObj.turn || null;
-      const river = boardObj.river || null;
-
-      const noteSource = String(h.notes || "");
-      const normNotes = noteSource.replace(/10/gi, "T");
-      const lowerNotes = normNotes.toLowerCase();
-
-      const extractStreetCards = (street, maxTake) => {
-        const idx = lowerNotes.indexOf(street);
-        if(idx < 0) return [];
-
-        const snippet = normNotes.slice(Math.max(0, idx), Math.min(normNotes.length, idx + 120));
-        const rawTokens = snippet.match(/([2-9TJQKA][cdhs])/gi) || [];
-        const out = [];
-        for(const tok of rawTokens){
-          const t = `${tok[0].toUpperCase()}${tok[1].toLowerCase()}`;
-          if(!out.includes(t)) out.push(t);
-          if(out.length >= maxTake) break;
-        }
-        return out;
-      };
-
-      const flopFromNotes = extractStreetCards("flop", 3);
-      const turnFromNotes = extractStreetCards("turn", 1);
-      const riverFromNotes = extractStreetCards("river", 1);
-
-      const mergedFlop = [
-        flop[0] || flopFromNotes[0] || null,
-        flop[1] || flopFromNotes[1] || null,
-        flop[2] || flopFromNotes[2] || null
-      ];
-      const mergedTurn = turn || turnFromNotes[0] || null;
-      const mergedRiver = river || riverFromNotes[0] || null;
-
-      const boardCards = [mergedFlop[0], mergedFlop[1], mergedFlop[2], mergedTurn, mergedRiver].filter(Boolean);
-      const boardTxt = boardCards.length
-        ? `${cardToPretty(mergedFlop[0])} ${cardToPretty(mergedFlop[1])} ${cardToPretty(mergedFlop[2])} | ${cardToPretty(mergedTurn)} | ${cardToPretty(mergedRiver)}`
-        : "-";
-
-      const noteRaw = noteSource.trim().replace(/\s+/g, " ");
-      const notePreview = noteRaw ? (noteRaw.length > 72 ? `${noteRaw.slice(0, 72)}...` : noteRaw) : "-";
-      const noteFull = noteRaw || "-";
-
-      return `
-        <details class="loggerTop5Row" style="border-top:1px solid rgba(255,255,255,.06)">
-          <summary style="list-style:none;cursor:pointer;padding:8px 10px;display:grid;gap:6px">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
-              <div style="display:flex;align-items:flex-start;gap:8px;min-width:0">
-                <span style="font-weight:900;min-width:22px;line-height:1.2">${idx + 1}</span>
-                <div style="min-width:0">
-                  <div style="font-weight:900;line-height:1.2">${heroCards}</div>
-                  <div class="kicker" style="line-height:1.2;margin-top:2px">Board ${boardTxt}</div>
-                </div>
-              </div>
-              <div style="display:flex;flex-wrap:wrap;gap:6px">
-                <span class="loggerTinyChip">Score ${scoreTxt}</span>
-                <span class="loggerTinyChip">Result ${resultTxt}</span>
-                <span class="loggerTinyChip">All-ins ${allInTxt}</span>
-              </div>
-            </div>
-            <div class="kicker" style="display:flex;flex-wrap:wrap;gap:6px">
-              <span class="loggerTinyChip">${typeTxt}</span>
-              <span class="loggerTinyChip">${streetTxt}</span>
-              <span class="loggerTinyChip">${pressureTxt}</span>
-              <span class="loggerTinyChip">${heroActTxt}</span>
-            </div>
-            <div class="kicker loggerTop5Preview">${notePreview}</div>
-          </summary>
-          <div style="padding:0 10px 10px 10px">
-            <div class="kicker">${noteFull}</div>
-          </div>
-        </details>
-      `;
-    }).join("");
+    const rows = topInteresting.map((entry, idx) =>
+      renderReviewHandCardV1(entry, idx, { showActions: false })
+    ).join("");
 
     topInterestingSection.innerHTML = `
       <details id="session-review-top5" open>
@@ -5294,74 +5773,29 @@ function renderLoggerSessionReviewTable(){
     `;
   }
 
-  const table = document.createElement("table");
-  table.className = "loggerReviewTable";
+  const handHistoryRows = hands.map((h, idx) => {
+    const interesting = (typeof scoreInterestingHandV1 === "function")
+      ? scoreInterestingHandV1(h)
+      : { score: 0, allInCount: 0 };
+    const rankLabel = `#${idx + 1}`;
+    return renderReviewHandCardV1({ hand: h, interesting }, idx, { showActions: true, rankLabel });
+  }).join("");
 
-  const thead = document.createElement("thead");
-  thead.innerHTML = `
-    <tr>
-      <th style="width:66px">Hand</th>
-      <th style="width:64px">Time</th>
-      <th style="width:64px">Pos</th>
-      <th style="width:70px">Type</th>
-      <th style="width:60px">HU/MW</th>
-      <th style="width:80px">Eff</th>
-      <th style="width:72px">Res</th>
-      <th>Derived</th>
-    </tr>
+  const handHistoryCards = document.createElement("div");
+  handHistoryCards.style.border = "1px solid rgba(255,255,255,.08)";
+  handHistoryCards.style.borderRadius = "12px";
+  handHistoryCards.style.overflow = "auto";
+  handHistoryCards.style.background = "rgba(255,255,255,.02)";
+  handHistoryCards.style.maxHeight = "520px";
+  handHistoryCards.innerHTML = `
+    <style>.loggerTop5Row[open] .loggerTop5Preview{display:none}</style>
+    ${handHistoryRows}
   `;
-  table.appendChild(thead);
-
-  const tbody = document.createElement("tbody");
-
-  hands.forEach((h, idx) => {
-    const d = deriveHandForSessionReview(h);
-
-    const tr = document.createElement("tr");
-    tr.className = "loggerReviewRow" + (h.id === loggerSelectedHandId ? " sel" : "");
-
-    const label = (idx === 0) ? "Recent" : `#${idx + 1}`;
-    const effTxt = (isFinite(d.eff) && d.eff > 0) ? `${d.eff}bb` : "-";
-
-    const resTxt = (h.resultBB != null && isFinite(Number(h.resultBB)))
-  ? ((Number(h.resultBB) > 0 ? "+" : "") + Number(h.resultBB).toFixed(1))
-  : "-";
-
-    const chips = [];
-    chips.push(`<span class="loggerTinyChip">${d.potType}</span>`);
-    chips.push(`<span class="loggerTinyChip">${d.huMw}</span>`);
-    if(d.effBucket !== "-") chips.push(`<span class="loggerTinyChip">${d.effBucket}</span>`);
-    if(d.wentToShowdown) chips.push(`<span class="loggerTinyChip">Showdown</span>`);
-    d.flags.slice(0, 4).forEach(f => chips.push(`<span class="loggerTinyChip">${f}</span>`));
-    if(d.flags.length > 4) chips.push(`<span class="loggerTinyChip">+${d.flags.length - 4} more</span>`);
-
-    tr.innerHTML = `
-      <td>${label}</td>
-      <td>${d.dt}</td>
-      <td>${d.heroPos}</td>
-      <td>${d.potType}</td>
-      <td>${d.huMw}</td>
-      <td>${effTxt}</td>
-      <td>${resTxt}</td>
-      <td>${chips.join(" ")}</td>
-    `;
-
-    tr.addEventListener("click", () => {
-      loggerSelectedHandId = h.id;
-      renderLoggerHandsList();
-      renderLoggerHandEditor(h);
-      renderLoggerSessionReviewTable();
-    });
-
-    tbody.appendChild(tr);
-  });
-
-  table.appendChild(tbody);
 
   const handHistorySection = document.createElement("div");
   const handHistoryDetails = document.createElement("details");
   handHistoryDetails.id = "session-review-history";
-  handHistoryDetails.open = true;
+  handHistoryDetails.open = false;
 
   const handHistorySummary = document.createElement("summary");
   handHistorySummary.style.marginBottom = "6px";
@@ -5371,12 +5805,21 @@ function renderLoggerSessionReviewTable(){
   handHistorySummary.textContent = "Hand History";
 
   handHistoryDetails.appendChild(handHistorySummary);
-  handHistoryDetails.appendChild(table);
+  handHistoryDetails.appendChild(handHistoryCards);
   handHistorySection.appendChild(handHistoryDetails);
 
   mount.innerHTML = "";
   mount.appendChild(jumpLinks);
+
+  mount.appendChild(overallPatternsHeader);
+  mount.appendChild(multiSessionSection);
+
+  mount.appendChild(thisSessionHeader);
   mount.appendChild(potSizeSection);
+  mount.appendChild(bluffSection);
+  mount.appendChild(aggressionProfileSection);
+
+  mount.appendChild(reviewHandsHeader);
   mount.appendChild(topInterestingSection);
   mount.appendChild(handHistorySection);
 }
@@ -9303,6 +9746,23 @@ if(loggerView && loggerView.style.display !== "none"){
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
