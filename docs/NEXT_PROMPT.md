@@ -1,68 +1,106 @@
 # Next Prompt
 
-Project: Casey’s Poker Tool
+Project: Casey's Poker Tool
 
 
 
-Current Version: v0.14.0  
+Current Version
 
-Milestone: Session Review + Multi-Session Analytics
-
-
-
-Key capabilities
-
-\- Hand logger with structured notes
-
-\- Top 5 Interesting Hands scoring
-
-\- Card-based hand review UI
-
-\- Multi-session analytics
-
-\- Pot size performance analysis
-
-\- Bluff success tracking
-
-\- Aggression profile summary
-
-\- Texture and archetype insights
+v0.15.0 — Study Queue + Review Workflow Improvements
 
 
 
-Next Feature Target
-
-Study Queue v1
+Current Capabilities
 
 
 
-Goal
+Logger
 
-Surface the most useful hands to review automatically.
+\- Tracks meaningful decision hands
+
+\- Structured notes capture full hand lines
+
+\- Snapshot tags capture key decision spots
 
 
 
-Candidate categories
+Session Review
+
+\- Card-based hand history
+
+\- Top 5 Interesting Hands
+
+\- Study Queue
+
+
+
+Study Queue v1 categories
 
 \- Biggest losing hands
 
 \- Failed bluff attempts
 
-\- Huge pot losses
+\- Huge-pot losses
 
 \- High-score negative-result hands
 
-\- Pressure situations (facing raises or all-ins)
+\- Pressure spots
 
 
 
-Constraints
+Analytics
 
-\- Read-only analytics
+\- Multi-session analytics
 
-\- No schema changes
+\- Pot size performance
 
-\- No storage changes
+\- Bluff success rate
 
-\- Build on existing scoring functions
+\- Bluff success by street
+
+\- Aggression profile
+
+\- Texture summary
+
+\- Archetype insights
+
+
+
+Important context
+
+\- Notes are often more trustworthy than snapshot tags for full hand lines
+
+\- Snapshot chips represent tagged decision moments, not authoritative hand histories
+
+\- Logger captures a representative sample of playable or interesting spots rather than every hand
+
+
+
+Next Development Target
+
+
+
+Study Queue v2
+
+
+
+Potential improvements
+
+\- Review Priority Score
+
+\- Duplicate suppression across categories
+
+\- Better ranking for pressure situations
+
+\- Highlight biggest mistakes automatically
+
+
+
+Longer-term ideas
+
+\- Hand replay trainer
+
+\- Automatic tag extraction from notes
+
+\- Pattern alerts across sessions
 

@@ -5644,7 +5644,7 @@ function renderLoggerSessionReviewTable(){
 
     const spotChip = (typeTxt && typeTxt !== "-" && typeTxt !== "NONE") ? typeTxt : "";
     const decisionChip = (streetTxt && streetTxt !== "-" && heroActTxt && heroActTxt !== "-")
-      ? `${toTitle(streetTxt)} ${toTitle(heroActTxt)}`
+      ? `Tagged: ${toTitle(streetTxt)} ${toTitle(heroActTxt)}`
       : "";
     const pressureChip = (pressureTxt && pressureTxt !== "-" && pressureTxt !== "NONE")
       ? `Facing ${toTitle(pressureTxt)}`
@@ -5707,7 +5707,7 @@ function renderLoggerSessionReviewTable(){
           </div>
         `;
       } else {
-        actionsHtml = `<div class="kicker" style="margin-bottom:8px">No street actions logged.</div>`;
+        actionsHtml = `<div class="kicker" style="margin-bottom:8px">No structured actions logged. See notes for hand line.</div>`;
       }
     }
 
@@ -5747,6 +5747,121 @@ function renderLoggerSessionReviewTable(){
       </details>
     `;
   };
+  const toSafeNumber = (v) => {
+    const n = Number(v);
+    return isFinite(n) ? n : null;
+  };
+
+  const studied = hands.map((h) => {
+    const interesting = (typeof scoreInterestingHandV1 === "function")
+      ? scoreInterestingHandV1(h)
+      : { score: 0, allInCount: 0, absResultBB: 0 };
+
+    const resultNum = toSafeNumber(h?.resultBB);
+    const scoreNumRaw = toSafeNumber(interesting?.score);
+    const scoreNum = scoreNumRaw != null ? scoreNumRaw : 0;
+
+    const absRaw = toSafeNumber(interesting?.absResultBB);
+    const absResultBB = absRaw != null
+      ? absRaw
+      : (resultNum != null ? Math.abs(resultNum) : 0);
+
+    const notesLower = String(h?.notes || "").toLowerCase();
+    const snapHeroAction = String(h?.snapHeroAction || "").toUpperCase();
+    const snapStreet = String(h?.snapStreet || "").toUpperCase();
+    const snapPressure = String(h?.snapPressure || "").toUpperCase();
+
+    const hasBluffPhrase = bluffTermRe.test(notesLower);
+    const hasFoldPhrase = foldTermRe.test(notesLower);
+    const hasNoShowdownPhrase = noShowdownRe.test(notesLower);
+
+    const isLateAggressive =
+      bluffAggressiveActions.has(snapHeroAction) &&
+      bluffLateStreets.has(snapStreet);
+
+    const isBluffAttempt = hasBluffPhrase || (isLateAggressive && (hasFoldPhrase || hasNoShowdownPhrase));
+    const isConfirmedBluffSuccess = hasFoldPhrase;
+
+    return {
+      hand: h,
+      interesting,
+      resultNum,
+      scoreNum,
+      absResultBB,
+      snapPressure,
+      isBluffAttempt,
+      isConfirmedBluffSuccess
+    };
+  });
+
+  const biggestLosingHands = studied
+    .filter(x => x.resultNum != null && x.resultNum < 0)
+    .sort((a, b) => a.resultNum - b.resultNum)
+    .slice(0, 3);
+
+  const failedBluffAttempts = studied
+    .filter(x => x.isBluffAttempt && !x.isConfirmedBluffSuccess && x.resultNum != null && x.resultNum < 0)
+    .sort((a, b) => a.resultNum - b.resultNum)
+    .slice(0, 3);
+
+  const hugePotLosses = studied
+    .filter(x => x.resultNum != null && x.resultNum < 0 && x.absResultBB >= 100)
+    .sort((a, b) => a.resultNum - b.resultNum)
+    .slice(0, 3);
+
+  const highScoreNegative = studied
+    .filter(x => x.resultNum != null && x.resultNum < 0)
+    .sort((a, b) => {
+      if(b.scoreNum !== a.scoreNum) return b.scoreNum - a.scoreNum;
+      return a.resultNum - b.resultNum;
+    })
+    .slice(0, 3);
+
+  const pressureSpots = studied
+    .filter(x => x.snapPressure === "RAISE" || x.snapPressure === "ALLIN")
+    .sort((a, b) => {
+      if(b.scoreNum !== a.scoreNum) return b.scoreNum - a.scoreNum;
+      const ar = x => (x.resultNum != null ? x.resultNum : 0);
+      return ar(a) - ar(b);
+    })
+    .slice(0, 3);
+
+  const renderStudyCategory = (title, items, prefix) => {
+    if(!items.length) return "";
+    const rows = items.map((x, i) =>
+      renderReviewHandCardV1(
+        { hand: x.hand, interesting: x.interesting },
+        i,
+        { showActions: true, rankLabel: `${prefix}${i + 1}` }
+      )
+    ).join("");
+
+    return `
+      <div style="margin-bottom:10px;padding:8px;border-radius:12px;background:rgba(255,255,255,.015)">
+        <div style="font-weight:900;letter-spacing:.2px;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,.08)">${title}</div>
+        <div style="border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden;background:rgba(255,255,255,.02)">
+          ${rows}
+        </div>
+      </div>
+    `;
+  };
+
+  const studyQueueHtml = [
+    renderStudyCategory("Biggest losing hands", biggestLosingHands, "L"),
+    renderStudyCategory("Failed bluff attempts", failedBluffAttempts, "B"),
+    renderStudyCategory("Huge-pot losses", hugePotLosses, "H"),
+    renderStudyCategory("High-score negative-result hands", highScoreNegative, "S"),
+    renderStudyCategory("Pressure spots", pressureSpots, "P")
+  ].filter(Boolean).join("");
+
+  const studyQueueSection = document.createElement("div");
+  studyQueueSection.style.marginBottom = "10px";
+  studyQueueSection.innerHTML = `
+    <details id="session-review-study-queue" open>
+      <summary style="margin-bottom:6px;font-weight:900;color:rgba(231,236,255,.92);cursor:pointer">Study Queue</summary>
+      ${studyQueueHtml || `<div class="kicker">No study queue items for this session yet.</div>`}
+    </details>
+  `;
   const topInterestingSection = document.createElement("div");
   topInterestingSection.style.marginBottom = "10px";
 
@@ -5820,6 +5935,7 @@ function renderLoggerSessionReviewTable(){
   mount.appendChild(aggressionProfileSection);
 
   mount.appendChild(reviewHandsHeader);
+  mount.appendChild(studyQueueSection);
   mount.appendChild(topInterestingSection);
   mount.appendChild(handHistorySection);
 }
@@ -9746,6 +9862,12 @@ if(loggerView && loggerView.style.display !== "none"){
 </script>
 </body>
 </html>
+
+
+
+
+
+
 
 
 

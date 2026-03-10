@@ -10,6 +10,45 @@ Each entry corresponds to a version commit and summarizes:
 
 \---
 
+## v0.15.0 — Study Queue + Review Workflow Improvements
+
+Summary
+Introduced the Study Queue feature to surface the most valuable hands to review. This shifts the tool from pure analytics toward guided hand review.
+
+New Feature
+Study Queue v1
+
+Automatically surfaces hands worth reviewing in the current session:
+
+- Biggest losing hands
+- Failed bluff attempts
+- Huge-pot losses (100BB+)
+- High-score negative-result hands
+- Pressure spots (facing raises or all-ins)
+
+Implementation
+- Reuses shared hand card renderer
+- Categories display small grouped review lists
+- Only renders categories that contain hands
+
+UI Improvements
+- Added visual hierarchy for Study Queue categories
+- Subtle container backgrounds and section dividers
+- Reduced visual noise across review cards
+
+Trust Improvements
+- Decision chip labeled as tagged metadata
+  Example: `Tagged: River Bet`
+- Updated fallback message when structured actions are missing
+
+New fallback text:
+"No structured actions logged. See notes for hand line."
+
+Stability
+- No schema changes
+- No localStorage changes
+- No save/load behavior changes
+
 ## v0.14.0 — Session Review + Multi-Session Analytics
 
 Major milestone introducing structured hand review and cross-session analytics.
