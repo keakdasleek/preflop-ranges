@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 Casey's Poker Tool
 Version: v0.13.26.2
 -->
@@ -1311,7 +1311,7 @@ select:focus{
           <div class="gRow"><div class="gKey">UTG+1</div><div class="gVal">The next seat after UTG. In this app it's grouped as <b>LJ / UTG+1</b> for 8-max.</div></div>
           <div class="gRow"><div class="gKey">LJ / HJ / CO / BTN</div><div class="gVal"><b>LoJack</b>, <b>HiJack</b>, <b>Cutoff</b>, <b>Button</b> - progressively later positions with more stealing power.</div></div>
           <div class="gRow"><div class="gKey">SB / BB</div><div class="gVal"><b>Small Blind</b> / <b>Big Blind</b> - the two forced blind positions.</div></div>
-          <div class="gRow"><div class="gKey">3x / 4x</div><div class="gVal">Open size in big blinds (e.g., 3x = raise to 3×BB).</div></div>
+          <div class="gRow"><div class="gKey">3x / 4x</div><div class="gVal">Open size in big blinds (e.g., 3x = raise to 3�BB).</div></div>
           <div class="gRow"><div class="gKey">Mix</div><div class="gVal">Either action can be fine. In Trainer Mode, <b>Raise or Call</b> counts as correct when the chart says MIX.</div></div>
           <div class="gRow"><div class="gKey">Why so tight early?</div><div class="gVal">This game has big antes and a rake cap that hits fast. Marginal, dominated hands (especially offsuit) lose money without initiative.</div></div>
         </div>
@@ -3227,10 +3227,10 @@ const boardInputEl = document.getElementById("boardInput");
 const boardApplyBtn = document.getElementById("boardApply");
 
 const PF_SUITS = [
-  { s:"h", label:"♥", cls:"pfRed" },
-  { s:"d", label:"♦", cls:"pfRed" },
-  { s:"c", label:"♣", cls:"pfBlack" },
-  { s:"s", label:"♠", cls:"pfBlack" }
+  { s:"h", label:"\u2665", cls:"pfRed" },
+  { s:"d", label:"\u2666", cls:"pfRed" },
+  { s:"c", label:"\u2663", cls:"pfBlack" },
+  { s:"s", label:"\u2660", cls:"pfBlack" }
 ];
 const PF_RANKS = ["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
 
@@ -3660,12 +3660,11 @@ function remapPositionsForHandOnBtnChange(hand, oldBtnSeat, newBtnSeat, n){
 // ===== Logger Card Picker (Hero + Board) =====
 const LOGGER_RANKS = ["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
 const LOGGER_SUITS = [
-  {key:"s", sym:"♠", cls:"pfBlack"},
-  {key:"h", sym:"♥", cls:"pfRed"},
-  {key:"d", sym:"♦", cls:"pfRed"},
-  {key:"c", sym:"♣", cls:"pfBlack"}
+  {key:"s", sym:"\u2660", cls:"pfBlack"},
+  {key:"h", sym:"\u2665", cls:"pfRed"},
+  {key:"d", sym:"\u2666", cls:"pfRed"},
+  {key:"c", sym:"\u2663", cls:"pfBlack"}
 ];
-
 
 let loggerCardPicker = {
   mode: null,              // "hero" or "board"
@@ -4801,7 +4800,7 @@ const facingRaise = summarize(h =>
   h.snapPressure === "RAISE" || h.snapPressure === "ALLIN"
 );
 
-// Archetype aggregation: Street × Type × Pressure (Eff is stored as mode, not grouped)
+// Archetype aggregation: Street � Type � Pressure (Eff is stored as mode, not grouped)
 const agg = new Map();
 handsWithRes.forEach(h => {
   const d = deriveHandForSessionReview(h);
@@ -4811,7 +4810,7 @@ handsWithRes.forEach(h => {
   const pressure = (h && h.snapPressure) ? String(h.snapPressure) : "NONE";
 
   // Group WITHOUT effBucket
-  const key = `${street} × ${potType} × ${pressure}`;
+  const key = `${street} � ${potType} � ${pressure}`;
   const r = Number(h.resultBB);
 
   if(!agg.has(key)){
@@ -4897,7 +4896,8 @@ const buildBehaviorTable = (title, rows)=>{
     <div style="margin-bottom:12px">
       <div style="font-weight:900;margin-bottom:6px">${title}</div>
 
-      <div style="border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02)">
+      <style>.loggerTop5Row[open] .loggerTop5Preview{display:none}</style>
+        <div style="border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02)">
         <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
           <colgroup>
             <col style="width:55%"/>
@@ -5025,7 +5025,8 @@ const buildBehaviorTable = (title, rows)=>{
           return `
             <div style="margin-bottom:12px">
               <div style="font-weight:900;margin-bottom:6px">${title}</div>
-              <div style="border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02)">
+              <style>.loggerTop5Row[open] .loggerTop5Preview{display:none}</style>
+        <div style="border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02)">
                 <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
                   <colgroup>
                     <col style="width:55%"/>
@@ -5128,22 +5129,57 @@ function renderLoggerSessionReviewTable(){
       const flop = Array.isArray(boardObj.flop) ? boardObj.flop : [null, null, null];
       const turn = boardObj.turn || null;
       const river = boardObj.river || null;
-      const boardCards = [flop[0], flop[1], flop[2], turn, river].filter(Boolean);
+
+      const noteSource = String(h.notes || "");
+      const normNotes = noteSource.replace(/10/gi, "T");
+      const lowerNotes = normNotes.toLowerCase();
+
+      const extractStreetCards = (street, maxTake) => {
+        const idx = lowerNotes.indexOf(street);
+        if(idx < 0) return [];
+
+        const snippet = normNotes.slice(Math.max(0, idx), Math.min(normNotes.length, idx + 120));
+        const rawTokens = snippet.match(/([2-9TJQKA][cdhs])/gi) || [];
+        const out = [];
+        for(const tok of rawTokens){
+          const t = `${tok[0].toUpperCase()}${tok[1].toLowerCase()}`;
+          if(!out.includes(t)) out.push(t);
+          if(out.length >= maxTake) break;
+        }
+        return out;
+      };
+
+      const flopFromNotes = extractStreetCards("flop", 3);
+      const turnFromNotes = extractStreetCards("turn", 1);
+      const riverFromNotes = extractStreetCards("river", 1);
+
+      const mergedFlop = [
+        flop[0] || flopFromNotes[0] || null,
+        flop[1] || flopFromNotes[1] || null,
+        flop[2] || flopFromNotes[2] || null
+      ];
+      const mergedTurn = turn || turnFromNotes[0] || null;
+      const mergedRiver = river || riverFromNotes[0] || null;
+
+      const boardCards = [mergedFlop[0], mergedFlop[1], mergedFlop[2], mergedTurn, mergedRiver].filter(Boolean);
       const boardTxt = boardCards.length
-        ? `${cardToPretty(flop[0])} ${cardToPretty(flop[1])} ${cardToPretty(flop[2])} | ${cardToPretty(turn)} | ${cardToPretty(river)}`
+        ? `${cardToPretty(mergedFlop[0])} ${cardToPretty(mergedFlop[1])} ${cardToPretty(mergedFlop[2])} | ${cardToPretty(mergedTurn)} | ${cardToPretty(mergedRiver)}`
         : "-";
 
-      const noteRaw = String(h.notes || "").trim().replace(/\s+/g, " ");
+      const noteRaw = noteSource.trim().replace(/\s+/g, " ");
       const notePreview = noteRaw ? (noteRaw.length > 72 ? `${noteRaw.slice(0, 72)}...` : noteRaw) : "-";
       const noteFull = noteRaw || "-";
 
       return `
-        <details style="border-top:1px solid rgba(255,255,255,.06)">
+        <details class="loggerTop5Row" style="border-top:1px solid rgba(255,255,255,.06)">
           <summary style="list-style:none;cursor:pointer;padding:8px 10px;display:grid;gap:6px">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-              <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-weight:900;min-width:22px">${idx + 1}</span>
-                <span style="font-weight:900">${heroCards}</span>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+              <div style="display:flex;align-items:flex-start;gap:8px;min-width:0">
+                <span style="font-weight:900;min-width:22px;line-height:1.2">${idx + 1}</span>
+                <div style="min-width:0">
+                  <div style="font-weight:900;line-height:1.2">${heroCards}</div>
+                  <div class="kicker" style="line-height:1.2;margin-top:2px">Board ${boardTxt}</div>
+                </div>
               </div>
               <div style="display:flex;flex-wrap:wrap;gap:6px">
                 <span class="loggerTinyChip">Score ${scoreTxt}</span>
@@ -5157,15 +5193,10 @@ function renderLoggerSessionReviewTable(){
               <span class="loggerTinyChip">${pressureTxt}</span>
               <span class="loggerTinyChip">${heroActTxt}</span>
             </div>
-            <div class="kicker">Board ${boardTxt}</div>
-            <div class="kicker">${notePreview}</div>
+            <div class="kicker loggerTop5Preview">${notePreview}</div>
           </summary>
           <div style="padding:0 10px 10px 10px">
-            <div class="kicker">Cards: ${heroCards}</div>
-            <div class="kicker">Board: ${boardTxt}</div>
-            <div class="kicker">Score: ${scoreTxt} | Result: ${resultTxt} | All-ins: ${allInTxt}</div>
-            <div class="kicker">Spot: ${typeTxt} | ${streetTxt} | ${pressureTxt} | ${heroActTxt}</div>
-            <div class="kicker">Notes: ${noteFull}</div>
+            <div class="kicker">${noteFull}</div>
           </div>
         </details>
       `;
@@ -5174,6 +5205,7 @@ function renderLoggerSessionReviewTable(){
     topInterestingSection.innerHTML = `
       <details id="session-review-top5" open>
         <summary style="margin-bottom:6px;font-weight:900;color:rgba(231,236,255,.92);cursor:pointer">Top 5 Interesting Hands</summary>
+        <style>.loggerTop5Row[open] .loggerTop5Preview{display:none}</style>
         <div style="border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02)">
           ${rows}
         </div>
@@ -9196,6 +9228,15 @@ if(loggerView && loggerView.style.display !== "none"){
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
 
 
 

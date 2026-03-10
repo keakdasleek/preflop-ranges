@@ -23,7 +23,7 @@ Build:
    - River pressure only
 2. Filter should apply only to rendered Top 5 cards, not to score computation.
 3. Keep default selection as All.
-4. Preserve current details/summary card behavior and anchors.
+4. Preserve current details/summary card behavior, board fallback behavior, and anchors.
 5. Keep collapsed card height compact and readable.
 
 Do not rewrite Session Review or scoring helpers.

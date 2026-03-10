@@ -92,8 +92,43 @@ Next development step:
 Add optional quick filters above Top 5 cards (for example All, All-ins only, River pressure) that only affect rendering and do not alter scoring.
 
 ---
+
+\# v0.13.26.4 - Top 5 board display notes fallback
+
+Date:  
+March 9, 2026
+
+Summary:  
+Fixed Top 5 Interesting Hands board display so hands with missing or partial `h.board` can still show runout from notes when note text contains street cards.
+
+Technical changes:
+
+- Updated only the Top 5 rows render block in `index.html`
+- Kept `h.board` as the first display source
+- Added display-only notes fallback extraction for `flop`, `turn`, and `river`
+- Supports common note patterns such as:
+  - `flop of 6d2d8d`
+  - `flop is AhQdKh`
+  - `turn is 5d`
+  - `river is Kh`
+- No mutation of hand objects or stored board data
+
+QA notes:
+
+- Top 5 cards now show board text for many snapshot hands where board object is incomplete
+- If no board cards are available in object or notes, display remains `-`
+- No changes to scoring or ranking helpers
+- No save/load changes
+- No localStorage changes
+
+Next development step:
+
+Add optional quick filters above Top 5 cards (for example All, All-ins only, River pressure) that only affect rendering and do not alter scoring.
+
+---
 \# Previous versions
 
 Older entries follow the same structure.
+
 
 
