@@ -10,6 +10,38 @@ Each entry corresponds to a version commit and summarizes:
 
 \---
 
+## v0.18.1 - Parse Context Input Fix
+
+Summary
+Completed the parse-context architecture follow-up by ensuring `reconstructHandFromNotesV2(hand)` passes raw notes text into `buildStreetParseContext(notes, hand)`.
+
+What changed
+- Updated `reconstructHandFromNotesV2(hand)` to call:
+  - `buildStreetParseContext(notesRaw, hand)`
+  instead of passing pre-normalized notes
+- Preserved the existing parse-context helper structure already present in `index.html`
+- Kept street segmentation, board extraction, action-text isolation, and lightweight actor-context prep centralized in the helper
+- Left action parsing and output formatting in `reconstructHandFromNotesV2(hand)`
+
+Why it matters
+- Keeps normalization and street parsing responsibility inside the parse-context helper
+- Makes the reconstruction flow cleaner and easier to extend in future parser work
+- Reduces risk of subtle parsing inconsistencies caused by preprocessing notes outside the helper
+
+Guardrails
+- No schema changes
+- No localStorage changes
+- No save/load behavior changes
+- Structured action data still takes precedence over reconstructed data
+- Conservative reconstruction behavior remains unchanged
+
+QA focus
+- Confirm templated `Pre:/Flop:/Turn:/River:/End:` notes still segment correctly
+- Confirm no cross-street bleed in reconstructed lines
+- Confirm board extraction still works for flop/turn/river
+- Confirm showdown extraction still appears correctly
+- Confirm structured `hand.actions` still overrides reconstruction in review paths
+
 ## v0.18.0 - Structured Note Reconstruction
 
 Summary

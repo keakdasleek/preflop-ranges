@@ -1,92 +1,12 @@
 # Next Prompt
 
-\# Casey's Poker Tool — Next Prompt
+Next priority:
+
+Improve parsing quality within the new parse-context architecture.
 
 
 
-We are continuing development of Casey's Poker Tool.
-
-
-
-This chat supports two operating modes.
-
-
-
-MODE: BUILD
-
-\- define features
-
-\- generate Codex prompts
-
-\- review Codex proposals
-
-
-
-Default response format for Codex review:
-
-
-
-1\. Verdict: Apply / Revise / Reject
-
-2\. Why: 1–3 sentences max
-
-3\. Exact next message to send Codex
-
-
-
-MODE: DESIGN
-
-\- architecture decisions
-
-\- roadmap planning
-
-\- feature prioritization
-
-\- system design
-
-
-
-Project context is defined in:
-
-
-
-docs/DATA\_SCHEMA.md
-
-docs/FEATURE\_REGISTRY.md
-
-coaching/COACHING\_CONTEXT.md
-
-
-
-Important code rules:
-
-
-
-\- Single-page browser app
-
-\- Main file: index.html
-
-\- Prefer small, surgical changes
-
-\- Avoid refactors unless explicitly requested
-
-\- Do not modify schema or localStorage unless explicitly requested
-
-\- Structured action data always takes precedence over reconstructed data
-
-\- If parser confidence is low, omit reconstructed lines rather than guessing
-
-
-
-Current Development Focus
-
-
-
-Continue improving the note reconstruction parser.
-
-
-
-Goals:
+Focus areas:
 
 \- improve villain response extraction
 
@@ -98,17 +18,29 @@ Goals:
 
 
 
-The structured note template is now the primary input format:
+Implementation guidance:
+
+\- keep `buildStreetParseContext(notes, hand)` as the source of truth for:
+
+&nbsp; - street segmentation
+
+&nbsp; - board extraction
+
+&nbsp; - action-text isolation
+
+&nbsp; - lightweight actor-context prep
+
+\- keep changes surgical and localized to `index.html`
+
+\- do not modify schema or localStorage
+
+\- structured action data must continue to take precedence over reconstructed data
+
+\- if confidence is low, omit reconstructed lines rather than guessing
 
 
 
-Pre:
+Recommended next slice:
 
-Flop:
-
-Turn:
-
-River:
-
-End:
+Add a small, conservative helper for per-street villain/actor response extraction that works off `actionText` and `actorContext` without introducing a full actor engine.
 
