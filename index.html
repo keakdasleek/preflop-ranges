@@ -5601,14 +5601,11 @@ function renderLoggerSessionReviewTable(){
   `;
   const topInteresting = getTopInterestingHandsV1(hands);
 
-  function reconstructHandFromNotesV2(hand){
-  const notesRaw = String(hand?.notes || "").trim();
-  if(!notesRaw) return [];
+  function buildStreetParseContext(notes, hand){
+  const src = String(notes || "").trim();
+  const norm = src.replace(/\s+/g, " ").replace(/10/gi, "T");
+  const lower = norm.toLowerCase();
 
-  const notes = notesRaw.replace(/\s+/g, " ").replace(/10/gi, "T");
-  const lines = [];
-
-  const labels = { pre: "Preflop", flop: "Flop", turn: "Turn", river: "River", end: "End" };
   const markerDefs = {
     pre: [
       /\bpre\s*:/i,
@@ -5631,39 +5628,122 @@ function renderLoggerSessionReviewTable(){
     ]
   };
 
+  const labels = {
+    pre: "Preflop",
+    flop: "Flop",
+    turn: "Turn",
+    river: "River",
+    end: "End"
+  };
+
   const findMarkerIndex = (patterns) => {
     let best = -1;
-    patterns.forEach((re) => {
-      const m = notes.match(re);
+    for(const re of patterns){
+      const m = norm.match(re);
       if(m && m.index != null){
         const idx = Number(m.index);
         if(best < 0 || idx < best) best = idx;
       }
-    });
+    }
     return best;
   };
 
-  const markerList = Object.keys(markerDefs)
+  const markers = Object.keys(markerDefs)
     .map((k) => ({ key: k, idx: findMarkerIndex(markerDefs[k]) }))
     .filter(x => x.idx >= 0)
     .sort((a, b) => a.idx - b.idx);
 
-  const sections = {};
-  markerList.forEach((m, i) => {
-    const end = (i + 1 < markerList.length) ? markerList[i + 1].idx : notes.length;
-    const raw = notes.slice(m.idx, end).trim();
+  const stripPrefix = {
+    pre: /^\s*pre(?:flop)?\s*:\s*/i,
+    flop: /^\s*flop(?:\s+(?:of|is|comes))?\s*:?\s*/i,
+    turn: /^\s*turn(?:\s+is)?\s*:?\s*/i,
+    river: /^\s*(?:the\s+)?river(?:\s+is)?\s*:?\s*/i,
+    end: /^\s*end\s*:\s*/i
+  };
 
-    const strip = {
-      pre: /^\s*pre(?:flop)?\s*:\s*/i,
-      flop: /^\s*flop(?:\s+(?:of|is|comes))?\s*:?\s*/i,
-      turn: /^\s*turn(?:\s+is)?\s*:?\s*/i,
-      river: /^\s*(?:the\s+)?river(?:\s+is)?\s*:?\s*/i,
-      end: /^\s*end\s*:\s*/i
+  const extractBoard = (streetKey, text) => {
+    const seg = String(text || "");
+    if(!seg) return "";
+    if(streetKey === "flop"){
+      const cards = (seg.match(/([2-9TJQKA][cdhs])/gi) || [])
+        .slice(0, 3)
+        .map(x => `${x[0].toUpperCase()}${x[1].toLowerCase()}`);
+      return cards.length === 3 ? cards.join(" ") : "";
+    }
+    if(streetKey === "turn" || streetKey === "river"){
+      const card = (seg.match(/([2-9TJQKA][cdhs])/i) || [])[0] || "";
+      return card ? `${card[0].toUpperCase()}${card[1].toLowerCase()}` : "";
+    }
+    return "";
+  };
+
+  const isolateActionText = (streetKey, text, board) => {
+    let s = String(text || "").trim();
+    if(!s) return "";
+    if(streetKey !== "pre" && board){
+      if(streetKey === "flop"){
+        const parts = board.split(" ");
+        parts.forEach(c => {
+          s = s.replace(new RegExp(`\\b${c}\\b`, "ig"), "");
+        });
+      } else {
+        s = s.replace(new RegExp(`\\b${board}\\b`, "ig"), "");
+      }
+      s = s.replace(/^[\s,.\-|:;]+/, "").trim();
+    }
+    return s;
+  };
+
+  const buildActorContext = (actionText) => {
+    const txt = String(actionText || "").toLowerCase();
+    const mentions = [];
+    const mentionRe = /\b(i|villain|btn|co|bb|sb|utg\+?1?|utg|hj|lj|mp|ep|he|they)\b/gi;
+    let m;
+    while((m = mentionRe.exec(txt)) !== null){
+      mentions.push(String(m[1] || "").toLowerCase());
+    }
+    const nonHero = Array.from(new Set(mentions.filter(x => x !== "i")));
+    const isExplicitMw = /\b(3way|4way|5way|multiway)\b/i.test(txt);
+    const actorContext = {
+      rawMentions: mentions,
+      isMultiway: isExplicitMw || nonHero.length >= 2,
+      hasVillainAlias: mentions.includes("villain") || mentions.includes("he") || mentions.includes("they")
     };
+    return actorContext;
+  };
 
-    const cleaned = raw.replace(strip[m.key], "").trim();
-    if(cleaned) sections[m.key] = cleaned;
-  });
+  const ctx = {
+    pre:   { label: labels.pre, text: "", board: "", actionText: "", actorContext: { rawMentions: [], isMultiway: false, hasVillainAlias: false } },
+    flop:  { label: labels.flop, text: "", board: "", actionText: "", actorContext: { rawMentions: [], isMultiway: false, hasVillainAlias: false } },
+    turn:  { label: labels.turn, text: "", board: "", actionText: "", actorContext: { rawMentions: [], isMultiway: false, hasVillainAlias: false } },
+    river: { label: labels.river, text: "", board: "", actionText: "", actorContext: { rawMentions: [], isMultiway: false, hasVillainAlias: false } },
+    end:   { label: labels.end, text: "", board: "", actionText: "", actorContext: { rawMentions: [], isMultiway: false, hasVillainAlias: false } }
+  };
+
+  for(let i = 0; i < markers.length; i++){
+    const mk = markers[i];
+    const end = (i + 1 < markers.length) ? markers[i + 1].idx : norm.length;
+    const raw = norm.slice(mk.idx, end).trim();
+    const text = raw.replace(stripPrefix[mk.key], "").trim();
+    if(!text) continue;
+
+    const board = extractBoard(mk.key, text);
+    const actionText = isolateActionText(mk.key, text, board);
+    const actorContext = buildActorContext(actionText);
+
+    ctx[mk.key] = { label: labels[mk.key], text, board, actionText, actorContext };
+  }
+
+  return ctx;
+}
+
+function reconstructHandFromNotesV2(hand){
+  const notesRaw = String(hand?.notes || "").trim();
+  if(!notesRaw) return [];
+
+  const notes = notesRaw.replace(/\s+/g, " ").replace(/10/gi, "T");
+  const ctx = buildStreetParseContext(notesRaw, hand);
+  const lines = [];
 
   const fmtAction = (actor, action, bbVal) => {
     const a = String(action || "").toLowerCase();
@@ -5672,23 +5752,10 @@ function renderLoggerSessionReviewTable(){
     return `${actor} ${verb}${sized}`;
   };
 
-  const parseStreetLine = (streetKey) => {
-    const seg = String(sections[streetKey] || "").trim();
-    if(!seg) return "";
-    const segLower = seg.toLowerCase();
-
-    let boardTxt = "";
-    if(streetKey === "flop"){
-      const cards = (seg.match(/([2-9TJQKA][cdhs])/gi) || [])
-        .slice(0, 3)
-        .map(x => `${x[0].toUpperCase()}${x[1].toLowerCase()}`);
-      if(cards.length === 3) boardTxt = cards.join(" ");
-    } else if(streetKey === "turn" || streetKey === "river"){
-      const card = (seg.match(/([2-9TJQKA][cdhs])/i) || [])[0] || "";
-      if(card) boardTxt = `${card[0].toUpperCase()}${card[1].toLowerCase()}`;
-    }
-
-    const acts = [];
+  const parseActions = (actionText) => {
+    const segLower = String(actionText || "").toLowerCase();
+    if(!segLower) return [];
+    const out = [];
     const actionReMulti = /\b(i|villain|btn|co|bb|sb|utg\+?1?|utg|hj|lj|mp|ep|he|they)\s+(3bet|4bet|c-?bet|raise(?:\s+to)?|bet|call|fold|check|jam|shove)\b(?:[^\d]{0,16}(\d+(?:\.\d+)?)\s*bb)?/gi;
 
     let m;
@@ -5705,33 +5772,36 @@ function renderLoggerSessionReviewTable(){
         ? "bet"
         : (actionRaw.startsWith("raise") ? "raise" : actionRaw);
 
-      acts.push(fmtAction(actor, actNorm, isFinite(bb) ? bb : null));
+      out.push(fmtAction(actor, actNorm, isFinite(bb) ? bb : null));
     }
-
-    if(!boardTxt && !acts.length) return "";
-    return `${labels[streetKey]}: ${boardTxt ? boardTxt : "-"}${acts.length ? ` | ${acts.join(", ")}` : ""}`;
+    return out;
   };
 
-  if(sections.pre){
-    const clipped = sections.pre.trim();
+  if(ctx.pre.text){
+    const clipped = ctx.pre.text.trim();
     if(clipped) lines.push(`Preflop: ${clipped.length > 110 ? clipped.slice(0, 110) + "..." : clipped}`);
   }
 
-  const flopLine = parseStreetLine("flop");
+  const renderStreet = (k) => {
+    const s = ctx[k];
+    if(!s || !s.text) return "";
+    const acts = parseActions(s.actionText);
+    if(!s.board && !acts.length) return "";
+    return `${s.label}: ${s.board ? s.board : "-"}${acts.length ? ` | ${acts.join(", ")}` : ""}`;
+  };
+
+  const flopLine = renderStreet("flop");
   if(flopLine) lines.push(flopLine);
-
-  const turnLine = parseStreetLine("turn");
+  const turnLine = renderStreet("turn");
   if(turnLine) lines.push(turnLine);
-
-  const riverLine = parseStreetLine("river");
+  const riverLine = renderStreet("river");
   if(riverLine) lines.push(riverLine);
 
-  const endSeg = String(sections.end || "");
   let showdownTxt = "";
-  if(endSeg){
-    const e = endSeg.match(/([^.!?]*\b(showdown|reveals?|shows?|mucks?|has|had)\b[^.!?]*[.!?]?)/i);
+  if(ctx.end.text){
+    const e = ctx.end.text.match(/([^.!?]*\b(showdown|reveals?|shows?|mucks?|has|had)\b[^.!?]*[.!?]?)/i);
     if(e && e[1]) showdownTxt = e[1].trim().replace(/\s+/g, " ");
-    if(!showdownTxt && /[2-9TJQKA][cdhs]/i.test(endSeg)) showdownTxt = endSeg;
+    if(!showdownTxt && /[2-9TJQKA][cdhs]/i.test(ctx.end.text)) showdownTxt = ctx.end.text;
   }
   if(!showdownTxt){
     const showMatch = notes.match(/([^.!?]*\b(showdown|reveals?|shows?|mucks?|has|had)\b[^.!?]*[.!?]?)/i);
@@ -10038,6 +10108,7 @@ if(loggerView && loggerView.style.display !== "none"){
 </script>
 </body>
 </html>
+
 
 
 
