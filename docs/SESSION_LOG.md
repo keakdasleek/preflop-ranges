@@ -50,6 +50,46 @@ Continue improving structured note extraction, especially:
 - action sizing extraction
 - pot growth / replay quality
 
+## v0.18.0 - Structured Note Reconstruction
+
+Summary
+Added a stronger note reconstruction layer for hand review cards, using the user's structured street-note format and improved legacy prose segmentation.
+
+What changed
+- Added structured street notes template for new hands:
+  - Pre:
+  - Flop:
+  - Turn:
+  - River:
+  - End:
+- Cursor now auto-focuses after "Pre:" for faster logging
+- Upgraded note reconstruction helper to reconstruct street-by-street lines from notes
+- Added support for both:
+  - templated notes (Flop:, Turn:, River:)
+  - legacy prose patterns (flop of, flop is, turn is, river is, the river is)
+- Improved showdown extraction from notes
+- Fixed cross-street bleed so turn/river actions do not leak into earlier streets
+
+Current limitation
+- Reconstruction is still partial and conservative
+- It is strongest for hero actions, board runout, and showdown text
+- It does not yet fully reconstruct villain action sequences or pot growth
+
+QA Notes
+- Verified reconstructed lines appear when structured actions are missing
+- Verified no cross-street bleed in reconstructed lines
+- Verified existing structured actions still take precedence
+- Verified no console errors
+- No schema changes
+- No localStorage changes
+- No save/load behavior changes
+
+Next Development Step
+Continue improving structured note extraction, especially:
+- villain responses by street
+- action sizing extraction
+- pot growth / replay quality
+
 ## v0.17.0 — Structured Street Notes Template
 
 Summary

@@ -1,82 +1,114 @@
 # Next Prompt
 
-Project: Casey's Poker Tool
+\# Casey's Poker Tool — Next Prompt
 
 
 
-Current Version
-
-v0.18.0 - Structured Note Reconstruction
+We are continuing development of Casey's Poker Tool.
 
 
 
-Current State
-
-The tool now supports:
-
-\- structured street-note template for new hands
-
-\- fast cursor placement after "Pre:"
-
-\- card-based hand history
-
-\- study queue
-
-\- multi-session analytics
-
-\- note reconstruction when structured actions are missing
+This chat supports two operating modes.
 
 
 
-Current reconstruction capabilities
+MODE: BUILD
 
-\- preflop summary text
+\- define features
 
-\- flop / turn / river board extraction
+\- generate Codex prompts
 
-\- hero action extraction by street
-
-\- showdown / reveal extraction
-
-\- support for both:
-
-&nbsp; - templated notes (Pre:, Flop:, Turn:, River:, End:)
-
-&nbsp; - legacy prose notes (flop of, flop is, turn is, river is)
+\- review Codex proposals
 
 
 
-Current limitation
-
-\- reconstruction is conservative and still incomplete
-
-\- villain action extraction is partial
-
-\- pot growth is not yet reconstructed
-
-\- output should be treated as a helper summary, not a full hand-history engine
+Default response format for Codex review:
 
 
 
-Potential next targets
+1\. Verdict: Apply / Revise / Reject
 
-1\. Improve villain action extraction
+2\. Why: 1–3 sentences max
 
-2\. Extract BB sizing more reliably
-
-3\. Pot growth reconstruction
-
-4\. Better replay-style hand summaries
-
-5\. Continue using the new note template for future sessions
+3\. Exact next message to send Codex
 
 
 
-Important constraints
+MODE: DESIGN
 
-\- Logging must remain extremely fast during play
+\- architecture decisions
 
-\- Preserve the single notes box workflow
+\- roadmap planning
 
-\- Avoid rigid multi-field forms
+\- feature prioritization
+
+\- system design
+
+
+
+Project context is defined in:
+
+
+
+docs/DATA\_SCHEMA.md
+
+docs/FEATURE\_REGISTRY.md
+
+coaching/COACHING\_CONTEXT.md
+
+
+
+Important code rules:
+
+
+
+\- Single-page browser app
+
+\- Main file: index.html
+
+\- Prefer small, surgical changes
+
+\- Avoid refactors unless explicitly requested
+
+\- Do not modify schema or localStorage unless explicitly requested
+
+\- Structured action data always takes precedence over reconstructed data
+
+\- If parser confidence is low, omit reconstructed lines rather than guessing
+
+
+
+Current Development Focus
+
+
+
+Continue improving the note reconstruction parser.
+
+
+
+Goals:
+
+\- improve villain response extraction
+
+\- improve action sizing extraction
+
+\- strengthen street-by-street reconstruction
+
+\- maintain strict prevention of cross-street bleed
+
+
+
+The structured note template is now the primary input format:
+
+
+
+Pre:
+
+Flop:
+
+Turn:
+
+River:
+
+End:
 
