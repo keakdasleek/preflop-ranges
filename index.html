@@ -5601,84 +5601,147 @@ function renderLoggerSessionReviewTable(){
   `;
   const topInteresting = getTopInterestingHandsV1(hands);
 
-  function reconstructHandFromNotesV1(hand){
-    const notesRaw = String(hand?.notes || "").trim();
-    if(!notesRaw) return [];
+  function reconstructHandFromNotesV2(hand){
+  const notesRaw = String(hand?.notes || "").trim();
+  if(!notesRaw) return [];
 
-    const notes = notesRaw.replace(/\s+/g, " ");
-    const lower = notes.toLowerCase();
-    const lines = [];
+  const notes = notesRaw.replace(/\s+/g, " ").replace(/10/gi, "T");
+  const lines = [];
 
-    const streets = [
-      { key: "preflop", label: "Preflop" },
-      { key: "flop", label: "Flop" },
-      { key: "turn", label: "Turn" },
-      { key: "river", label: "River" }
-    ];
+  const labels = { pre: "Preflop", flop: "Flop", turn: "Turn", river: "River", end: "End" };
+  const markerDefs = {
+    pre: [
+      /\bpre\s*:/i,
+      /\bpreflop\s*:/i
+    ],
+    flop: [
+      /\bflop\s*:/i,
+      /\bflop\s+(?:of|is|comes)\b/i
+    ],
+    turn: [
+      /\bturn\s*:/i,
+      /\bturn\s+is\b/i
+    ],
+    river: [
+      /\briver\s*:/i,
+      /\b(?:the\s+)?river\s+is\b/i
+    ],
+    end: [
+      /\bend\s*:/i
+    ]
+  };
 
-    const found = [];
-    streets.forEach(s => {
-      const idx = lower.indexOf(s.key);
-      if(idx >= 0) found.push({ idx, ...s });
-    });
-    found.sort((a,b)=> a.idx - b.idx);
-
-    const actionMap = {
-      "3bet": "3bet",
-      "4bet": "4bet",
-      "cbet": "bet",
-      "c-bet": "bet",
-      "raise": "raise",
-      "bet": "bet",
-      "call": "call",
-      "fold": "fold",
-      "check": "check",
-      "jam": "jam",
-      "shove": "jam"
-    };
-
-    const toTitle = (s) => {
-      const x = String(s || "");
-      if(!x) return "";
-      return x.charAt(0).toUpperCase() + x.slice(1);
-    };
-
-    found.forEach((f, i) => {
-      const end = (i + 1 < found.length) ? found[i + 1].idx : notes.length;
-      const seg = notes.slice(f.idx, end).trim();
-      const segLower = seg.toLowerCase();
-
-      let heroAction = "";
-      const heroMatch = segLower.match(/\bi\s+(3bet|4bet|c-?bet|raise|bet|call|fold|check|jam|shove)\b/);
-      if(heroMatch){
-        const k = String(heroMatch[1] || "").replace(/\s+/g, "");
-        heroAction = actionMap[k] || k;
-      }
-
-      let villainResp = "";
-      if(/\b(gets villain to fold|villain folds|everyone folds|villain folded)\b/.test(segLower)){
-        villainResp = "Villain folds";
-      } else {
-        const vm = segLower.match(/\b(villain|he|they)\s+(folds?|calls?|raises?|checks?|jams?|shoves?)\b/);
-        if(vm) villainResp = `Villain ${String(vm[2] || "").toLowerCase()}`;
-      }
-
-      if(heroAction){
-        lines.push(`${f.label}: I ${heroAction}${villainResp ? ` | ${villainResp}` : ""}`);
-      } else if(f.key === "preflop"){
-        const clipped = seg.replace(/^preflop\s*[:\-]?\s*/i, "").trim();
-        if(clipped) lines.push(`Preflop: ${clipped.length > 90 ? clipped.slice(0, 90) + "..." : clipped}`);
+  const findMarkerIndex = (patterns) => {
+    let best = -1;
+    patterns.forEach((re) => {
+      const m = notes.match(re);
+      if(m && m.index != null){
+        const idx = Number(m.index);
+        if(best < 0 || idx < best) best = idx;
       }
     });
+    return best;
+  };
 
-    const showMatch = notes.match(/([^.!?]*\b(showdown|reveals?|shows?|mucks?|has|had)\b[^.!?]*[.!?]?)/i);
-    if(showMatch && showMatch[1]){
-      const txt = showMatch[1].trim().replace(/\s+/g, " ");
-      if(txt) lines.push(`Showdown: ${txt}`);
+  const markerList = Object.keys(markerDefs)
+    .map((k) => ({ key: k, idx: findMarkerIndex(markerDefs[k]) }))
+    .filter(x => x.idx >= 0)
+    .sort((a, b) => a.idx - b.idx);
+
+  const sections = {};
+  markerList.forEach((m, i) => {
+    const end = (i + 1 < markerList.length) ? markerList[i + 1].idx : notes.length;
+    const raw = notes.slice(m.idx, end).trim();
+
+    const strip = {
+      pre: /^\s*pre(?:flop)?\s*:\s*/i,
+      flop: /^\s*flop(?:\s+(?:of|is|comes))?\s*:?\s*/i,
+      turn: /^\s*turn(?:\s+is)?\s*:?\s*/i,
+      river: /^\s*(?:the\s+)?river(?:\s+is)?\s*:?\s*/i,
+      end: /^\s*end\s*:\s*/i
+    };
+
+    const cleaned = raw.replace(strip[m.key], "").trim();
+    if(cleaned) sections[m.key] = cleaned;
+  });
+
+  const fmtAction = (actor, action, bbVal) => {
+    const a = String(action || "").toLowerCase();
+    const verb = (a === "shove") ? "jam" : a;
+    const sized = (bbVal != null) ? ` ${bbVal}BB` : "";
+    return `${actor} ${verb}${sized}`;
+  };
+
+  const parseStreetLine = (streetKey) => {
+    const seg = String(sections[streetKey] || "").trim();
+    if(!seg) return "";
+    const segLower = seg.toLowerCase();
+
+    let boardTxt = "";
+    if(streetKey === "flop"){
+      const cards = (seg.match(/([2-9TJQKA][cdhs])/gi) || [])
+        .slice(0, 3)
+        .map(x => `${x[0].toUpperCase()}${x[1].toLowerCase()}`);
+      if(cards.length === 3) boardTxt = cards.join(" ");
+    } else if(streetKey === "turn" || streetKey === "river"){
+      const card = (seg.match(/([2-9TJQKA][cdhs])/i) || [])[0] || "";
+      if(card) boardTxt = `${card[0].toUpperCase()}${card[1].toLowerCase()}`;
     }
 
-    return lines.slice(0, 6);
+    const acts = [];
+    const actionReMulti = /\b(i|villain|btn|co|bb|sb|utg\+?1?|utg|hj|lj|mp|ep|he|they)\s+(3bet|4bet|c-?bet|raise(?:\s+to)?|bet|call|fold|check|jam|shove)\b(?:[^\d]{0,16}(\d+(?:\.\d+)?)\s*bb)?/gi;
+
+    let m;
+    while((m = actionReMulti.exec(segLower)) !== null){
+      const actorRaw = String(m[1] || "").toLowerCase();
+      const actionRaw = String(m[2] || "").toLowerCase().replace(/\s+/g, "");
+      const bb = m[3] ? Number(m[3]) : null;
+
+      const actor = actorRaw === "i"
+        ? "I"
+        : (actorRaw === "he" || actorRaw === "they" ? "Villain" : actorRaw.toUpperCase());
+
+      const actNorm = (actionRaw === "cbet" || actionRaw === "c-bet")
+        ? "bet"
+        : (actionRaw.startsWith("raise") ? "raise" : actionRaw);
+
+      acts.push(fmtAction(actor, actNorm, isFinite(bb) ? bb : null));
+    }
+
+    if(!boardTxt && !acts.length) return "";
+    return `${labels[streetKey]}: ${boardTxt ? boardTxt : "-"}${acts.length ? ` | ${acts.join(", ")}` : ""}`;
+  };
+
+  if(sections.pre){
+    const clipped = sections.pre.trim();
+    if(clipped) lines.push(`Preflop: ${clipped.length > 110 ? clipped.slice(0, 110) + "..." : clipped}`);
   }
+
+  const flopLine = parseStreetLine("flop");
+  if(flopLine) lines.push(flopLine);
+
+  const turnLine = parseStreetLine("turn");
+  if(turnLine) lines.push(turnLine);
+
+  const riverLine = parseStreetLine("river");
+  if(riverLine) lines.push(riverLine);
+
+  const endSeg = String(sections.end || "");
+  let showdownTxt = "";
+  if(endSeg){
+    const e = endSeg.match(/([^.!?]*\b(showdown|reveals?|shows?|mucks?|has|had)\b[^.!?]*[.!?]?)/i);
+    if(e && e[1]) showdownTxt = e[1].trim().replace(/\s+/g, " ");
+    if(!showdownTxt && /[2-9TJQKA][cdhs]/i.test(endSeg)) showdownTxt = endSeg;
+  }
+  if(!showdownTxt){
+    const showMatch = notes.match(/([^.!?]*\b(showdown|reveals?|shows?|mucks?|has|had)\b[^.!?]*[.!?]?)/i);
+    if(showMatch && showMatch[1]) showdownTxt = showMatch[1].trim().replace(/\s+/g, " ");
+  }
+  if(showdownTxt) lines.push(`Showdown: ${showdownTxt}`);
+
+  return lines.slice(0, 7);
+}
+
   const renderReviewHandCardV1 = (entry, idx, opts = {}) => {
     const h = entry?.hand || {};
     const interesting = entry?.interesting || {};
@@ -5785,7 +5848,7 @@ function renderLoggerSessionReviewTable(){
           </div>
         `;
       } else {
-        const reconstructed = reconstructHandFromNotesV1(h);
+        const reconstructed = reconstructHandFromNotesV2(h);
         if(reconstructed.length){
           actionsHtml = `
             <div style="margin-bottom:8px">
@@ -9975,6 +10038,9 @@ if(loggerView && loggerView.style.display !== "none"){
 </script>
 </body>
 </html>
+
+
+
 
 
 

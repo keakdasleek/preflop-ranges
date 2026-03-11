@@ -6,113 +6,77 @@ Project: Casey's Poker Tool
 
 Current Version
 
-v0.17.0 — Structured Street Notes Template
+v0.18.0 - Structured Note Reconstruction
 
 
 
-Recent Improvements
+Current State
 
-\- Study Queue system
+The tool now supports:
 
-\- Card-based hand history
+\- structured street-note template for new hands
 
-\- Note reconstruction engine
+\- fast cursor placement after "Pre:"
 
-\- Showdown extraction improvements
+\- card-based hand history
 
-\- Structured notes template for new hands
+\- study queue
 
+\- multi-session analytics
 
+\- note reconstruction when structured actions are missing
 
-Current Logging Flow
 
 
+Current reconstruction capabilities
 
-New hands initialize notes with:
+\- preflop summary text
 
+\- flop / turn / river board extraction
 
+\- hero action extraction by street
 
-Pre:
+\- showdown / reveal extraction
 
-Flop:
+\- support for both:
 
-Turn:
+&nbsp; - templated notes (Pre:, Flop:, Turn:, River:, End:)
 
-River:
+&nbsp; - legacy prose notes (flop of, flop is, turn is, river is)
 
-End:
 
 
+Current limitation
 
-The cursor is automatically placed after "Pre:" to allow fast logging.
+\- reconstruction is conservative and still incomplete
 
+\- villain action extraction is partial
 
+\- pot growth is not yet reconstructed
 
-The user logs hands in natural action order.
+\- output should be treated as a helper summary, not a full hand-history engine
 
 
 
-Example
+Potential next targets
 
+1\. Improve villain action extraction
 
+2\. Extract BB sizing more reliably
 
-Pre: HJ opens 3BB, I call BTN, BB calls. 3way.
+3\. Pot growth reconstruction
 
-Flop: Ac Td 6s. BB checks, HJ bets 6BB, I call, BB folds. HU.
+4\. Better replay-style hand summaries
 
-Turn: 2d. HJ checks, I bet 24BB, HJ calls.
+5\. Continue using the new note template for future sessions
 
-River: Ts. HJ checks, I bet 30BB, HJ folds.
 
-End: Won without showdown.
 
+Important constraints
 
-
-Next Development Targets
-
-
-
-1\. Improve reconstructed action summaries
-
-&nbsp;  Example:
-
-&nbsp;  Flop: I bet 10BB → call
-
-&nbsp;  Turn: I bet 24BB → call
-
-&nbsp;  River: I bet 30BB → fold
-
-
-
-2\. Extract villain actions more reliably
-
-
-
-3\. Detect patterns
-
-&nbsp;  - single barrel
-
-&nbsp;  - double barrel
-
-&nbsp;  - triple barrel
-
-&nbsp;  - river bluff
-
-&nbsp;  - missed value
-
-
-
-4\. Pot growth visualization
-
-
-
-Important Constraints
-
-
-
-\- Logging must remain extremely fast (live poker environment)
-
-\- Do not introduce rigid input forms
+\- Logging must remain extremely fast during play
 
 \- Preserve the single notes box workflow
+
+\- Avoid rigid multi-field forms
 
