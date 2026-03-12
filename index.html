@@ -6774,6 +6774,73 @@ function preflopUncontestedRaise(hand){
   return true;
 }
 
+function deriveHandSignalsV1(hand){
+  const signals = {
+    openRaise: false,
+    cBetFlop: false,
+    doubleBarrel: false,
+    tripleBarrel: false,
+    riverBet: false,
+    villainCalledFlop: false,
+    villainCalledTurn: false,
+    villainFoldedFlop: false,
+    villainFoldedTurn: false,
+    villainFoldedRiver: false,
+    wentToShowdown: !!hand?.wentToShowdown
+  };
+  if(!hand) return signals;
+  const actions = getSortedActions(hand);
+  if(!actions.length) return signals;
+  const heroPos = getHeroPosForHand(hand);
+  const pfa = getPreflopAggressor(hand);
+  const pre = getStreetActions(hand, "PREFLOP");
+  const flop = getStreetActions(hand, "FLOP");
+  const turn = getStreetActions(hand, "TURN");
+  const river = getStreetActions(hand, "RIVER");
+  const heroAggIdxPre = pre.findIndex(a => a.actorPos === heroPos && isAggressiveAction(a));
+  if(heroAggIdxPre >= 0){
+    const priorVoluntary = pre.slice(0, heroAggIdxPre).some(a => {
+      const k = String(a.action || "").toUpperCase();
+      return k !== "FOLD";
+    });
+    if(!priorVoluntary) signals.openRaise = true;
+  }
+  const heroAggOnStreet = (acts) => acts.some(a => a.actorPos === heroPos && isAggressiveAction(a));
+  signals.cBetFlop = (pfa === heroPos) && heroAggOnStreet(flop);
+  signals.doubleBarrel = signals.cBetFlop && heroAggOnStreet(turn);
+  signals.tripleBarrel = signals.doubleBarrel && heroAggOnStreet(river);
+  signals.riverBet = heroAggOnStreet(river);
+  const getHuVillainPos = (street) => {
+    const active = getActivePositionsForStreet(hand, street).filter(Boolean);
+    if(active.length !== 2) return "";
+    if(!active.includes(heroPos)) return "";
+    return active.find(p => p !== heroPos) || "";
+  };
+  const getVillainReaction = (street, acts) => {
+    const villainPos = getHuVillainPos(street);
+    if(!villainPos) return { called: false, folded: false };
+    const heroAggIdx = acts.findIndex(a => a.actorPos === heroPos && isAggressiveAction(a));
+    if(heroAggIdx < 0) return { called: false, folded: false };
+    for(let i = heroAggIdx + 1; i < acts.length; i++){
+      const a = acts[i];
+      if(a.actorPos !== villainPos) continue;
+      if(isCallAction(a)) return { called: true, folded: false };
+      if(isFoldAction(a)) return { called: false, folded: true };
+      if(isAggressiveAction(a)) return { called: false, folded: false };
+    }
+    return { called: false, folded: false };
+  };
+  const flopReaction = getVillainReaction("FLOP", flop);
+  signals.villainCalledFlop = flopReaction.called;
+  signals.villainFoldedFlop = flopReaction.folded;
+  const turnReaction = getVillainReaction("TURN", turn);
+  signals.villainCalledTurn = turnReaction.called;
+  signals.villainFoldedTurn = turnReaction.folded;
+  const riverReaction = getVillainReaction("RIVER", river);
+  signals.villainFoldedRiver = riverReaction.folded;
+  return signals;
+}
+
 function deriveInsightsV1(hand){
   const tags = [];
   if(!hand) return tags;
@@ -6812,6 +6879,23 @@ function deriveInsightsV1(hand){
 
   // Uncontested preflop raise
   if(preflopUncontestedRaise(hand)) tags.push("Uncontested preflop raise (steal)");
+
+  const signals = deriveHandSignalsV1(hand);
+
+  if(signals.openRaise) tags.push("Hero open-raised preflop");
+  if(signals.cBetFlop) tags.push("Hero c-bet flop");
+  if(signals.doubleBarrel) tags.push("Hero double-barreled");
+  if(signals.tripleBarrel) tags.push("Hero triple-barreled");
+  if(signals.riverBet) tags.push("Hero bet river");
+
+  if(signals.villainCalledFlop) tags.push("Villain called flop");
+  if(signals.villainCalledTurn) tags.push("Villain called turn");
+
+  if(signals.villainFoldedFlop) tags.push("Villain folded flop");
+  if(signals.villainFoldedTurn) tags.push("Villain folded turn");
+  if(signals.villainFoldedRiver) tags.push("Villain folded river");
+
+  if(signals.wentToShowdown) tags.push("Went to showdown");
 
   return tags;
 }
@@ -10252,5 +10336,4 @@ if(loggerView && loggerView.style.display !== "none"){
 
 
 
- 
- 
+

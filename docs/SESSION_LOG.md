@@ -10,6 +10,42 @@ Each entry corresponds to a version commit and summarizes:
 
 \---
 
+## v0.18.3 — Derived Hand Signals V1
+
+Summary
+Introduced a structured-action-only signal layer to convert parsed actions into objective hand-level coaching signals.
+
+What changed
+- Added deriveHandSignalsV1(hand)
+- Signals derived exclusively from structured actions and hand.wentToShowdown
+- Signals include:
+  - openRaise
+  - cBetFlop
+  - doubleBarrel
+  - tripleBarrel
+  - riverBet
+  - villainCalledFlop
+  - villainCalledTurn
+  - villainFoldedFlop
+  - villainFoldedTurn
+  - villainFoldedRiver
+  - wentToShowdown
+- Integrated signals into deriveInsightsV1(hand)
+- Signals surface through existing insights tags UI
+
+Why it matters
+- Converts parsed actions into coaching-relevant signals
+- Enables future aggregation of tendencies (c-bet frequency, double barrel frequency, etc.)
+- Keeps analytics layer separate from parsing layer
+
+Safety
+- No parser changes
+- No schema changes
+- No localStorage changes
+- No save/load changes
+- No inference engine
+- Structured actions remain source of truth
+
 ## v0.18.2 - Structured Street Action Extraction V1
 
 Summary
