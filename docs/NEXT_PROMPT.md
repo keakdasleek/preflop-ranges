@@ -1,21 +1,19 @@
 # Next Prompt
 
 Next focus:
-Derived Hand Metrics Aggregation
+Session analytics aggregation.
 
 Goal:
-Aggregate signals across sessions to identify tendencies and leaks.
+Use derived hand signals to produce session-level insights such as:
 
-Examples:
 - c-bet frequency
 - double barrel frequency
 - triple barrel frequency
 - villain fold vs aggression
 - showdown rate
-- river bluff frequency
+- river betting frequency
 
 Constraints:
-- do not modify schema yet
-- compute metrics from existing session data
-- keep aggregation lightweight
-- avoid heavy analytics engine
+- compute from existing session data
+- avoid schema changes initially
+- keep analytics lightweight

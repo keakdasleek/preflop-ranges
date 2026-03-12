@@ -10,6 +10,29 @@ Each entry corresponds to a version commit and summarizes:
 
 \---
 
+## v0.18.4 — Session JSON Export
+
+Summary
+Added a one-click export button to download the currently active session as a JSON file for coaching review.
+
+What changed
+- Added "Export Session JSON" button to the logger header controls
+- Added exportCurrentSessionJson() helper
+- Exports the active session object using pretty JSON formatting
+- Download filename includes session date/time and stakes when available
+- Uses existing toast() feedback when no session is selected
+
+Why it matters
+- Removes the need to manually copy JSON from the browser console
+- Enables fast export for coaching analysis workflows
+- Improves the post-session review loop
+
+Safety
+- No schema changes
+- No localStorage changes
+- No save/load changes
+- No parser changes
+
 ## v0.18.3 — Derived Hand Signals V1
 
 Summary

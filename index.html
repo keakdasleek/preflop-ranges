@@ -1139,6 +1139,7 @@ select:focus{
         <button id="loggerNewSession">New session</button>
         <select id="loggerSessionSel"></select>
         <button id="loggerNewHand">Log new hand</button>
+        <button id="loggerExportSessionJson">Export Session JSON</button>
       </div>
     </div>
 
@@ -3578,6 +3579,42 @@ function uid(){
 
 function getActiveSession(){
   return loggerState.sessions.find(s => s.id === loggerState.activeSessionId) || null;
+}
+
+function exportCurrentSessionJson(){
+  const session = getActiveSession();
+  if(!session){
+    toast("Select a session first");
+    return;
+  }
+
+  const dt = new Date(session.createdAt || Date.now());
+  const yyyy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getDate()).padStart(2, "0");
+  const hh = String(dt.getHours()).padStart(2, "0");
+  const mi = String(dt.getMinutes()).padStart(2, "0");
+
+  const stakePart = String(session.stakes || "")
+    .trim()
+    .replace(/[^a-z0-9]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
+
+  const fileName = `poker-session-${yyyy}-${mm}-${dd}_${hh}-${mi}${stakePart ? `-${stakePart}` : ""}.json`;
+  const json = JSON.stringify(session, null, 2);
+
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 // ===== Hand Logger: Table UI (v0) =====
@@ -10143,10 +10180,17 @@ if(loggerSessionSel){
 
 
 const loggerNewHandBtn = document.getElementById("loggerNewHand");
+const loggerExportSessionJsonBtn = document.getElementById("loggerExportSessionJson");
 
 if(loggerNewHandBtn){
   loggerNewHandBtn.addEventListener("click", ()=>{
     createLoggerHand();
+  });
+}
+
+if(loggerExportSessionJsonBtn){
+  loggerExportSessionJsonBtn.addEventListener("click", ()=>{
+    exportCurrentSessionJson();
   });
 }
 
