@@ -10,6 +10,78 @@ Each entry corresponds to a version commit and summarizes:
 
 \---
 
+## v0.18.2 - Structured Street Action Extraction V1
+
+Summary
+Improved reconstructed street parsing by adding a dedicated one-street action extraction helper that returns ordered explicit action objects from structured notes.
+
+What changed
+- Added `extractStreetActionsV1(actionText, actorContext, streetKey)` above `reconstructHandFromNotesV2(hand)`
+- Replaced the older inline street action parsing logic inside `reconstructHandFromNotesV2(hand)`
+- Updated reconstructed street parsing to:
+  - parse one street at a time
+  - preserve note order within the street
+  - normalize supported actor tokens conservatively
+  - normalize supported action verbs conservatively
+  - capture BB sizing when explicitly present
+- Kept reconstructed display formatting routed through the existing `fmtAction(...)` path
+- Left `buildStreetParseContext(notes, hand)` unchanged
+
+Why it matters
+- Improves consistency and quality of reconstructed action data from structured notes
+- Produces richer, more reliable street-level data for downstream coaching insights
+- Strengthens sizing extraction and actor/action consistency without broadening parser scope
+- Preserves strict prevention of cross-street bleed by operating only on isolated `actionText`
+
+Supported v1 behavior
+- Supported actors:
+  - `I`
+  - `Villain`
+  - `he`
+  - `they`
+  - `UTG`
+  - `UTG+1`
+  - `LJ`
+  - `HJ`
+  - `CO`
+  - `BTN`
+  - `SB`
+  - `BB`
+- Supported actions:
+  - check
+  - call
+  - bet
+  - raise
+  - jam
+  - fold
+- Supported explicit size formats include:
+  - `7BB`
+  - `7.3BB`
+  - `to 5BB`
+  - `for 153.5BB`
+  - `(53BB)`
+  - `(61.8BB)`
+
+Guardrails
+- No schema changes
+- No localStorage changes
+- No save/load behavior changes
+- Structured action data still takes precedence over reconstructed data
+- No inferred folds
+- No full actor engine
+- No target-linking or response graph logic
+- Conservative parsing remains the standard when confidence is low
+
+QA focus
+- Confirm structured `Pre:/Flop:/Turn:/River:/End:` notes still reconstruct cleanly
+- Confirm no cross-street bleed
+- Confirm actor parsing works for position labels and `Villain` aliases
+- Confirm action normalization works across supported note variants
+- Confirm explicit BB sizing appears correctly when present
+- Confirm commentary does not create false reconstructed actions
+- Confirm reconstructed output formatting remains stable while action quality improves
+- Confirm structured `hand.actions` still overrides reconstructed note output
+
 ## v0.18.1 - Parse Context Input Fix
 
 Summary

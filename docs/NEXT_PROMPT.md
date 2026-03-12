@@ -1,46 +1,26 @@
 # Next Prompt
 
 Next priority:
-
-Improve parsing quality within the new parse-context architecture.
-
-
+Improve heads-up villain-response parsing quality within the structured street action architecture.
 
 Focus areas:
-
-\- improve villain response extraction
-
-\- improve action sizing extraction
-
-\- strengthen street-by-street reconstruction
-
-\- maintain strict prevention of cross-street bleed
-
-
+- refine `Villain` / `he` / `they` handling when heads up
+- improve consistency between explicit position labels and villain aliases
+- strengthen call / fold / jam response extraction after hero action
+- maintain strict prevention of cross-street bleed
+- preserve explicit-only parsing
 
 Implementation guidance:
-
-\- keep `buildStreetParseContext(notes, hand)` as the source of truth for:
-
-&nbsp; - street segmentation
-
-&nbsp; - board extraction
-
-&nbsp; - action-text isolation
-
-&nbsp; - lightweight actor-context prep
-
-\- keep changes surgical and localized to `index.html`
-
-\- do not modify schema or localStorage
-
-\- structured action data must continue to take precedence over reconstructed data
-
-\- if confidence is low, omit reconstructed lines rather than guessing
-
-
+- keep `buildStreetParseContext(notes, hand)` as the source of truth for:
+  - street segmentation
+  - board extraction
+  - action-text isolation
+  - lightweight actor-context prep
+- keep `extractStreetActionsV1(actionText, actorContext, streetKey)` as the source of truth for ordered explicit street actions
+- keep changes surgical and localized to `index.html`
+- do not modify schema or localStorage
+- structured action data must continue to take precedence over reconstructed data
+- if confidence is low, omit reconstructed lines rather than guessing
 
 Recommended next slice:
-
-Add a small, conservative helper for per-street villain/actor response extraction that works off `actionText` and `actorContext` without introducing a full actor engine.
-
+Add a small conservative refinement layer that normalizes heads-up villain references more reliably after street action extraction, without introducing a full actor engine or inferred-action system.

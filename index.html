@@ -5737,6 +5737,107 @@ function renderLoggerSessionReviewTable(){
   return ctx;
 }
 
+function extractStreetActionsV1(actionText, actorContext, streetKey){
+  const src = String(actionText || "").trim();
+  if(!src) return [];
+
+  const actorToken = "(i|villain|he|they|utg\\+1|utg|lj|hj|co|btn|sb|bb)";
+  const actionToken = [
+    "check(?:s|ed)?",
+    "call(?:s|ed)?",
+    "bet(?:s)?",
+    "raise(?:s|d)?(?:\\s+to)?",
+    "re-raise(?:s|d)?",
+    "3bet",
+    "4bet",
+    "jam(?:s)?",
+    "shove(?:s)?",
+    "push(?:es)?",
+    "all-?in",
+    "goes\\s+all\\s+in",
+    "fold(?:s|ed)?"
+  ].join("|");
+
+  const clauseRe = new RegExp(`\\b${actorToken}\\b\\s+(${actionToken})\\b`, "gi");
+  const matches = Array.from(src.matchAll(clauseRe));
+  if(!matches.length) return [];
+
+  const normalizeActor = (raw) => {
+    const a = String(raw || "").toLowerCase();
+    if(a === "i") return "I";
+    if(a === "villain" || a === "he" || a === "they") return "Villain";
+    return a.toUpperCase();
+  };
+
+  const normalizeAction = (raw) => {
+    const a = String(raw || "").toLowerCase().replace(/\s+/g, " ").trim();
+
+    if(/^check/.test(a)) return "check";
+    if(/^call/.test(a)) return "call";
+    if(/^bet/.test(a)) return "bet";
+    if(/^fold/.test(a)) return "fold";
+    if(/^jam/.test(a) || /^shove/.test(a) || /^push/.test(a) || /^all-?in$/.test(a) || /^goes all in$/.test(a)) return "jam";
+    if(/^re-raise/.test(a) || /^raise/.test(a) || a === "3bet" || a === "4bet") return "raise";
+
+    return "";
+  };
+
+  const extractSizeBB = (rawClause) => {
+    const s = String(rawClause || "");
+    if(!s) return null;
+
+    const patterns = [
+      /\bto\s*(\d+(?:\.\d+)?)\s*bb\b/i,
+      /\bfor\s*(\d+(?:\.\d+)?)\s*bb\b/i,
+      /\(\s*(\d+(?:\.\d+)?)\s*bb\s*\)/i,
+      /\b(\d+(?:\.\d+)?)\s*bb\b/i
+    ];
+
+    for(const re of patterns){
+      const m = s.match(re);
+      if(m && m[1] != null){
+        const n = Number(m[1]);
+        if(isFinite(n)) return n;
+      }
+    }
+    return null;
+  };
+
+  const out = [];
+
+  for(let i = 0; i < matches.length; i++){
+    const m = matches[i];
+    const start = Number(m.index || 0);
+    const nextStart = (i + 1 < matches.length && matches[i + 1].index != null)
+      ? Number(matches[i + 1].index)
+      : src.length;
+
+    const rawClause = src.slice(start, nextStart).trim().replace(/^[,;.\s]+|[,;.\s]+$/g, "");
+    if(!rawClause) continue;
+
+    const actorRaw = String(m[1] || "").toLowerCase();
+    const actionRaw = String(m[2] || "").toLowerCase();
+    const action = normalizeAction(actionRaw);
+    if(!action) continue;
+
+    const actor = normalizeActor(actorRaw);
+    const sizeBB = extractSizeBB(rawClause.slice(0, 48));
+
+    out.push({
+      street: String(streetKey || ""),
+      order: out.length,
+      actor,
+      actorRaw,
+      action,
+      sizeBB,
+      raw: rawClause,
+      confidence: "high"
+    });
+  }
+
+  return out;
+}
+
 function reconstructHandFromNotesV2(hand){
   const notesRaw = String(hand?.notes || "").trim();
   if(!notesRaw) return [];
@@ -5752,29 +5853,9 @@ function reconstructHandFromNotesV2(hand){
     return `${actor} ${verb}${sized}`;
   };
 
-  const parseActions = (actionText) => {
-    const segLower = String(actionText || "").toLowerCase();
-    if(!segLower) return [];
-    const out = [];
-    const actionReMulti = /\b(i|villain|btn|co|bb|sb|utg\+?1?|utg|hj|lj|mp|ep|he|they)\s+(3bet|4bet|c-?bet|raise(?:\s+to)?|bet|call|fold|check|jam|shove)\b(?:[^\d]{0,16}(\d+(?:\.\d+)?)\s*bb)?/gi;
-
-    let m;
-    while((m = actionReMulti.exec(segLower)) !== null){
-      const actorRaw = String(m[1] || "").toLowerCase();
-      const actionRaw = String(m[2] || "").toLowerCase().replace(/\s+/g, "");
-      const bb = m[3] ? Number(m[3]) : null;
-
-      const actor = actorRaw === "i"
-        ? "I"
-        : (actorRaw === "he" || actorRaw === "they" ? "Villain" : actorRaw.toUpperCase());
-
-      const actNorm = (actionRaw === "cbet" || actionRaw === "c-bet")
-        ? "bet"
-        : (actionRaw.startsWith("raise") ? "raise" : actionRaw);
-
-      out.push(fmtAction(actor, actNorm, isFinite(bb) ? bb : null));
-    }
-    return out;
+  const parseActions = (actionText, actorContext, streetKey) => {
+    return extractStreetActionsV1(actionText, actorContext, streetKey)
+      .map(a => fmtAction(a.actor, a.action, a.sizeBB));
   };
 
   if(ctx.pre.text){
@@ -5785,7 +5866,7 @@ function reconstructHandFromNotesV2(hand){
   const renderStreet = (k) => {
     const s = ctx[k];
     if(!s || !s.text) return "";
-    const acts = parseActions(s.actionText);
+    const acts = parseActions(s.actionText, s.actorContext, k);
     if(!s.board && !acts.length) return "";
     return `${s.label}: ${s.board ? s.board : "-"}${acts.length ? ` | ${acts.join(", ")}` : ""}`;
   };
