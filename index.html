@@ -6022,6 +6022,15 @@ function reconstructHandFromNotesV2(hand){
     const noteRaw = noteSource.trim().replace(/\s+/g, " ");
     const notePreview = noteRaw ? (noteRaw.length > 72 ? `${noteRaw.slice(0, 72)}...` : noteRaw) : "-";
     const noteFull = noteRaw || "-";
+    const reflectionRaw = String(h.reflection || "").trim().replace(/\s+/g, " ");
+    const reflectionHtml = reflectionRaw
+      ? `
+          <div style="margin-top:8px">
+            <div class="kicker" style="margin-bottom:4px;font-weight:900">Reflection</div>
+            <div class="kicker" style="opacity:.88">${reflectionRaw}</div>
+          </div>
+        `
+      : "";
 
     let actionsHtml = "";
     if(opts.showActions){
@@ -6084,6 +6093,7 @@ function reconstructHandFromNotesV2(hand){
         <div style="padding:0 10px 10px 10px">
           ${actionsHtml}
           <div class="kicker">${noteFull}</div>
+          ${reflectionHtml}
         </div>
       </details>
     `;
@@ -7883,7 +7893,31 @@ card.appendChild(heroCardsLine);
     saveLogger();
   });
 
+  const reflectionLabel = document.createElement("div");
+  reflectionLabel.className = "kicker";
+  reflectionLabel.style.color = "var(--muted)";
+  reflectionLabel.style.fontWeight = "800";
+  reflectionLabel.textContent = "Reflection";
+
+  const reflection = document.createElement("textarea");
+  reflection.placeholder = "Reflection (optional)...";
+  reflection.value = hand.reflection || "";
+  reflection.style.minHeight = "80px";
+  reflection.style.padding = "10px 12px";
+  reflection.style.borderRadius = "12px";
+  reflection.style.border = "1px solid rgba(255,255,255,.12)";
+  reflection.style.background = "rgba(255,255,255,.04)";
+  reflection.style.color = "var(--text)";
+  reflection.style.resize = "vertical";
+
+  reflection.addEventListener("change", ()=>{
+    hand.reflection = reflection.value;
+    saveLogger();
+  });
+
   card.appendChild(note);
+  card.appendChild(reflectionLabel);
+  card.appendChild(reflection);
 
   // Buttons
   const btnRow = document.createElement("div");
@@ -9980,12 +10014,34 @@ mount.appendChild(actionsWrap);
     saveLogger();
   });
 
+  const reflectionLabel = document.createElement("div");
+  reflectionLabel.className = "kicker";
+  reflectionLabel.textContent = "Reflection";
+
+  const reflection = document.createElement("textarea");
+  reflection.style.width = "100%";
+  reflection.style.minHeight = "90px";
+  reflection.style.borderRadius = "12px";
+  reflection.style.border = "1px solid rgba(255,255,255,.10)";
+  reflection.style.background = "rgba(0,0,0,.18)";
+  reflection.style.color = "var(--text)";
+  reflection.style.padding = "10px 12px";
+  reflection.style.fontWeight = "700";
+  reflection.value = hand.reflection || "";
+
+  reflection.addEventListener("input", ()=>{
+    hand.reflection = reflection.value;
+    saveLogger();
+  });
+
   top.appendChild(title);
   top.appendChild(doneBtn);
 
   top.appendChild(meta);
   top.appendChild(notesLabel);
   top.appendChild(notes);
+  top.appendChild(reflectionLabel);
+  top.appendChild(reflection);
 
   mount.appendChild(top);
 }
@@ -10016,6 +10072,7 @@ function createLoggerHand(){
       heroSeat: 0,
       btnSeat: Number(loggerState.table.btnSeat),
       notes: LOGGER_NOTES_TEMPLATE,
+      reflection: "",
       completedAt: null,
       effStackBB: "",            // user-entered, e.g. 100
       wentToShowdown: false,     // optional

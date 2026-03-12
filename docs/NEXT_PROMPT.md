@@ -1,19 +1,30 @@
 # Next Prompt
 
-Next focus:
-Session analytics aggregation.
+Next development target
 
-Goal:
-Use derived hand signals to produce session-level insights such as:
 
-- c-bet frequency
-- double barrel frequency
-- triple barrel frequency
-- villain fold vs aggression
-- showdown rate
-- river betting frequency
+
+Improve hand signal extraction and coaching insights using the new
+
+structured action pipeline.
+
+
+
+Possible directions:
+
+\- expand deriveHandSignalsV1 with additional strategic signals
+
+\- introduce river decision analysis helpers
+
+\- begin building aggregation helpers for session-level insights
+
+
 
 Constraints:
-- compute from existing session data
-- avoid schema changes initially
-- keep analytics lightweight
+
+\- continue prioritizing structured action data
+
+\- avoid parsing reflection text
+
+\- keep reconstruction and analysis layers separated
+

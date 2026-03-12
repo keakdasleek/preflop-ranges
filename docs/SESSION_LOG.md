@@ -10,6 +10,28 @@ Each entry corresponds to a version commit and summarizes:
 
 \---
 
+## v0.18.4 — Snapshot Reflection Field
+
+Summary
+Added a free-form Reflection field to the Snapshot workflow to capture
+subjective thoughts about hands without polluting structured street notes.
+
+What changed
+- Added Reflection textarea to Snapshot editor (renderLoggerSnapshotEditor)
+- Reflection saves to hand.reflection
+- Review cards already render reflection when present
+- Reflection is intentionally ignored by parsing and reconstruction
+
+Why
+Structured notes are optimized for hand reconstruction and analysis,
+but some hands benefit from subjective commentary or experiment notes.
+Reflection provides a clean place for this without degrading parser quality.
+
+Safety
+- No schema changes
+- No parser modifications
+- No localStorage or session behavior changes
+
 ## v0.18.4 — Session JSON Export
 
 Summary
