@@ -10,6 +10,59 @@ Each entry corresponds to a version commit and summarizes:
 
 \---
 
+## v0.19.0 — Logging UX + Review Context Upgrade
+
+Summary
+Improved the live logging workflow by making the UI logging-first, reducing visual noise, adding better hand review context, and making session export easier for coaching analysis.
+
+What changed
+
+### Logging UX
+- Reflowed the top logger layout into a two-column top band:
+  - Session area on the left
+  - Table graphic on the right
+- Moved the Hand / Snapshot logging area below the top band so it can use full width
+- Reduced the visual footprint of the Session area
+- Reduced the size and dominance of the table graphic while keeping it visible and usable
+- Collapsed review-heavy and analytics-heavy sections by default to support hand logging mode
+
+### Snapshot / Hand Logging
+- Added an optional Reflection field to the Snapshot workflow
+- Reflection is stored separately from structured notes
+- Reflection is intended for subjective thoughts and post-hand commentary
+- Structured notes remain focused on machine-parseable hand/action input
+
+### Review Context
+- Added hero position to review cards as a compact chip
+- Hero position is sourced from structured hand metadata only
+- Reflection now displays in review cards when present
+- Reflection remains fully separate from parsing and reconstruction
+
+### Export Workflow
+- Added "Export Session JSON" button
+- Active session can now be downloaded directly as pretty-formatted JSON
+- This removes the need to use the browser console before uploading sessions to the Coaching Chat
+
+Why it matters
+- Makes the app much easier to use while actively playing
+- Preserves the table graphic as a critical positional reference and hero-selection tool
+- Reduces visual clutter without removing access to review information
+- Improves the workflow between live logging and Coaching Chat analysis
+- Keeps structured notes clean and parser-friendly while still allowing free-form hand reflections
+
+Safety / Guardrails
+- No schema changes
+- No parser changes
+- No localStorage behavior changes
+- No save/load behavior changes
+- No hero-position selection logic changes
+- No dynamic table-size / position-remapping changes yet
+
+Notes
+- Hero position is still tied to structured hand metadata and never derived from notes
+- Reflection is intentionally ignored by reconstruction and parser helpers
+- Hard-coded positional assumptions remain in place for now and should be revisited later when table-size-aware position handling is addressed
+
 ## v0.18.4 — Snapshot Reflection Field
 
 Summary
