@@ -1,104 +1,88 @@
 # Next Prompt
 
+\# Next Prompt
+
+
+
 Next focus:
 
-deriveSessionSignalsV1()
+
+
+Session signal reliability and coaching insights.
 
 
 
 Goal:
 
-Build the first lightweight session-level signal layer using existing structured hand signals.
+
+
+Improve the usefulness of session-level analytics now that logging UX has been simplified and session signals exist.
 
 
 
 Why this matters:
 
-The logging UX is now in a much better place. The next step is to turn logged hands into session-level tendencies that help identify patterns, leaks, and coaching opportunities.
+
+
+The tool now captures hands quickly and generates basic session signals.  
+
+The next step is making those signals more useful for coaching review.
 
 
 
 Recommended scope:
 
-\- add deriveSessionSignalsV1(session)
-
-\- compute counts and simple rates from deriveHandSignalsV1(hand)
-
-\- focus on explicit structured data only
-
-\- avoid parser expansion in this step
-
-\- avoid schema changes or persistence changes
 
 
+\- improve Derived Session Signals presentation
 
-Suggested initial metrics:
+\- identify meaningful coaching patterns
 
-\- handsReviewed
+\- surface possible leaks or tendencies
 
-\- handsWithStructuredActions
-
-\- openRaiseCount
-
-\- cBetFlopCount
-
-\- doubleBarrelCount
-
-\- tripleBarrelCount
-
-\- riverBetCount
-
-\- villainCalledFlopCount
-
-\- villainCalledTurnCount
-
-\- villainFoldedFlopCount
-
-\- villainFoldedTurnCount
-
-\- villainFoldedRiverCount
-
-\- showdownCount
+\- keep signals lightweight and explainable
 
 
 
-Suggested opportunity/denominator metrics:
-
-\- cBetFlopOpportunities
-
-\- doubleBarrelOpportunities
-
-\- tripleBarrelOpportunities
+Possible improvements:
 
 
 
-Suggested rates:
+\- show sample hands for each signal category
 
-\- cBetFlopRate
+\- highlight extreme tendencies
 
-\- doubleBarrelRate
+\- flag suspicious patterns (for example extremely low c-bet rate)
 
-\- tripleBarrelRate
+\- show simple aggression summaries
 
 
 
 Design constraints:
 
-\- keep this derived from structured actions and existing hand-level signals
 
-\- no parser changes
 
-\- no reflection parsing
+\- keep using existing signal helpers
 
-\- no schema changes
+\- avoid parser expansion
 
-\- no heavy analytics engine yet
+\- avoid schema changes
+
+\- avoid persistence changes
 
 \- keep the patch small and additive
 
 
 
-Important future note:
+Future direction (not part of next patch):
 
-At some point, revisit the hard-coded positional model and table-size assumptions. This is becoming more important as more hands are logged at variable table sizes, but it should remain a separate feature from session signal aggregation.
+
+
+\- table-size aware positional model
+
+\- deeper villain-response tracking
+
+\- improved reconstructed action reliability
+
+\- session-to-session trend analysis
 

@@ -3867,6 +3867,23 @@ let loggerCardBackdrop, loggerCardModal, loggerCardTitle, loggerCardSub,
     loggerCardSlots, loggerCardGrid, loggerCardSave, loggerCardClose, loggerCardClearAll;
 
 let loggerCardPickerBound = false;
+let loggerCardFocusSnapshotNotesOnce = false;
+
+function focusSnapshotNotesAfterCardPickerClose(){
+  if(!loggerCardFocusSnapshotNotesOnce) return;
+  loggerCardFocusSnapshotNotesOnce = false;
+
+  setTimeout(()=>{
+    const noteEl = document.querySelector("#loggerHandEditor textarea");
+    if(!noteEl) return;
+
+    const end = String(noteEl.value || "").length;
+    noteEl.focus();
+    if(typeof noteEl.setSelectionRange === "function"){
+      noteEl.setSelectionRange(end, end);
+    }
+  }, 0);
+}
 
 function initLoggerCardPickerEls(){
   // grab elements (safe to call repeatedly)
@@ -3914,6 +3931,7 @@ function initLoggerCardPickerEls(){
         loggerCardPicker.onSave((loggerCardPicker.slots || []).slice());
       }
       closeLoggerCardPicker();
+      focusSnapshotNotesAfterCardPickerClose();
     });
   }
 }
@@ -3970,8 +3988,9 @@ if(loggerCardSave){
       loggerCardPicker.onSave(loggerCardPicker.slots.slice());
     }
     closeLoggerCardPicker();
-  });
-}
+      focusSnapshotNotesAfterCardPickerClose();
+    });
+  }
 
 
 
@@ -5183,6 +5202,32 @@ function renderLoggerSessionReviewTable(){
     "Interesting spots and full hand history."
   );
 
+  const sessionSignals = deriveSessionSignalsV1(active);
+  const pct = (v) => v == null ? "-" : `${Math.round(v * 100)}%`;
+
+  const sessionSignalsSection = document.createElement("div");
+  sessionSignalsSection.style.marginBottom = "10px";
+  sessionSignalsSection.innerHTML = `
+    <details>
+      <summary style="margin-bottom:6px;font-weight:900;color:rgba(231,236,255,.92);cursor:pointer">Derived Session Signals</summary>
+      <div class="kicker" style="display:grid;gap:4px">
+        <div>Hands: ${sessionSignals.handsTotal}</div>
+        <div>Hands with structured actions: ${sessionSignals.handsWithSignals}</div>
+        <div>Open-raise: ${sessionSignals.openRaiseCount}</div>
+        <div>Flop c-bet: ${sessionSignals.cBetFlopCount} / ${sessionSignals.cBetFlopOpportunities} (${pct(sessionSignals.cBetFlopRate)})</div>
+        <div>Double barrel: ${sessionSignals.doubleBarrelCount} / ${sessionSignals.doubleBarrelOpportunities} (${pct(sessionSignals.doubleBarrelRate)})</div>
+        <div>Triple barrel: ${sessionSignals.tripleBarrelCount} / ${sessionSignals.tripleBarrelOpportunities} (${pct(sessionSignals.tripleBarrelRate)})</div>
+        <div>River bet: ${sessionSignals.riverBetCount}</div>
+        <div>Villain called flop: ${sessionSignals.villainCalledFlopCount}</div>
+        <div>Villain called turn: ${sessionSignals.villainCalledTurnCount}</div>
+        <div>Villain folded flop: ${sessionSignals.villainFoldedFlopCount}</div>
+        <div>Villain folded turn: ${sessionSignals.villainFoldedTurnCount}</div>
+        <div>Villain folded river: ${sessionSignals.villainFoldedRiverCount}</div>
+        <div>Went to showdown: ${sessionSignals.showdownCount}</div>
+      </div>
+    </details>
+  `;
+
   const allSessions = Array.isArray(loggerState?.sessions) ? loggerState.sessions : [];
   const allHands = [];
   allSessions.forEach((s) => {
@@ -6311,6 +6356,7 @@ function reconstructHandFromNotesV2(hand){
   mount.appendChild(multiSessionSection);
 
   mount.appendChild(thisSessionHeader);
+  mount.appendChild(sessionSignalsSection);
   mount.appendChild(potSizeSection);
   mount.appendChild(bluffSection);
   mount.appendChild(aggressionProfileSection);
@@ -6867,7 +6913,35 @@ function deriveHandSignalsV1(hand){
   };
   if(!hand) return signals;
   const actions = getSortedActions(hand);
-  if(!actions.length) return signals;
+  if(!actions.length){
+    const snapType = String(hand?.snapType || "").toUpperCase();
+    const snapStreet = String(hand?.snapStreet || "").toUpperCase();
+    const snapHeroAction = String(hand?.snapHeroAction || "").toUpperCase();
+    const snapVillainResponse = String(hand?.snapVillainResponse || "UNKNOWN").toUpperCase();
+    const snapIsAggressive = snapHeroAction === "BET" || snapHeroAction === "RAISE" || snapHeroAction === "JAM" || snapHeroAction === "ALLIN";
+
+    signals.openRaise = snapType === "SRP";
+    signals.cBetFlop = snapType === "SRP" && snapStreet === "FLOP" && snapIsAggressive;
+    signals.doubleBarrel = snapType === "SRP" && snapStreet === "TURN" && snapIsAggressive;
+    signals.tripleBarrel = snapType === "SRP" && snapStreet === "RIVER" && snapIsAggressive;
+    signals.riverBet = snapStreet === "RIVER" && snapIsAggressive;
+
+    if(snapIsAggressive && snapStreet === "FLOP"){
+      if(snapVillainResponse === "CALL") signals.villainCalledFlop = true;
+      if(snapVillainResponse === "FOLD") signals.villainFoldedFlop = true;
+    }
+
+    if(snapIsAggressive && snapStreet === "TURN"){
+      if(snapVillainResponse === "CALL") signals.villainCalledTurn = true;
+      if(snapVillainResponse === "FOLD") signals.villainFoldedTurn = true;
+    }
+
+    if(snapIsAggressive && snapStreet === "RIVER"){
+      if(snapVillainResponse === "FOLD") signals.villainFoldedRiver = true;
+    }
+
+    return signals;
+  }
   const heroPos = getHeroPosForHand(hand);
   const pfa = getPreflopAggressor(hand);
   const pre = getStreetActions(hand, "PREFLOP");
@@ -6916,6 +6990,90 @@ function deriveHandSignalsV1(hand){
   const riverReaction = getVillainReaction("RIVER", river);
   signals.villainFoldedRiver = riverReaction.folded;
   return signals;
+}
+
+function safeRate(n, d){
+  const num = Number(n);
+  const den = Number(d);
+  if(!isFinite(num) || !isFinite(den) || den <= 0) return null;
+  return num / den;
+}
+
+function deriveSessionSignalsV1(session){
+  const hands = Array.isArray(session?.hands) ? session.hands : [];
+
+  const summary = {
+    handsTotal: hands.length,
+    handsWithSignals: 0,
+
+    openRaiseCount: 0,
+    cBetFlopCount: 0,
+    doubleBarrelCount: 0,
+    tripleBarrelCount: 0,
+    riverBetCount: 0,
+
+    villainCalledFlopCount: 0,
+    villainCalledTurnCount: 0,
+    villainFoldedFlopCount: 0,
+    villainFoldedTurnCount: 0,
+    villainFoldedRiverCount: 0,
+
+    showdownCount: 0,
+
+    cBetFlopOpportunities: 0,
+    doubleBarrelOpportunities: 0,
+    tripleBarrelOpportunities: 0,
+
+    cBetFlopRate: null,
+    doubleBarrelRate: null,
+    tripleBarrelRate: null
+  };
+
+  for(const hand of hands){
+    if(!hand) continue;
+
+    const signals = deriveHandSignalsV1(hand);
+    const actions = getSortedActions(hand);
+    const heroPos = getHeroPosForHand(hand);
+    const pfa = getPreflopAggressor(hand);
+    const flop = getStreetActions(hand, "FLOP");
+    const turn = getStreetActions(hand, "TURN");
+    const river = getStreetActions(hand, "RIVER");
+
+    if(actions.length) summary.handsWithSignals++;
+
+    if(signals.openRaise) summary.openRaiseCount++;
+    if(signals.cBetFlop) summary.cBetFlopCount++;
+    if(signals.doubleBarrel) summary.doubleBarrelCount++;
+    if(signals.tripleBarrel) summary.tripleBarrelCount++;
+    if(signals.riverBet) summary.riverBetCount++;
+
+    if(signals.villainCalledFlop) summary.villainCalledFlopCount++;
+    if(signals.villainCalledTurn) summary.villainCalledTurnCount++;
+    if(signals.villainFoldedFlop) summary.villainFoldedFlopCount++;
+    if(signals.villainFoldedTurn) summary.villainFoldedTurnCount++;
+    if(signals.villainFoldedRiver) summary.villainFoldedRiverCount++;
+
+    if(signals.wentToShowdown) summary.showdownCount++;
+
+    if((pfa === heroPos) && flop.length){
+      summary.cBetFlopOpportunities++;
+    }
+
+    if(signals.cBetFlop && turn.length){
+      summary.doubleBarrelOpportunities++;
+    }
+
+    if(signals.doubleBarrel && river.length){
+      summary.tripleBarrelOpportunities++;
+    }
+  }
+
+  summary.cBetFlopRate = safeRate(summary.cBetFlopCount, summary.cBetFlopOpportunities);
+  summary.doubleBarrelRate = safeRate(summary.doubleBarrelCount, summary.doubleBarrelOpportunities);
+  summary.tripleBarrelRate = safeRate(summary.tripleBarrelCount, summary.tripleBarrelOpportunities);
+
+  return summary;
 }
 
 function deriveInsightsV1(hand){
@@ -7562,6 +7720,19 @@ el.appendChild(row);
 function renderLoggerSnapshotEditor({ mount, hand, heroPos, n }){
   mount.innerHTML = "";
 
+  const focusSnapshotNoteAfterRender = () => {
+    setTimeout(()=>{
+      const noteEl = mount.querySelector("textarea");
+      if(!noteEl) return;
+
+      const end = String(noteEl.value || "").length;
+      noteEl.focus();
+      if(typeof noteEl.setSelectionRange === "function"){
+        noteEl.setSelectionRange(end, end);
+      }
+    }, 0);
+  };
+
   const top = document.createElement("div");
   top.style.display = "grid";
   top.style.gap = "10px";
@@ -7586,195 +7757,6 @@ function renderLoggerSnapshotEditor({ mount, hand, heroPos, n }){
   card.style.border = "1px solid rgba(255,255,255,.10)";
   card.style.background = "rgba(255,255,255,.03)";
 
-  // Positions list (prefer derived; allow override)
-const posBySeatRaw = buildSeatPositionsFromButton(Number(hand.btnSeat || 0), n);
-
-// Normalize return type (array vs object map)
-const posBySeatArr = Array.isArray(posBySeatRaw)
-  ? posBySeatRaw
-  : Object.values(posBySeatRaw || {});
-
-const posOptions = posBySeatArr.filter(Boolean);
-  const currentHero = hand.heroPosOverride || heroPos || "HERO";
-
-  const row1 = document.createElement("div");
-  row1.style.display = "flex";
-  row1.style.gap = "10px";
-  row1.style.flexWrap = "wrap";
-  row1.style.alignItems = "center";
-
-  const heroLabel = document.createElement("div");
-  heroLabel.className = "kicker";
-  heroLabel.style.color = "var(--muted)";
-  heroLabel.style.fontWeight = "800";
-  heroLabel.textContent = "Hero pos";
-
-  const heroSel = document.createElement("select");
-  heroSel.style.padding = "8px 10px";
-  heroSel.style.borderRadius = "10px";
-  heroSel.style.border = "1px solid rgba(255,255,255,.15)";
-  heroSel.style.background = "rgba(255,255,255,.05)";
-  heroSel.style.color = "var(--text)";
-  heroSel.style.fontWeight = "900";
-
-  // If no derived options (e.g., BTN not set), provide fallback
-  const fallback = ["UTG","UTG+1","LJ","HJ","CO","BTN","SB","BB"];
-  const list = posOptions.length ? posOptions : fallback;
-
-  list.forEach(p=>{
-    const opt = document.createElement("option");
-    opt.value = p;
-    opt.textContent = p;
-    if(p === currentHero) opt.selected = true;
-    heroSel.appendChild(opt);
-  });
-
-  heroSel.addEventListener("change", ()=>{
-    hand.heroPosOverride = heroSel.value;
-    saveLogger();
-  });
-
-  row1.appendChild(heroLabel);
-  row1.appendChild(heroSel);
-
-  // Street reached
-  const streetLabel = document.createElement("div");
-  streetLabel.className = "kicker";
-  streetLabel.style.color = "var(--muted)";
-  streetLabel.style.fontWeight = "800";
-  streetLabel.textContent = "Street";
-
-  const streetSel = document.createElement("select");
-  streetSel.style.padding = "8px 10px";
-  streetSel.style.borderRadius = "10px";
-  streetSel.style.border = "1px solid rgba(255,255,255,.15)";
-  streetSel.style.background = "rgba(255,255,255,.05)";
-  streetSel.style.color = "var(--text)";
-  streetSel.style.fontWeight = "900";
-
-  const streetOptions = ["PREFLOP","FLOP","TURN","RIVER","SHOWDOWN"];
-  streetOptions.forEach(s=>{
-    const opt = document.createElement("option");
-    opt.value = s;
-    opt.textContent = s;
-    if((hand.snapStreet || "PREFLOP") === s) opt.selected = true;
-    streetSel.appendChild(opt);
-  });
-
-  streetSel.addEventListener("change", ()=>{
-    hand.snapStreet = streetSel.value;
-    saveLogger();
-  });
-
-// HARDEN: ensure SNAP street is always set even if user never touches dropdown
-streetSel.value = hand.snapStreet || "PREFLOP";
-hand.snapStreet = streetSel.value;
-  
-  row1.appendChild(streetLabel);
-  row1.appendChild(streetSel);
-
-  // Pot type
-  const potLabel = document.createElement("div");
-  potLabel.className = "kicker";
-  potLabel.style.color = "var(--muted)";
-  potLabel.style.fontWeight = "800";
-  potLabel.textContent = "Type";
-
-  const potSel = document.createElement("select");
-  potSel.style.padding = "8px 10px";
-  potSel.style.borderRadius = "10px";
-  potSel.style.border = "1px solid rgba(255,255,255,.15)";
-  potSel.style.background = "rgba(255,255,255,.05)";
-  potSel.style.color = "var(--text)";
-  potSel.style.fontWeight = "900";
-
-  ["SRP","3BP","Limped"].forEach(t=>{
-    const opt = document.createElement("option");
-    opt.value = t;
-    opt.textContent = t;
-    if((hand.snapType || "SRP") === t) opt.selected = true;
-    potSel.appendChild(opt);
-  });
-
-  potSel.addEventListener("change", ()=>{
-    hand.snapType = potSel.value;
-    saveLogger();
-  });
-
-  row1.appendChild(potLabel);
-  row1.appendChild(potSel);
-
-    // Pressure (what you faced at the inflection point)
-  const presLabel = document.createElement("div");
-  presLabel.className = "kicker";
-  presLabel.style.color = "var(--muted)";
-  presLabel.style.fontWeight = "800";
-  presLabel.textContent = "Pressure";
-
-  const presSel = document.createElement("select");
-  presSel.style.padding = "8px 10px";
-  presSel.style.borderRadius = "10px";
-  presSel.style.border = "1px solid rgba(255,255,255,.15)";
-  presSel.style.background = "rgba(255,255,255,.05)";
-  presSel.style.color = "var(--text)";
-  presSel.style.fontWeight = "900";
-
-  const presOptions = [
-    {v:"NONE",  t:"None"},
-    {v:"BET",   t:"Faced bet"},
-    {v:"RAISE", t:"Faced raise"},
-    {v:"ALLIN", t:"Faced all-in"}
-  ];
-
-  presOptions.forEach(o=>{
-    const opt = document.createElement("option");
-    opt.value = o.v;
-    opt.textContent = o.t;
-    if((hand.snapPressure || "NONE") === o.v) opt.selected = true;
-    presSel.appendChild(opt);
-  });
-
-  presSel.addEventListener("change", ()=>{
-    hand.snapPressure = presSel.value;
-    saveLogger();
-  });
-
-  row1.appendChild(presLabel);
-  row1.appendChild(presSel);
-
-    // Hero Action (what you chose at the inflection point)
-  const actLabel = document.createElement("div");
-  actLabel.className = "kicker";
-  actLabel.style.color = "var(--muted)";
-  actLabel.style.fontWeight = "800";
-  actLabel.textContent = "Hero Action";
-
-  const actSel = document.createElement("select");
-  actSel.style.padding = "8px 10px";
-  actSel.style.borderRadius = "10px";
-  actSel.style.border = "1px solid rgba(255,255,255,.15)";
-  actSel.style.background = "rgba(255,255,255,.05)";
-  actSel.style.color = "var(--text)";
-  actSel.style.fontWeight = "900";
-
-  const actOptions = ["CHECK","BET","CALL","RAISE","FOLD"];
-  actOptions.forEach(a=>{
-    const opt = document.createElement("option");
-    opt.value = a;
-    opt.textContent = a;
-    if((hand.snapHeroAction || "") === a) opt.selected = true;
-    actSel.appendChild(opt);
-  });
-
-  actSel.addEventListener("change", ()=>{
-    hand.snapHeroAction = actSel.value;
-    saveLogger();
-  });
-
-  row1.appendChild(actLabel);
-  row1.appendChild(actSel);
-
-  card.appendChild(row1);
 
   // Hero cards (optional, helps reconstruct later)
 const heroCardsLine = document.createElement("div");
@@ -7819,8 +7801,12 @@ heroCardsBtn.addEventListener("click", ()=>{
     ].filter(Boolean)),
     onSave: (newSlots)=>{
       hand.heroCards = [newSlots[0] || null, newSlots[1] || null];
+      const hasBothHeroCards = !!hand.heroCards[0] && !!hand.heroCards[1];
       saveLogger();
       renderLoggerSnapshotEditor({ mount, hand, heroPos, n });
+      if(hasBothHeroCards){
+        loggerCardFocusSnapshotNotesOnce = true;
+      }
     }
   });
 });
@@ -7963,12 +7949,6 @@ card.appendChild(heroCardsLine);
   saveBtn.style.fontWeight = "950";
 
 saveBtn.addEventListener("click", ()=>{
-  // HARDEN: persist street/type even if user never touched dropdowns
-  hand.snapStreet = hand.snapStreet || streetSel.value || "PREFLOP";
-  hand.snapType   = hand.snapType   || potSel.value   || "SRP";
-  hand.snapPressure = hand.snapPressure || presSel.value || "NONE";
-  hand.snapHeroAction = hand.snapHeroAction || actSel.value || "";
-
   hand.isSnapshot = true;
   hand.completedAt = Date.now();
   hand.viewMode = "REVIEW";
@@ -10102,6 +10082,7 @@ function createLoggerHand(){
       heroSeat: 0,
       btnSeat: Number(loggerState.table.btnSeat),
       notes: LOGGER_NOTES_TEMPLATE,
+      snapVillainResponse: "UNKNOWN",
       reflection: "",
       completedAt: null,
       effStackBB: "",            // user-entered, e.g. 100

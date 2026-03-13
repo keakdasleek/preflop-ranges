@@ -10,6 +10,95 @@ Each entry corresponds to a version commit and summarizes:
 
 \---
 
+## v0.19.1 — Snapshot UX Simplification + Session Signals
+
+Summary  
+Simplified the Snapshot logging workflow and introduced the first session-level signal layer for reviewing player tendencies.
+
+What changed
+
+### Snapshot Logging UX Simplification
+Removed the entire Snapshot metadata selector row from the Snapshot editor.
+
+Removed controls:
+- Street
+- Type
+- Pressure
+- Hero Action
+- Villain Response
+
+The Snapshot workflow now focuses on the core logging flow:
+
+Select Position → Select Cards → Structured Notes → Result (BB)
+
+This significantly reduces logging friction during live play.
+
+Notes remain the primary source of hand reconstruction and analysis.
+
+### Session-Level Signals
+Added the first session-level aggregation layer.
+
+New helper:
+- deriveSessionSignalsV1(session)
+
+Signals are derived from `deriveHandSignalsV1(hand)` and include:
+
+Counts
+- handsReviewed
+- handsWithStructuredActions
+- openRaiseCount
+- cBetFlopCount
+- doubleBarrelCount
+- tripleBarrelCount
+- riverBetCount
+- villainCalledFlopCount
+- villainCalledTurnCount
+- villainFoldedFlopCount
+- villainFoldedTurnCount
+- villainFoldedRiverCount
+- showdownCount
+
+Opportunities
+- cBetFlopOpportunities
+- doubleBarrelOpportunities
+- tripleBarrelOpportunities
+
+Rates
+- cBetFlopRate
+- doubleBarrelRate
+- tripleBarrelRate
+
+A "Derived Session Signals" section now renders in Session Review.
+
+### Snapshot Signal Fallback
+Improved `deriveHandSignalsV1(hand)` so Snapshot-only hands can still contribute to hero aggression metrics when structured actions are missing.
+
+The fallback uses existing Snapshot metadata only and does not parse notes.
+
+Villain signals remain conservative and only appear when explicitly supported by structured actions.
+
+Why it matters
+
+- Removes friction from the live logging workflow
+- Keeps structured notes as the core data model
+- Introduces the first session-level tendency signals
+- Creates the foundation for coaching analytics across sessions
+
+Safety / Guardrails
+
+- No schema changes
+- No parser changes
+- No localStorage changes
+- No save/load behavior changes
+- Structured actions remain the highest-confidence signal source
+
+Notes
+
+- Snapshot metadata fields still exist internally but are no longer surfaced in the logging UI
+- Session signals remain intentionally lightweight and read-only
+- Future signal improvements may incorporate note reconstruction once reliability is validated
+
+
 ## v0.19.0 — Logging UX + Review Context Upgrade
 
 Summary
