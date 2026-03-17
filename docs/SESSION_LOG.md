@@ -10,6 +10,37 @@ Each entry corresponds to a version commit and summarizes:
 
 \---
 
+SESSION_LOG.md entry:
+
+## v0.19.2 — Structured Notes Action Extraction V2
+
+Summary
+Improved the shared structured-notes street action extractor so reconstructed hand lines more reliably capture explicit ordered action chains, villain responses, and BB sizing.
+
+What changed
+- Replaced `extractStreetActionsV1(actionText, actorContext, streetKey)` with a stronger shared extractor
+- Improved clause punctuation normalization
+- Improved left-to-right ordered action extraction within a street
+- Improved explicit BB size extraction by scanning the full clause
+- Left `buildStreetParseContext(notes, hand)` unchanged
+- Left `reconstructHandFromNotesV2(hand)` unchanged
+- Left output formatting unchanged
+
+Why it matters
+- Improves notes-driven hand reconstruction
+- Improves villain response capture from structured notes
+- Improves size extraction consistency
+- Strengthens downstream review quality and future analytics built on notes-first parsing
+
+Safety / Guardrails
+- No schema changes
+- No localStorage changes
+- No save/load behavior changes
+- No parser architecture changes
+- No reflection parsing
+- No inferred actions
+- Structured action data still takes precedence over reconstructed data
+
 ## v0.19.1 — Snapshot UX Simplification + Session Signals
 
 Summary  

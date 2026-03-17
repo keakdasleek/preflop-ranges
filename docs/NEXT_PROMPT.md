@@ -8,7 +8,7 @@ Next focus:
 
 
 
-Session signal reliability and coaching insights.
+Improve notes-driven reconstruction beyond explicit one-street action chains.
 
 
 
@@ -16,7 +16,7 @@ Goal:
 
 
 
-Improve the usefulness of session-level analytics now that logging UX has been simplified and session signals exist.
+Continue strengthening the notes-first parser so more useful hand information can be extracted reliably from structured notes.
 
 
 
@@ -24,9 +24,7 @@ Why this matters:
 
 
 
-The tool now captures hands quickly and generates basic session signals.  
-
-The next step is making those signals more useful for coaching review.
+The shared street action extractor is now stronger, but there is still valuable information in structured notes that is not yet being captured cleanly enough for review and analytics.
 
 
 
@@ -34,27 +32,15 @@ Recommended scope:
 
 
 
-\- improve Derived Session Signals presentation
+\- improve villain response extraction further
 
-\- identify meaningful coaching patterns
+\- improve reconstruction of ordered multi-action street sequences
 
-\- surface possible leaks or tendencies
+\- improve use of End: when explicit showdown or revealed-hand information is present
 
-\- keep signals lightweight and explainable
+\- improve consistency of reconstructed lines for common structured note patterns
 
-
-
-Possible improvements:
-
-
-
-\- show sample hands for each signal category
-
-\- highlight extreme tendencies
-
-\- flag suspicious patterns (for example extremely low c-bet rate)
-
-\- show simple aggression summaries
+\- keep parser behavior conservative and explicit
 
 
 
@@ -62,27 +48,25 @@ Design constraints:
 
 
 
-\- keep using existing signal helpers
+\- keep changes additive and localized
 
-\- avoid parser expansion
+\- preserve strict cross-street isolation
 
-\- avoid schema changes
+\- do not parse reflection
 
-\- avoid persistence changes
+\- do not infer missing actions
 
-\- keep the patch small and additive
+\- do not broaden into vague natural-language NLP
+
+\- do not change schema or storage
+
+\- keep structured action data as the highest-confidence source
 
 
 
-Future direction (not part of next patch):
+Important future note:
 
 
 
-\- table-size aware positional model
-
-\- deeper villain-response tracking
-
-\- improved reconstructed action reliability
-
-\- session-to-session trend analysis
+Explorer support for variable player counts remains a separate priority and should be tackled independently from parser improvements.
 

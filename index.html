@@ -5847,7 +5847,11 @@ function renderLoggerSessionReviewTable(){
 }
 
 function extractStreetActionsV1(actionText, actorContext, streetKey){
-  const src = String(actionText || "").trim();
+  const src = String(actionText || "")
+    .replace(/\s+/g, " ")
+    .replace(/\s*([,;.])\s*/g, "$1 ")
+    .trim();
+
   if(!src) return [];
 
   const actorToken = "(i|villain|he|they|utg\\+1|utg|lj|hj|co|btn|sb|bb)";
@@ -5863,13 +5867,13 @@ function extractStreetActionsV1(actionText, actorContext, streetKey){
     "shove(?:s)?",
     "push(?:es)?",
     "all-?in",
-    "goes\\s+all\\s+in",
+    "go(?:es)?\\s+all\\s+in",
     "fold(?:s|ed)?"
   ].join("|");
 
-  const clauseRe = new RegExp(`\\b${actorToken}\\b\\s+(${actionToken})\\b`, "gi");
-  const matches = Array.from(src.matchAll(clauseRe));
-  if(!matches.length) return [];
+  const startRe = new RegExp(`\\b${actorToken}\\b\\s+(${actionToken})\\b`, "gi");
+  const starts = Array.from(src.matchAll(startRe));
+  if(!starts.length) return [];
 
   const normalizeActor = (raw) => {
     const a = String(raw || "").toLowerCase();
@@ -5885,7 +5889,7 @@ function extractStreetActionsV1(actionText, actorContext, streetKey){
     if(/^call/.test(a)) return "call";
     if(/^bet/.test(a)) return "bet";
     if(/^fold/.test(a)) return "fold";
-    if(/^jam/.test(a) || /^shove/.test(a) || /^push/.test(a) || /^all-?in$/.test(a) || /^goes all in$/.test(a)) return "jam";
+    if(/^jam/.test(a) || /^shove/.test(a) || /^push/.test(a) || /^all-?in$/.test(a) || /^go(?:es)? all in$/.test(a)) return "jam";
     if(/^re-raise/.test(a) || /^raise/.test(a) || a === "3bet" || a === "4bet") return "raise";
 
     return "";
@@ -5912,16 +5916,23 @@ function extractStreetActionsV1(actionText, actorContext, streetKey){
     return null;
   };
 
+  const cleanClause = (s) => {
+    return String(s || "")
+      .replace(/\s+/g, " ")
+      .replace(/^[,;.\s]+|[,;.\s]+$/g, "")
+      .trim();
+  };
+
   const out = [];
 
-  for(let i = 0; i < matches.length; i++){
-    const m = matches[i];
-    const start = Number(m.index || 0);
-    const nextStart = (i + 1 < matches.length && matches[i + 1].index != null)
-      ? Number(matches[i + 1].index)
+  for(let i = 0; i < starts.length; i++){
+    const m = starts[i];
+    const startIdx = Number(m.index || 0);
+    const nextIdx = (i + 1 < starts.length && starts[i + 1].index != null)
+      ? Number(starts[i + 1].index)
       : src.length;
 
-    const rawClause = src.slice(start, nextStart).trim().replace(/^[,;.\s]+|[,;.\s]+$/g, "");
+    let rawClause = cleanClause(src.slice(startIdx, nextIdx));
     if(!rawClause) continue;
 
     const actorRaw = String(m[1] || "").toLowerCase();
@@ -5930,7 +5941,7 @@ function extractStreetActionsV1(actionText, actorContext, streetKey){
     if(!action) continue;
 
     const actor = normalizeActor(actorRaw);
-    const sizeBB = extractSizeBB(rawClause.slice(0, 48));
+    const sizeBB = extractSizeBB(rawClause);
 
     out.push({
       street: String(streetKey || ""),
