@@ -12,6 +12,26 @@ Each entry corresponds to a version commit and summarizes:
 
 SESSION_LOG.md entry:
 
+### v0.19.3 — Structured Notes End Extraction V1
+
+- Introduced extractEndSummaryV1(endText) to capture explicit End: signals
+- Added support for:
+  - revealed hands (has / shows)
+  - mucks
+  - explicit showdown outcomes
+  - non-showdown wins
+  - terminal folds
+- Improved reconstruction clarity by emitting:
+  - Outcome: ...
+  - Showdown: ...
+- Enforced strict, literal parsing to avoid false positives
+- Maintained fallback behavior when no explicit End signals are detected
+
+Impact:
+- Increased capture rate of showdown visibility and hand outcomes
+- Improved data quality for downstream signal generation
+- Minimal UI change, but meaningful improvement to underlying dataset
+
 ## v0.19.2 — Structured Notes Action Extraction V2
 
 Summary

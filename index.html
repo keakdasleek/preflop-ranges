@@ -5958,6 +5958,71 @@ function extractStreetActionsV1(actionText, actorContext, streetKey){
   return out;
 }
 
+function extractEndSummaryV1(endText){
+  const src = String(endText || "").replace(/\s+/g, " ").trim();
+  if(!src) return [];
+
+  const lines = [];
+  const actorToken = "(villain|i|hero|utg\+1|utg|lj|hj|co|btn|sb|bb)";
+  const cardPair = "([2-9TJQKA][cdhs])\\s+([2-9TJQKA][cdhs])";
+
+  const normalizeActor = (raw) => {
+    const a = String(raw || "").toLowerCase();
+    if(a === "i") return "I";
+    if(a === "hero") return "Hero";
+    if(a === "villain") return "Villain";
+    return a.toUpperCase();
+  };
+
+  const outcomePatterns = [
+    /\bwon at showdown\b/i,
+    /\blost at showdown\b/i,
+    /\bwins at showdown\b/i,
+    /\bwon without showdown\b/i,
+    /\bwins without showdown\b/i,
+    /\bi fold\b/i,
+    /\bhero folds\b/i,
+    /\bvillain folds\b/i,
+    /\b(?:utg\+1|utg|lj|hj|co|btn|sb|bb) folds\b/i
+  ];
+
+  let outcomeTxt = "";
+  for(const re of outcomePatterns){
+    const m = src.match(re);
+    if(m && m[0]){
+      outcomeTxt = m[0].trim().replace(/\s+/g, " ");
+      break;
+    }
+  }
+  if(outcomeTxt){
+    const normalizedOutcome = outcomeTxt.charAt(0).toUpperCase() + outcomeTxt.slice(1);
+    lines.push(`Outcome: ${normalizedOutcome}`);
+  }
+
+  let showdownTxt = "";
+  const showRe = new RegExp(`\\b${actorToken}\\b\\s+(has|shows)\\s+${cardPair}\\b`, "i");
+  const showMatch = src.match(showRe);
+  if(showMatch){
+    const actor = normalizeActor(showMatch[1]);
+    const verb = String(showMatch[2] || "").toLowerCase();
+    const c1 = `${showMatch[3][0].toUpperCase()}${showMatch[3][1].toLowerCase()}`;
+    const c2 = `${showMatch[4][0].toUpperCase()}${showMatch[4][1].toLowerCase()}`;
+    showdownTxt = `${actor} ${verb} ${c1} ${c2}`;
+  } else {
+    const muckRe = new RegExp(`\\b${actorToken}\\b\\s+mucks\\b`, "i");
+    const muckMatch = src.match(muckRe);
+    if(muckMatch){
+      const actor = normalizeActor(muckMatch[1]);
+      showdownTxt = `${actor} mucks`;
+    }
+  }
+
+  if(showdownTxt){
+    lines.push(`Showdown: ${showdownTxt}`);
+  }
+
+  return lines;
+}
 function reconstructHandFromNotesV2(hand){
   const notesRaw = String(hand?.notes || "").trim();
   if(!notesRaw) return [];
@@ -5998,18 +6063,22 @@ function reconstructHandFromNotesV2(hand){
   const riverLine = renderStreet("river");
   if(riverLine) lines.push(riverLine);
 
-  let showdownTxt = "";
-  if(ctx.end.text){
-    const e = ctx.end.text.match(/([^.!?]*\b(showdown|reveals?|shows?|mucks?|has|had)\b[^.!?]*[.!?]?)/i);
-    if(e && e[1]) showdownTxt = e[1].trim().replace(/\s+/g, " ");
-    if(!showdownTxt && /[2-9TJQKA][cdhs]/i.test(ctx.end.text)) showdownTxt = ctx.end.text;
+  const endSummaryLines = extractEndSummaryV1(ctx.end.text);
+  if(endSummaryLines.length){
+    endSummaryLines.forEach(x => lines.push(x));
+  } else {
+    let showdownTxt = "";
+    if(ctx.end.text){
+      const e = ctx.end.text.match(/([^.!?]*\b(showdown|reveals?|shows?|mucks?|has|had)\b[^.!?]*[.!?]?)/i);
+      if(e && e[1]) showdownTxt = e[1].trim().replace(/\s+/g, " ");
+      if(!showdownTxt && /[2-9TJQKA][cdhs]/i.test(ctx.end.text)) showdownTxt = ctx.end.text;
+    }
+    if(!showdownTxt){
+      const showMatch = notes.match(/([^.!?]*\b(showdown|reveals?|shows?|mucks?|has|had)\b[^.!?]*[.!?]?)/i);
+      if(showMatch && showMatch[1]) showdownTxt = showMatch[1].trim().replace(/\s+/g, " ");
+    }
+    if(showdownTxt) lines.push(`Showdown: ${showdownTxt}`);
   }
-  if(!showdownTxt){
-    const showMatch = notes.match(/([^.!?]*\b(showdown|reveals?|shows?|mucks?|has|had)\b[^.!?]*[.!?]?)/i);
-    if(showMatch && showMatch[1]) showdownTxt = showMatch[1].trim().replace(/\s+/g, " ");
-  }
-  if(showdownTxt) lines.push(`Showdown: ${showdownTxt}`);
-
   return lines.slice(0, 7);
 }
 

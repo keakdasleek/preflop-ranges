@@ -4,69 +4,65 @@
 
 
 
-Next focus:
+We are continuing Casey's Poker Tool.
 
 
 
-Improve notes-driven reconstruction beyond explicit one-street action chains.
+Current version: v0.19.3
 
 
 
-Goal:
+Context:
+
+\- End: extraction is now improved and capturing explicit outcome + showdown signals
+
+\- Data quality for hand outcomes and revealed hands has improved
+
+\- UI impact is minimal, but signal foundation is stronger
 
 
 
-Continue strengthening the notes-first parser so more useful hand information can be extracted reliably from structured notes.
+Next priority:
+
+Explorer support for variable player counts
 
 
 
-Why this matters:
+Why this is next:
+
+\- Current system implicitly assumes a standard table structure
+
+\- Limits analysis when player counts vary (e.g., short-handed, multiway dynamics)
+
+\- Prevents accurate aggregation of positional and opponent-based insights
 
 
 
-The shared street action extractor is now stronger, but there is still valuable information in structured notes that is not yet being captured cleanly enough for review and analytics.
+Target:
+
+\- Enable Explorer and downstream systems to correctly handle:
+
+&#x20; - variable number of players
+
+&#x20; - dynamic position mapping
+
+&#x20; - multiway vs heads-up distinctions
 
 
 
-Recommended scope:
+Constraints:
+
+\- Maintain notes-first architecture
+
+\- No schema changes unless absolutely necessary
+
+\- Prefer derived / computed structures over stored changes
+
+\- Keep changes incremental and testable
 
 
 
-\- improve villain response extraction further
+Workflow:
 
-\- improve reconstruction of ordered multi-action street sequences
-
-\- improve use of End: when explicit showdown or revealed-hand information is present
-
-\- improve consistency of reconstructed lines for common structured note patterns
-
-\- keep parser behavior conservative and explicit
-
-
-
-Design constraints:
-
-
-
-\- keep changes additive and localized
-
-\- preserve strict cross-street isolation
-
-\- do not parse reflection
-
-\- do not infer missing actions
-
-\- do not broaden into vague natural-language NLP
-
-\- do not change schema or storage
-
-\- keep structured action data as the highest-confidence source
-
-
-
-Important future note:
-
-
-
-Explorer support for variable player counts remains a separate priority and should be tackled independently from parser improvements.
+Design → Codex Proposal → Review → Implementation → QA → Versioning
 
