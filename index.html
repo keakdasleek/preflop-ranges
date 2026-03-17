@@ -5152,6 +5152,252 @@ const buildBehaviorTable = (title, rows)=>{
   `;
 }
   
+  function buildStreetParseContext(notes, hand){
+  const src = String(notes || "").trim();
+  const norm = src.replace(/\s+/g, " ").replace(/10/gi, "T");
+  const lower = norm.toLowerCase();
+
+  const markerDefs = {
+    pre: [
+      /\bpre\s*:/i,
+      /\bpreflop\s*:/i
+    ],
+    flop: [
+      /\bflop\s*:/i,
+      /\bflop\s+(?:of|is|comes)\b/i
+    ],
+    turn: [
+      /\bturn\s*:/i,
+      /\bturn\s+is\b/i
+    ],
+    river: [
+      /\briver\s*:/i,
+      /\b(?:the\s+)?river\s+is\b/i
+    ],
+    end: [
+      /\bend\s*:/i
+    ]
+  };
+
+  const labels = {
+    pre: "Preflop",
+    flop: "Flop",
+    turn: "Turn",
+    river: "River",
+    end: "End"
+  };
+
+  const findMarkerIndex = (patterns) => {
+    let best = -1;
+    for(const re of patterns){
+      const m = norm.match(re);
+      if(m && m.index != null){
+        const idx = Number(m.index);
+        if(best < 0 || idx < best) best = idx;
+      }
+    }
+    return best;
+  };
+
+  const markers = Object.keys(markerDefs)
+    .map((k) => ({ key: k, idx: findMarkerIndex(markerDefs[k]) }))
+    .filter(x => x.idx >= 0)
+    .sort((a, b) => a.idx - b.idx);
+
+  const stripPrefix = {
+    pre: /^\s*pre(?:flop)?\s*:\s*/i,
+    flop: /^\s*flop(?:\s+(?:of|is|comes))?\s*:?\s*/i,
+    turn: /^\s*turn(?:\s+is)?\s*:?\s*/i,
+    river: /^\s*(?:the\s+)?river(?:\s+is)?\s*:?\s*/i,
+    end: /^\s*end\s*:\s*/i
+  };
+
+  const extractBoard = (streetKey, text) => {
+    const seg = String(text || "");
+    if(!seg) return "";
+    if(streetKey === "flop"){
+      const cards = (seg.match(/([2-9TJQKA][cdhs])/gi) || [])
+        .slice(0, 3)
+        .map(x => `${x[0].toUpperCase()}${x[1].toLowerCase()}`);
+      return cards.length === 3 ? cards.join(" ") : "";
+    }
+    if(streetKey === "turn" || streetKey === "river"){
+      const card = (seg.match(/([2-9TJQKA][cdhs])/i) || [])[0] || "";
+      return card ? `${card[0].toUpperCase()}${card[1].toLowerCase()}` : "";
+    }
+    return "";
+  };
+
+  const isolateActionText = (streetKey, text, board) => {
+    let s = String(text || "").trim();
+    if(!s) return "";
+    if(streetKey !== "pre" && board){
+      if(streetKey === "flop"){
+        const parts = board.split(" ");
+        parts.forEach(c => {
+          s = s.replace(new RegExp(`\\b${c}\\b`, "ig"), "");
+        });
+      } else {
+        s = s.replace(new RegExp(`\\b${board}\\b`, "ig"), "");
+      }
+      s = s.replace(/^[\s,.\-|:;]+/, "").trim();
+    }
+    return s;
+  };
+
+  const buildActorContext = (actionText) => {
+    const txt = String(actionText || "").toLowerCase();
+    const mentions = [];
+    const mentionRe = /\b(i|villain|btn|co|bb|sb|utg\+?1?|utg|hj|lj|mp|ep|he|they)\b/gi;
+    let m;
+    while((m = mentionRe.exec(txt)) !== null){
+      mentions.push(String(m[1] || "").toLowerCase());
+    }
+    const nonHero = Array.from(new Set(mentions.filter(x => x !== "i")));
+    const isExplicitMw = /\b(3way|4way|5way|multiway)\b/i.test(txt);
+    const actorContext = {
+      rawMentions: mentions,
+      isMultiway: isExplicitMw || nonHero.length >= 2,
+      hasVillainAlias: mentions.includes("villain") || mentions.includes("he") || mentions.includes("they")
+    };
+    return actorContext;
+  };
+
+  const ctx = {
+    pre:   { label: labels.pre, text: "", board: "", actionText: "", actorContext: { rawMentions: [], isMultiway: false, hasVillainAlias: false } },
+    flop:  { label: labels.flop, text: "", board: "", actionText: "", actorContext: { rawMentions: [], isMultiway: false, hasVillainAlias: false } },
+    turn:  { label: labels.turn, text: "", board: "", actionText: "", actorContext: { rawMentions: [], isMultiway: false, hasVillainAlias: false } },
+    river: { label: labels.river, text: "", board: "", actionText: "", actorContext: { rawMentions: [], isMultiway: false, hasVillainAlias: false } },
+    end:   { label: labels.end, text: "", board: "", actionText: "", actorContext: { rawMentions: [], isMultiway: false, hasVillainAlias: false } }
+  };
+
+  for(let i = 0; i < markers.length; i++){
+    const mk = markers[i];
+    const end = (i + 1 < markers.length) ? markers[i + 1].idx : norm.length;
+    const raw = norm.slice(mk.idx, end).trim();
+    const text = raw.replace(stripPrefix[mk.key], "").trim();
+    if(!text) continue;
+
+    const board = extractBoard(mk.key, text);
+    const actionText = isolateActionText(mk.key, text, board);
+    const actorContext = buildActorContext(actionText);
+
+    ctx[mk.key] = { label: labels[mk.key], text, board, actionText, actorContext };
+  }
+
+  return ctx;
+}
+function extractStreetActionsV1(actionText, actorContext, streetKey){
+  const src = String(actionText || "")
+    .replace(/\s+/g, " ")
+    .replace(/\s*([,;.])\s*/g, "$1 ")
+    .trim();
+
+  if(!src) return [];
+
+  const actorToken = "(i|villain|he|they|utg\\+1|utg|lj|hj|co|btn|sb|bb)";
+  const actionToken = [
+    "check(?:s|ed)?",
+    "call(?:s|ed)?",
+    "bet(?:s)?",
+    "raise(?:s|d)?(?:\\s+to)?",
+    "re-raise(?:s|d)?",
+    "3bet",
+    "4bet",
+    "jam(?:s)?",
+    "shove(?:s)?",
+    "push(?:es)?",
+    "all-?in",
+    "go(?:es)?\\s+all\\s+in",
+    "fold(?:s|ed)?"
+  ].join("|");
+
+  const startRe = new RegExp(`\\b${actorToken}\\b\\s+(${actionToken})\\b`, "gi");
+  const starts = Array.from(src.matchAll(startRe));
+  if(!starts.length) return [];
+
+  const normalizeActor = (raw) => {
+    const a = String(raw || "").toLowerCase();
+    if(a === "i") return "I";
+    if(a === "villain" || a === "he" || a === "they") return "Villain";
+    return a.toUpperCase();
+  };
+
+  const normalizeAction = (raw) => {
+    const a = String(raw || "").toLowerCase().replace(/\s+/g, " ").trim();
+
+    if(/^check/.test(a)) return "check";
+    if(/^call/.test(a)) return "call";
+    if(/^bet/.test(a)) return "bet";
+    if(/^fold/.test(a)) return "fold";
+    if(/^jam/.test(a) || /^shove/.test(a) || /^push/.test(a) || /^all-?in$/.test(a) || /^go(?:es)? all in$/.test(a)) return "jam";
+    if(/^re-raise/.test(a) || /^raise/.test(a) || a === "3bet" || a === "4bet") return "raise";
+
+    return "";
+  };
+
+  const extractSizeBB = (rawClause) => {
+    const s = String(rawClause || "");
+    if(!s) return null;
+
+    const patterns = [
+      /\bto\s*(\d+(?:\.\d+)?)\s*bb\b/i,
+      /\bfor\s*(\d+(?:\.\d+)?)\s*bb\b/i,
+      /\(\s*(\d+(?:\.\d+)?)\s*bb\s*\)/i,
+      /\b(\d+(?:\.\d+)?)\s*bb\b/i
+    ];
+
+    for(const re of patterns){
+      const m = s.match(re);
+      if(m && m[1] != null){
+        const n = Number(m[1]);
+        if(isFinite(n)) return n;
+      }
+    }
+    return null;
+  };
+
+  const cleanClause = (s) => {
+    return String(s || "")
+      .replace(/\s+/g, " ")
+      .replace(/^[,;.\s]+|[,;.\s]+$/g, "")
+      .trim();
+  };
+
+  const out = [];
+
+  for(let i = 0; i < starts.length; i++){
+    const m = starts[i];
+    const startIdx = Number(m.index || 0);
+    const nextIdx = (i + 1 < starts.length && starts[i + 1].index != null)
+      ? Number(starts[i + 1].index)
+      : src.length;
+
+    let rawClause = cleanClause(src.slice(startIdx, nextIdx));
+    if(!rawClause) continue;
+
+    const actorRaw = String(m[1] || "").toLowerCase();
+    const actionRaw = String(m[2] || "").toLowerCase();
+    const action = normalizeAction(actionRaw);
+    if(!action) continue;
+
+    const actor = normalizeActor(actorRaw);
+    const sizeBB = extractSizeBB(rawClause);
+
+    out.push({
+      street: String(streetKey || ""),
+      order: out.length,
+      actor,
+      actorRaw,
+      action,
+      sizeBB,
+      raw: rawClause,
+      confidence: "high"
+    });
+  }
+
+  return out;
+}
 function renderLoggerSessionReviewTable(){
   const mount = document.getElementById("loggerSessionReview");
   if(!mount) return;
@@ -5710,253 +5956,7 @@ function renderLoggerSessionReviewTable(){
   `;
   const topInteresting = getTopInterestingHandsV1(hands);
 
-  function buildStreetParseContext(notes, hand){
-  const src = String(notes || "").trim();
-  const norm = src.replace(/\s+/g, " ").replace(/10/gi, "T");
-  const lower = norm.toLowerCase();
 
-  const markerDefs = {
-    pre: [
-      /\bpre\s*:/i,
-      /\bpreflop\s*:/i
-    ],
-    flop: [
-      /\bflop\s*:/i,
-      /\bflop\s+(?:of|is|comes)\b/i
-    ],
-    turn: [
-      /\bturn\s*:/i,
-      /\bturn\s+is\b/i
-    ],
-    river: [
-      /\briver\s*:/i,
-      /\b(?:the\s+)?river\s+is\b/i
-    ],
-    end: [
-      /\bend\s*:/i
-    ]
-  };
-
-  const labels = {
-    pre: "Preflop",
-    flop: "Flop",
-    turn: "Turn",
-    river: "River",
-    end: "End"
-  };
-
-  const findMarkerIndex = (patterns) => {
-    let best = -1;
-    for(const re of patterns){
-      const m = norm.match(re);
-      if(m && m.index != null){
-        const idx = Number(m.index);
-        if(best < 0 || idx < best) best = idx;
-      }
-    }
-    return best;
-  };
-
-  const markers = Object.keys(markerDefs)
-    .map((k) => ({ key: k, idx: findMarkerIndex(markerDefs[k]) }))
-    .filter(x => x.idx >= 0)
-    .sort((a, b) => a.idx - b.idx);
-
-  const stripPrefix = {
-    pre: /^\s*pre(?:flop)?\s*:\s*/i,
-    flop: /^\s*flop(?:\s+(?:of|is|comes))?\s*:?\s*/i,
-    turn: /^\s*turn(?:\s+is)?\s*:?\s*/i,
-    river: /^\s*(?:the\s+)?river(?:\s+is)?\s*:?\s*/i,
-    end: /^\s*end\s*:\s*/i
-  };
-
-  const extractBoard = (streetKey, text) => {
-    const seg = String(text || "");
-    if(!seg) return "";
-    if(streetKey === "flop"){
-      const cards = (seg.match(/([2-9TJQKA][cdhs])/gi) || [])
-        .slice(0, 3)
-        .map(x => `${x[0].toUpperCase()}${x[1].toLowerCase()}`);
-      return cards.length === 3 ? cards.join(" ") : "";
-    }
-    if(streetKey === "turn" || streetKey === "river"){
-      const card = (seg.match(/([2-9TJQKA][cdhs])/i) || [])[0] || "";
-      return card ? `${card[0].toUpperCase()}${card[1].toLowerCase()}` : "";
-    }
-    return "";
-  };
-
-  const isolateActionText = (streetKey, text, board) => {
-    let s = String(text || "").trim();
-    if(!s) return "";
-    if(streetKey !== "pre" && board){
-      if(streetKey === "flop"){
-        const parts = board.split(" ");
-        parts.forEach(c => {
-          s = s.replace(new RegExp(`\\b${c}\\b`, "ig"), "");
-        });
-      } else {
-        s = s.replace(new RegExp(`\\b${board}\\b`, "ig"), "");
-      }
-      s = s.replace(/^[\s,.\-|:;]+/, "").trim();
-    }
-    return s;
-  };
-
-  const buildActorContext = (actionText) => {
-    const txt = String(actionText || "").toLowerCase();
-    const mentions = [];
-    const mentionRe = /\b(i|villain|btn|co|bb|sb|utg\+?1?|utg|hj|lj|mp|ep|he|they)\b/gi;
-    let m;
-    while((m = mentionRe.exec(txt)) !== null){
-      mentions.push(String(m[1] || "").toLowerCase());
-    }
-    const nonHero = Array.from(new Set(mentions.filter(x => x !== "i")));
-    const isExplicitMw = /\b(3way|4way|5way|multiway)\b/i.test(txt);
-    const actorContext = {
-      rawMentions: mentions,
-      isMultiway: isExplicitMw || nonHero.length >= 2,
-      hasVillainAlias: mentions.includes("villain") || mentions.includes("he") || mentions.includes("they")
-    };
-    return actorContext;
-  };
-
-  const ctx = {
-    pre:   { label: labels.pre, text: "", board: "", actionText: "", actorContext: { rawMentions: [], isMultiway: false, hasVillainAlias: false } },
-    flop:  { label: labels.flop, text: "", board: "", actionText: "", actorContext: { rawMentions: [], isMultiway: false, hasVillainAlias: false } },
-    turn:  { label: labels.turn, text: "", board: "", actionText: "", actorContext: { rawMentions: [], isMultiway: false, hasVillainAlias: false } },
-    river: { label: labels.river, text: "", board: "", actionText: "", actorContext: { rawMentions: [], isMultiway: false, hasVillainAlias: false } },
-    end:   { label: labels.end, text: "", board: "", actionText: "", actorContext: { rawMentions: [], isMultiway: false, hasVillainAlias: false } }
-  };
-
-  for(let i = 0; i < markers.length; i++){
-    const mk = markers[i];
-    const end = (i + 1 < markers.length) ? markers[i + 1].idx : norm.length;
-    const raw = norm.slice(mk.idx, end).trim();
-    const text = raw.replace(stripPrefix[mk.key], "").trim();
-    if(!text) continue;
-
-    const board = extractBoard(mk.key, text);
-    const actionText = isolateActionText(mk.key, text, board);
-    const actorContext = buildActorContext(actionText);
-
-    ctx[mk.key] = { label: labels[mk.key], text, board, actionText, actorContext };
-  }
-
-  return ctx;
-}
-
-function extractStreetActionsV1(actionText, actorContext, streetKey){
-  const src = String(actionText || "")
-    .replace(/\s+/g, " ")
-    .replace(/\s*([,;.])\s*/g, "$1 ")
-    .trim();
-
-  if(!src) return [];
-
-  const actorToken = "(i|villain|he|they|utg\\+1|utg|lj|hj|co|btn|sb|bb)";
-  const actionToken = [
-    "check(?:s|ed)?",
-    "call(?:s|ed)?",
-    "bet(?:s)?",
-    "raise(?:s|d)?(?:\\s+to)?",
-    "re-raise(?:s|d)?",
-    "3bet",
-    "4bet",
-    "jam(?:s)?",
-    "shove(?:s)?",
-    "push(?:es)?",
-    "all-?in",
-    "go(?:es)?\\s+all\\s+in",
-    "fold(?:s|ed)?"
-  ].join("|");
-
-  const startRe = new RegExp(`\\b${actorToken}\\b\\s+(${actionToken})\\b`, "gi");
-  const starts = Array.from(src.matchAll(startRe));
-  if(!starts.length) return [];
-
-  const normalizeActor = (raw) => {
-    const a = String(raw || "").toLowerCase();
-    if(a === "i") return "I";
-    if(a === "villain" || a === "he" || a === "they") return "Villain";
-    return a.toUpperCase();
-  };
-
-  const normalizeAction = (raw) => {
-    const a = String(raw || "").toLowerCase().replace(/\s+/g, " ").trim();
-
-    if(/^check/.test(a)) return "check";
-    if(/^call/.test(a)) return "call";
-    if(/^bet/.test(a)) return "bet";
-    if(/^fold/.test(a)) return "fold";
-    if(/^jam/.test(a) || /^shove/.test(a) || /^push/.test(a) || /^all-?in$/.test(a) || /^go(?:es)? all in$/.test(a)) return "jam";
-    if(/^re-raise/.test(a) || /^raise/.test(a) || a === "3bet" || a === "4bet") return "raise";
-
-    return "";
-  };
-
-  const extractSizeBB = (rawClause) => {
-    const s = String(rawClause || "");
-    if(!s) return null;
-
-    const patterns = [
-      /\bto\s*(\d+(?:\.\d+)?)\s*bb\b/i,
-      /\bfor\s*(\d+(?:\.\d+)?)\s*bb\b/i,
-      /\(\s*(\d+(?:\.\d+)?)\s*bb\s*\)/i,
-      /\b(\d+(?:\.\d+)?)\s*bb\b/i
-    ];
-
-    for(const re of patterns){
-      const m = s.match(re);
-      if(m && m[1] != null){
-        const n = Number(m[1]);
-        if(isFinite(n)) return n;
-      }
-    }
-    return null;
-  };
-
-  const cleanClause = (s) => {
-    return String(s || "")
-      .replace(/\s+/g, " ")
-      .replace(/^[,;.\s]+|[,;.\s]+$/g, "")
-      .trim();
-  };
-
-  const out = [];
-
-  for(let i = 0; i < starts.length; i++){
-    const m = starts[i];
-    const startIdx = Number(m.index || 0);
-    const nextIdx = (i + 1 < starts.length && starts[i + 1].index != null)
-      ? Number(starts[i + 1].index)
-      : src.length;
-
-    let rawClause = cleanClause(src.slice(startIdx, nextIdx));
-    if(!rawClause) continue;
-
-    const actorRaw = String(m[1] || "").toLowerCase();
-    const actionRaw = String(m[2] || "").toLowerCase();
-    const action = normalizeAction(actionRaw);
-    if(!action) continue;
-
-    const actor = normalizeActor(actorRaw);
-    const sizeBB = extractSizeBB(rawClause);
-
-    out.push({
-      street: String(streetKey || ""),
-      order: out.length,
-      actor,
-      actorRaw,
-      action,
-      sizeBB,
-      raw: rawClause,
-      confidence: "high"
-    });
-  }
-
-  return out;
-}
 
 function extractEndSummaryV1(endText){
   const src = String(endText || "").replace(/\s+/g, " ").trim();
@@ -6977,6 +6977,281 @@ function preflopUncontestedRaise(hand){
   return true;
 }
 
+function deriveReconstructedStreetActionsForPressureV1(hand, street){
+  const st = streetKey(street);
+  if(!hand || !st) return [];
+
+  const notesRaw = String(hand?.notes || "").trim();
+  if(!notesRaw) return [];
+
+  const keyMap = {
+    PREFLOP: "pre",
+    FLOP: "flop",
+    TURN: "turn",
+    RIVER: "river"
+  };
+  const k = keyMap[st] || "";
+  if(!k) return [];
+
+  const ctx = buildStreetParseContext(notesRaw, hand);
+  const seg = ctx[k];
+  if(!seg || !seg.actionText) return [];
+
+  const heroPos = getHeroPosForHand(hand);
+  const actions = extractStreetActionsV1(seg.actionText, seg.actorContext, k);
+  if(!actions.length) return [];
+
+  const mapAction = (a) => {
+    const x = String(a || "").toLowerCase();
+    if(x === "check") return "CHECK";
+    if(x === "call") return "CALL";
+    if(x === "bet") return "BET";
+    if(x === "raise") return "RAISE";
+    if(x === "jam") return "ALLIN";
+    if(x === "fold") return "FOLD";
+    return "";
+  };
+
+  return actions.map((a, idx) => {
+    const actor = String(a?.actor || "");
+    const actorPos = actor === "I" ? heroPos : actor;
+    const act = mapAction(a?.action);
+    if(!actorPos || !act) return null;
+    return {
+      street: st,
+      actorPos,
+      action: act,
+      amt: (a?.sizeBB != null && isFinite(Number(a.sizeBB))) ? Number(a.sizeBB) : null,
+      unit: "BB",
+      createdAt: idx,
+      source: "RECON"
+    };
+  }).filter(Boolean);
+}
+
+function getPressureStreetActionsV1(hand, street){
+  const structured = getStreetActions(hand, street)
+    .slice()
+    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  if(structured.length) return structured;
+  return deriveReconstructedStreetActionsForPressureV1(hand, street);
+}
+
+function derivePressurePulseV1(hand){
+  if(!hand) return [];
+
+  const pulses = [];
+  const heroPos = getHeroPosForHand(hand);
+  const pfa = getPreflopAggressor(hand);
+  const hasStructuredActions = getSortedActions(hand).length > 0;
+  const potInfo = hasStructuredActions ? estimatePotByStreetBB(hand) : null;
+  const notesRaw = String(hand?.notes || "").trim();
+  const ctx = notesRaw ? buildStreetParseContext(notesRaw, hand) : null;
+
+  const flopActs = getPressureStreetActionsV1(hand, "FLOP");
+  const turnActs = getPressureStreetActionsV1(hand, "TURN");
+  const riverActs = getPressureStreetActionsV1(hand, "RIVER");
+
+  const byStreet = {
+    FLOP: flopActs,
+    TURN: turnActs,
+    RIVER: riverActs
+  };
+
+  const hasStreetContext = (street) => {
+    const st = streetKey(street);
+    if(byStreet[st] && byStreet[st].length) return true;
+    if(st === "FLOP") return !!(hand?.board?.flop?.[0] || ctx?.flop?.text);
+    if(st === "TURN") return !!(hand?.board?.turn || ctx?.turn?.text);
+    if(st === "RIVER") return !!(hand?.board?.river || ctx?.river?.text);
+    return false;
+  };
+
+  const streetStartPotBB = (street) => {
+    if(!potInfo || !potInfo.potAfter) return null;
+    const st = streetKey(street);
+    if(st === "FLOP") return Number(potInfo.potAfter.PREFLOP || 0) || null;
+    if(st === "TURN") return Number(potInfo.potAfter.FLOP || 0) || null;
+    if(st === "RIVER") return Number(potInfo.potAfter.TURN || 0) || null;
+    return null;
+  };
+
+  const isHeadsUpStreet = (street, acts) => {
+    const structured = getStreetActions(hand, street);
+    if(structured.length){
+      const active = getActivePositionsForStreet(hand, street).filter(Boolean);
+      return active.length === 2 && active.includes(heroPos);
+    }
+    const actors = Array.from(new Set((acts || []).map(a => a.actorPos).filter(Boolean)));
+    return actors.length === 2 && actors.includes(heroPos);
+  };
+
+  const emit = (street, type, signal, note) => {
+    const st = String(street || "").toLowerCase();
+    if(!st) return;
+    if(pulses.some(x => x.street === st && x.signal === signal)) return;
+    pulses.push({ street: st, type, signal, note });
+  };
+
+  const firstAgg = (acts) => (acts || []).find(a => isAggressiveAction(a)) || null;
+  const firstHeroIdx = (acts) => (acts || []).findIndex(a => a.actorPos === heroPos);
+  const firstVillainAggBeforeHero = (acts) => {
+    const heroIdx = firstHeroIdx(acts);
+    for(let i = 0; i < (acts || []).length; i++){
+      const a = acts[i];
+      if(a.actorPos === heroPos) break;
+      if(isAggressiveAction(a) && a.actorPos !== heroPos){
+        if(heroIdx < 0 || i < heroIdx) return a;
+      }
+    }
+    return null;
+  };
+
+  const findHeroAggThenVillainContinue = (acts, mode) => {
+    for(let i = 0; i < (acts || []).length; i++){
+      const a = acts[i];
+      if(a.actorPos !== heroPos) continue;
+      const k = String(a.action || "").toUpperCase();
+      const heroAggOk = mode === "raiseOnly" ? (k === "RAISE") : isAggressiveAction(a);
+      if(!heroAggOk) continue;
+      for(let j = i + 1; j < acts.length; j++){
+        const b = acts[j];
+        if(b.actorPos === heroPos) continue;
+        const bk = String(b.action || "").toUpperCase();
+        if(bk === "CALL" || bk === "RAISE" || bk === "ALLIN"){
+          return { heroAction: a, response: b };
+        }
+        if(bk === "FOLD" || bk === "CHECK") return null;
+      }
+    }
+    return null;
+  };
+
+  const findHeroAggThenVillainCall = (acts, mode) => {
+    for(let i = 0; i < (acts || []).length; i++){
+      const a = acts[i];
+      if(a.actorPos !== heroPos) continue;
+      const k = String(a.action || "").toUpperCase();
+      const heroAggOk = mode === "raiseOnly" ? (k === "RAISE") : isAggressiveAction(a);
+      if(!heroAggOk) continue;
+      for(let j = i + 1; j < acts.length; j++){
+        const b = acts[j];
+        if(b.actorPos === heroPos) continue;
+        const bk = String(b.action || "").toUpperCase();
+        if(bk === "CALL") return { heroAction: a, response: b };
+        if(bk === "RAISE" || bk === "ALLIN" || bk === "FOLD" || bk === "CHECK") return null;
+      }
+    }
+    return null;
+  };
+
+  const hasExplicitVillainCallAfterHeroAgg = (acts) => !!findHeroAggThenVillainCall(acts, "anyAgg");
+  const heroAggOnStreet = (acts) => (acts || []).some(a => a.actorPos === heroPos && isAggressiveAction(a));
+
+  if(isHeadsUpStreet("FLOP", flopActs) && pfa === heroPos){
+    const a = firstAgg(flopActs);
+    const pot = streetStartPotBB("FLOP");
+    const size = Number(a?.amt);
+    if(a && a.actorPos !== heroPos && String(a.action || "").toUpperCase() === "BET" && isFinite(size) && size > 0){
+      const pct = (pot && isFinite(pot) && pot > 0) ? (size / pot) : null;
+      const isWeak = (pct != null) ? pct <= 0.33 : size <= 4;
+      if(isWeak) emit("FLOP", "attack", "attack_weak_donk", "Small donk lead into prior aggressor");
+    }
+  }
+
+  if(isHeadsUpStreet("TURN", turnActs) && pfa === heroPos){
+    const a = firstAgg(turnActs);
+    const size = Number(a?.amt);
+    const pot = streetStartPotBB("TURN");
+    if(a && a.actorPos !== heroPos && String(a.action || "").toUpperCase() === "BET" && isFinite(size) && size > 0){
+      const pct = (pot && isFinite(pot) && pot > 0) ? (size / pot) : null;
+      const isWeak = (pct != null) ? pct <= 0.33 : size <= 4;
+      if(isWeak) emit("TURN", "attack", "attack_weak_donk", "Small donk lead into prior aggressor");
+    }
+  }
+
+  if(isHeadsUpStreet("TURN", turnActs) && hasExplicitVillainCallAfterHeroAgg(flopActs)){
+    const firstTurn = turnActs[0] || null;
+    if(firstTurn && firstTurn.actorPos !== heroPos && String(firstTurn.action || "").toUpperCase() === "CHECK"){
+      emit("TURN", "attack", "attack_turn_check_after_call", "Villain called flop then checked turn");
+    }
+  }
+
+  if(isHeadsUpStreet("TURN", turnActs) && turnActs.length >= 2 && hasStreetContext("RIVER")){
+    const actorSet = new Set(turnActs.map(a => a.actorPos).filter(Boolean));
+    const allChecks = turnActs.every(a => String(a.action || "").toUpperCase() === "CHECK");
+    if(allChecks && actorSet.size === 2 && actorSet.has(heroPos)){
+      emit("TURN", "attack", "attack_check_through", "Heads-up turn checked through; river pressure may reopen");
+    }
+  }
+
+  ["FLOP","TURN","RIVER"].forEach((street) => {
+    const structured = getStreetActions(hand, street);
+    if(!structured.length) return;
+    const active = getActivePositionsForStreet(hand, street).filter(Boolean);
+    if(active.length < 3) return;
+    const acts = byStreet[street] || [];
+    const villainAgg = firstVillainAggBeforeHero(acts);
+    if(villainAgg){
+      emit(street, "discipline", "discipline_multiway_strength", "Multiway aggression should tighten pressure");
+    }
+  });
+
+  if(isHeadsUpStreet("RIVER", riverActs)){
+    const a = firstVillainAggBeforeHero(riverActs);
+    const size = Number(a?.amt);
+    const pot = streetStartPotBB("RIVER");
+    if(a && isAggressiveAction(a) && isFinite(size) && size > 0){
+      const pct = (pot && isFinite(pot) && pot > 0) ? (size / pot) : null;
+      const isBig = (pct != null) ? pct >= 0.75 : size >= 20;
+      if(isBig) emit("RIVER", "discipline", "discipline_big_river_bet", "Large river sizing signals stronger resistance");
+    }
+  }
+
+  if(hasStreetContext("RIVER") && isHeadsUpStreet("TURN", turnActs)){
+    const turnRaiseCalled = findHeroAggThenVillainCall(turnActs, "raiseOnly");
+    if(turnRaiseCalled){
+      emit("RIVER", "discipline", "discipline_turn_raise_called", "Turn raise got called; river pressure should tighten");
+    }
+  }
+
+  if(isHeadsUpStreet("RIVER", riverActs)){
+    const riverFirstAgg = firstVillainAggBeforeHero(riverActs);
+    const priorCall = hasExplicitVillainCallAfterHeroAgg(flopActs) || hasExplicitVillainCallAfterHeroAgg(turnActs);
+    if(riverFirstAgg && priorCall){
+      emit("RIVER", "discipline", "discipline_river_strength_line", "River aggression after prior continuing line");
+    }
+  }
+
+  if(hasStreetContext("TURN")){
+    const flopContinue = findHeroAggThenVillainContinue(flopActs, "anyAgg");
+    if(flopContinue && !pulses.some(x => x.street === "turn" && x.signal === "discipline_turn_raise_called") && !pulses.some(x => x.street === "turn" && x.signal === "discipline_river_strength_line")){
+      emit("TURN", "discipline", "discipline_resistance", "Villain has continued against pressure");
+    }
+  }
+
+  if(hasStreetContext("RIVER")){
+    const turnContinue = findHeroAggThenVillainContinue(turnActs, "anyAgg");
+    if(turnContinue && !pulses.some(x => x.street === "river" && x.signal === "discipline_turn_raise_called") && !pulses.some(x => x.street === "river" && x.signal === "discipline_river_strength_line")){
+      emit("RIVER", "discipline", "discipline_resistance", "Villain has continued against pressure");
+    }
+  }
+
+  const maybeEmitPressureCheck = (sourceStreet, targetStreet, acts) => {
+    if(!hasStreetContext(targetStreet)) return;
+    const seq = findHeroAggThenVillainContinue(acts, "anyAgg");
+    if(!seq) return;
+    const st = String(targetStreet || "").toLowerCase();
+    const hasOther = pulses.some(x => x.street === st && (x.type === "attack" || x.type === "discipline"));
+    if(hasOther) return;
+    emit(targetStreet, "check", "pressure_pulse_check", "Villain continued against prior aggression; re-evaluate pressure");
+  };
+
+  maybeEmitPressureCheck("FLOP", "TURN", flopActs);
+  maybeEmitPressureCheck("TURN", "RIVER", turnActs);
+
+  return pulses;
+}
 function deriveHandSignalsV1(hand){
   const signals = {
     openRaise: false,
@@ -6989,9 +7264,11 @@ function deriveHandSignalsV1(hand){
     villainFoldedFlop: false,
     villainFoldedTurn: false,
     villainFoldedRiver: false,
-    wentToShowdown: !!hand?.wentToShowdown
+    wentToShowdown: !!hand?.wentToShowdown,
+    pressurePulse: []
   };
   if(!hand) return signals;
+  signals.pressurePulse = derivePressurePulseV1(hand);
   const actions = getSortedActions(hand);
   if(!actions.length){
     const snapType = String(hand?.snapType || "").toUpperCase();
