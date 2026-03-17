@@ -1,4 +1,4 @@
-﻿\# Session Log â€” Casey's Poker Tool
+﻿\# Session Log Casey's Poker Tool
 
 This file tracks development checkpoints.
 
@@ -11,6 +11,46 @@ Each entry corresponds to a version commit and summarizes:
 \---
 
 SESSION\_LOG.md entry:
+
+
+
+\## v0.20.1 — Canonical Action Bridge V1
+
+
+
+\- Added canonical action sourcing for downstream analytics:
+
+&#x20; - structured street actions if present
+
+&#x20; - else explicit reconstructed street actions from notes
+
+&#x20; - else \[]
+
+\- Added:
+
+&#x20; - getCanonicalStreetActionsV1(hand, street)
+
+&#x20; - getCanonicalActionProfileV1(hand)
+
+\- Updated deriveHandSignalsV1(hand) to use canonical actions first instead of relying primarily on structured-only actions or snapshot metadata
+
+\- Updated deriveSessionSignalsV1(session) so handsWithSignals and opportunity denominators now work for notes-rich Snapshot hands with empty actions arrays
+
+\- Updated Bluff Success plumbing so canonical actions are the primary source for turn/river aggression, credited street, and fold outcome, while preserving the explicit bluff-intent phrase gate
+
+\- Demoted old Snapshot metadata fallback to compatibility-only fallback when canonical actions are absent
+
+\- Preserved:
+
+&#x20; - parser architecture
+
+&#x20; - schema
+
+&#x20; - localStorage
+
+&#x20; - UI behavior
+
+\- This fixes the core analytics gap where notes-rich Snapshot hands were being ignored by Derived Session Signals and Bluff Success
 
 
 
