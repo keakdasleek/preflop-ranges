@@ -14,6 +14,60 @@ SESSION\_LOG.md entry:
 
 
 
+\## v0.22.0 — Street Participation Engine + Pressure Pulse UI V2
+
+
+
+\- Added Street Participation Engine V1 via deriveActivePlayersByStreetV1(hand)
+
+\- Canonical profile now carries participation by street:
+
+&#x20; - participation.pre
+
+&#x20; - participation.flop
+
+&#x20; - participation.turn
+
+&#x20; - participation.river
+
+\- Heads-up flags now derive from propagated participation instead of older street-actor assumptions
+
+\- Notes-first hands with empty structured actions can now narrow correctly from multiway to heads-up when streets explicitly resolve
+
+\- This materially improved notes-first hand-state understanding and unlocked better Pressure Pulse eligibility
+
+
+
+\- Updated Pressure Pulse UI from single-pill summarization to dual-pill rendering
+
+\- Hands can now show:
+
+&#x20; - ATTACK
+
+&#x20; - DISCIPLINE
+
+&#x20; - both ATTACK and DISCIPLINE when both are present
+
+&#x20; - NEUTRAL only when neither exists
+
+\- Pressure Pulse remains rendered in the shared review hand card renderer, directly below the metadata chip row
+
+\- This fixed the prior issue where ATTACK backend signals existed but were visually hidden by single-pill DISCIPLINE priority
+
+
+
+Impact:
+
+\- Pressure Pulse now reflects real backend signal flow more truthfully
+
+\- ATTACK is visible in the UI
+
+\- street-by-street active-player state is more dependable for notes-first hands
+
+\- this creates a stronger foundation for future review coaching and signal calibration
+
+
+
 \## v0.21.1 — Pressure Pulse UI V1
 
 

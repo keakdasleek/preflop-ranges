@@ -6180,26 +6180,23 @@ function reconstructHandFromNotesV2(hand){
     const signals = deriveHandSignalsV1(h);
     const pulseEvents = Array.isArray(signals?.pressurePulse) ? signals.pressurePulse : [];
 
-    const hasDisciplinePulse = pulseEvents.some(x => x?.type === "discipline");
     const hasAttackPulse = pulseEvents.some(x => x?.type === "attack");
-
-    const pressurePulseState = hasDisciplinePulse
-      ? "DISCIPLINE"
-      : hasAttackPulse
-        ? "ATTACK"
-        : "NEUTRAL";
+    const hasDisciplinePulse = pulseEvents.some(x => x?.type === "discipline");
+    const showNeutralPulse = !hasAttackPulse && !hasDisciplinePulse;
 
     const rankLabel = opts.rankLabel != null ? String(opts.rankLabel) : String(idx + 1);
 
     const chipStyle = "font-size:10px;padding:1px 6px;opacity:.78";
 
-    const pulseBadgeText = pressurePulseState;
-    const pulseBadgeStyle =
-      pressurePulseState === "ATTACK"
-        ? "display:inline-block;font-size:11px;font-weight:900;padding:4px 10px;border-radius:999px;background:rgba(46, 160, 67, .22);border:1px solid rgba(46, 160, 67, .42);color:#d7ffe2;letter-spacing:.04em;"
-        : pressurePulseState === "DISCIPLINE"
-          ? "display:inline-block;font-size:11px;font-weight:900;padding:4px 10px;border-radius:999px;background:rgba(248, 81, 73, .20);border:1px solid rgba(248, 81, 73, .40);color:#ffd9d6;letter-spacing:.04em;"
-          : "display:inline-block;font-size:11px;font-weight:900;padding:4px 10px;border-radius:999px;background:rgba(148, 163, 184, .18);border:1px solid rgba(148, 163, 184, .32);color:rgba(231,236,255,.88);letter-spacing:.04em;";
+    const attackPulseHtml = hasAttackPulse
+      ? `<span class="loggerTinyChip" style="display:inline-block;font-size:11px;font-weight:900;padding:4px 10px;border-radius:999px;background:rgba(46, 160, 67, .22);border:1px solid rgba(46, 160, 67, .42);color:#d7ffe2;letter-spacing:.04em;">ATTACK</span>`
+      : "";
+    const disciplinePulseHtml = hasDisciplinePulse
+      ? `<span class="loggerTinyChip" style="display:inline-block;font-size:11px;font-weight:900;padding:4px 10px;border-radius:999px;background:rgba(248, 81, 73, .20);border:1px solid rgba(248, 81, 73, .40);color:#ffd9d6;letter-spacing:.04em;">DISCIPLINE</span>`
+      : "";
+    const neutralPulseHtml = showNeutralPulse
+      ? `<span class="loggerTinyChip" style="display:inline-block;font-size:11px;font-weight:900;padding:4px 10px;border-radius:999px;background:rgba(148, 163, 184, .18);border:1px solid rgba(148, 163, 184, .32);color:rgba(231,236,255,.88);letter-spacing:.04em;">NEUTRAL</span>`
+      : "";
 
     return `
       <details class="loggerTop5Row" style="border-top:1px solid rgba(255,255,255,.06)">
@@ -6225,8 +6222,10 @@ function reconstructHandFromNotesV2(hand){
             ${pressureChip ? `<span class="loggerTinyChip" style="${chipStyle}">${pressureChip}</span>` : ""}
             ${heroPosChip ? `<span class="loggerTinyChip" style="${chipStyle}">${heroPosChip}</span>` : ""}
           </div>
-          <div>
-            <span class="loggerTinyChip" style="${pulseBadgeStyle}">${pulseBadgeText}</span>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            ${attackPulseHtml}
+            ${disciplinePulseHtml}
+            ${neutralPulseHtml}
           </div>
           <div class="kicker loggerTop5Preview">${notePreview}</div>
         </summary>
@@ -7243,6 +7242,95 @@ function getCanonicalStreetActionsV1(hand, street){
   if(structured.length) return structured;
   return deriveReconstructedStreetActionsForPressureV1(hand, street);
 }
+function deriveActivePlayersByStreetV1(hand){
+  const heroPos = hand ? (getHeroPosForHand(hand) || null) : null;
+  const preActs = getCanonicalStreetActionsV1(hand, "PREFLOP");
+  const flopActs = getCanonicalStreetActionsV1(hand, "FLOP");
+  const turnActs = getCanonicalStreetActionsV1(hand, "TURN");
+  const riverActs = getCanonicalStreetActionsV1(hand, "RIVER");
+  const notesRaw = String(hand?.notes || "").trim();
+  const ctx = notesRaw ? buildStreetParseContext(notesRaw, hand) : null;
+
+  const hasStreetBoardOrText = (street) => {
+    const st = streetKey(street);
+    if(st === "FLOP") return !!(hand?.board?.flop?.[0] || ctx?.flop?.text);
+    if(st === "TURN") return !!(hand?.board?.turn || ctx?.turn?.text);
+    if(st === "RIVER") return !!(hand?.board?.river || ctx?.river?.text);
+    return false;
+  };
+
+  const hasEndContext = !!(ctx?.end?.text || hand?.wentToShowdown);
+
+  const orderedUnique = (arr) => {
+    const out = [];
+    arr.forEach((x) => {
+      if(!x) return;
+      if(!out.includes(x)) out.push(x);
+    });
+    return out;
+  };
+
+  const actorSetForStreet = (acts) => {
+    return orderedUnique((acts || []).map(a => a?.actorPos).filter(Boolean));
+  };
+
+  const foldedSetForStreet = (acts) => {
+    return new Set((acts || [])
+      .filter(a => isFoldAction(a))
+      .map(a => a?.actorPos)
+      .filter(Boolean));
+  };
+
+  const doesStreetResolve = (street, nextActs, nextStreet) => {
+    const st = streetKey(street);
+    const currentActs = st === "PREFLOP" ? preActs : st === "FLOP" ? flopActs : st === "TURN" ? turnActs : riverActs;
+    if(!currentActs.length) return false;
+    if((nextActs || []).length) return true;
+    if(nextStreet && hasStreetBoardOrText(nextStreet)) return true;
+    if(hasEndContext) return true;
+    return false;
+  };
+
+  const anyHeroAction = [preActs, flopActs, turnActs, riverActs].some(acts => (acts || []).some(a => a?.actorPos === heroPos));
+
+  let pre = actorSetForStreet(preActs);
+  if(heroPos && anyHeroAction && !pre.includes(heroPos)) pre.push(heroPos);
+  const preFolds = foldedSetForStreet(preActs);
+  pre = pre.filter(p => !preFolds.has(p));
+
+  const propagateStreet = (priorActive, acts, street, nextActs, nextStreet) => {
+    const folded = foldedSetForStreet(acts);
+    let active = orderedUnique((priorActive || []).filter(p => !folded.has(p)));
+    const actors = actorSetForStreet(acts).filter(p => !folded.has(p));
+    actors.forEach((p) => {
+      if(!active.includes(p)) active.push(p);
+    });
+
+    if(!(acts || []).length) return active;
+    if(!doesStreetResolve(street, nextActs, nextStreet)) return active;
+
+    const narrowed = [];
+    (priorActive || []).forEach((p) => {
+      if(actors.includes(p) && !folded.has(p) && !narrowed.includes(p)) narrowed.push(p);
+    });
+    actors.forEach((p) => {
+      if(!narrowed.includes(p)) narrowed.push(p);
+    });
+
+    const heroActed = !!(heroPos && (acts || []).some(a => a?.actorPos === heroPos));
+    const heroFolded = !!(heroPos && folded.has(heroPos));
+    if(heroPos && heroActed && !heroFolded && !narrowed.includes(heroPos)){
+      narrowed.push(heroPos);
+    }
+    return narrowed;
+  };
+
+  const flop = propagateStreet(pre, flopActs, "FLOP", turnActs, "TURN");
+  const turn = propagateStreet(flop, turnActs, "TURN", riverActs, "RIVER");
+  const river = propagateStreet(turn, riverActs, "RIVER", [], "");
+
+  return { pre, flop, turn, river };
+}
 function getCanonicalActionProfileV1(hand){
   const pre = getCanonicalStreetActionsV1(hand, "PREFLOP");
   const flop = getCanonicalStreetActionsV1(hand, "FLOP");
@@ -7252,6 +7340,7 @@ function getCanonicalActionProfileV1(hand){
   const hasCanonicalActions = !!(pre.length || flop.length || turn.length || river.length);
   const usesReconstructedActions = !hasStructuredActions && hasCanonicalActions;
   const heroPos = hand ? (getHeroPosForHand(hand) || null) : null;
+  const participation = deriveActivePlayersByStreetV1(hand);
   let preflopAggressor = null;
   for(const a of pre){
     const k = String(a?.action || "").toUpperCase();
@@ -7261,6 +7350,12 @@ function getCanonicalActionProfileV1(hand){
   }
   return {
     streets: { pre, flop, turn, river },
+    participation: {
+      pre: participation.pre,
+      flop: participation.flop,
+      turn: participation.turn,
+      river: participation.river
+    },
     meta: {
       hasStructuredActions,
       hasCanonicalActions,
@@ -7269,9 +7364,9 @@ function getCanonicalActionProfileV1(hand){
     derived: {
       heroPos,
       preflopAggressor,
-      headsUpFlop: getActivePositionsForStreet(hand, "flop").length === 2,
-      headsUpTurn: getActivePositionsForStreet(hand, "turn").length === 2,
-      headsUpRiver: getActivePositionsForStreet(hand, "river").length === 2
+      headsUpFlop: participation.flop.length === 2 && participation.flop.includes(heroPos),
+      headsUpTurn: participation.turn.length === 2 && participation.turn.includes(heroPos),
+      headsUpRiver: participation.river.length === 2 && participation.river.includes(heroPos)
     }
   };
 }
