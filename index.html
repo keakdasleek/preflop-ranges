@@ -5501,12 +5501,6 @@ function renderLoggerSessionReviewTable(){
     return `${n > 0 ? "+" : ""}${n.toFixed(1)}BB`;
   };
 
-  const msBluffTermRe = /\b(bluff|stab|take it down|take the hand|take the pot|get the fold|gets villain to fold)\b/i;
-  const msFoldTermRe = /\b(everyone folds|villain folds|villain folded|folds to|folded to|gets villain to fold|get the fold|hero gets a fold)\b/i;
-  const msNoShowdownRe = /\b(no showdown|without showdown|did not show|didn't show)\b/i;
-  const msBluffAggressiveActions = new Set(["BET", "RAISE"]);
-  const msBluffLateStreets = new Set(["TURN", "RIVER"]);
-
   let msBluffAttempts = 0;
   let msBluffSuccessful = 0;
   let msBluffNet = 0;
@@ -5520,7 +5514,7 @@ function renderLoggerSessionReviewTable(){
     const resultRaw = Number(h?.resultBB);
     const resultValid = isFinite(resultRaw);
 
-    const interesting = (typeof scoreInterestingHandV1 === "function")
+    const interesting = (typeof scoreInterestingHandV1 === 'function')
       ? scoreInterestingHandV1(h)
       : null;
 
@@ -5534,47 +5528,33 @@ function renderLoggerSessionReviewTable(){
       b.net += resultValid ? resultRaw : 0;
     }
 
-    const notes = String(h?.notes || "");
-    const notesLower = notes.toLowerCase();
-
-    const snapHeroAction = String(h?.snapHeroAction || "").toUpperCase();
-    const snapStreet = String(h?.snapStreet || "").toUpperCase();
-
-    const hasBluffPhrase = msBluffTermRe.test(notesLower);
-    const hasFoldPhrase = msFoldTermRe.test(notesLower);
-    const hasNoShowdownPhrase = msNoShowdownRe.test(notesLower);
-
-    const isLateAggressive =
-      msBluffAggressiveActions.has(snapHeroAction) &&
-      msBluffLateStreets.has(snapStreet);
-
-    const isAttempt = hasBluffPhrase || (isLateAggressive && (hasFoldPhrase || hasNoShowdownPhrase));
-    if(!isAttempt) return;
+    const bluff = deriveBluffResolutionV1(h);
+    if(!bluff.isAttempt) return;
 
     msBluffAttempts += 1;
-    const isSuccess = hasFoldPhrase;
-    if(isSuccess) msBluffSuccessful += 1;
+    if(bluff.isSuccess) msBluffSuccessful += 1;
     if(resultValid) msBluffNet += resultRaw;
 
-    if(msBluffStreet[snapStreet]){
-      msBluffStreet[snapStreet].attempts += 1;
-      if(isSuccess) msBluffStreet[snapStreet].successful += 1;
-      if(resultValid) msBluffStreet[snapStreet].net += resultRaw;
+    if(msBluffStreet[bluff.street]){
+      msBluffStreet[bluff.street].attempts += 1;
+      if(bluff.isSuccess) msBluffStreet[bluff.street].successful += 1;
+      if(resultValid) msBluffStreet[bluff.street].net += resultRaw;
     }
   });
 
-  const msPotRows = msPotBuckets.map((b) => {
-    const avg = b.hands ? (b.net / b.hands) : 0;
-    return `
-      <tr>
-        <td>${b.label}</td>
-        <td>${b.hands}</td>
-        <td>${msFmtBb(b.net)}</td>
-        <td>${msFmtBb(avg)}</td>
-      </tr>
-    `;
-  }).join("");
-
+  const msPotRows = msPotBuckets.some((b) => b.hands > 0)
+    ? msPotBuckets.map((b) => {
+        const avg = b.hands ? (b.net / b.hands) : 0;
+        return `
+          <tr>
+            <td>${b.label}</td>
+            <td>${b.hands}</td>
+            <td>${msFmtBb(b.net)}</td>
+            <td>${msFmtBb(avg)}</td>
+          </tr>
+        `;
+      }).join("")
+    : `<tr><td colspan="4" class="kicker" style="text-align:center;color:var(--muted)">No all-session pot data yet.</td></tr>`;
   const msBluffRate = msBluffAttempts ? (msBluffSuccessful / msBluffAttempts) * 100 : 0;
   const msBluffAvg = msBluffAttempts ? (msBluffNet / msBluffAttempts) : 0;
 
@@ -5740,10 +5720,8 @@ function renderLoggerSessionReviewTable(){
   const bluffTermRe = /\b(bluff|stab|take it down|take the hand|take the pot|get the fold|gets villain to fold)\b/i;
   const foldTermRe = /\b(everyone folds|villain folds|villain folded|folds to|folded to|gets villain to fold|get the fold|hero gets a fold)\b/i;
   const noShowdownRe = /\b(no showdown|without showdown|did not show|didn't show)\b/i;
-
   const bluffAggressiveActions = new Set(["BET", "RAISE"]);
   const bluffLateStreets = new Set(["TURN", "RIVER"]);
-
   let bluffAttempts = 0;
   let bluffSuccessful = 0;
   let bluffNet = 0;
@@ -5756,73 +5734,21 @@ function renderLoggerSessionReviewTable(){
   hands.forEach((h) => {
     if(!h) return;
 
-    const notes = String(h.notes || "");
-    const notesLower = notes.toLowerCase();
-    const hasBluffPhrase = bluffTermRe.test(notesLower);
-    if(!hasBluffPhrase) return;
-
-    const hasFoldPhrase = foldTermRe.test(notesLower);
-    const profile = getCanonicalActionProfileV1(h);
-    const heroPos = profile.derived.heroPos;
-
-    let countedStreet = "";
-    let isSuccess = false;
-
-    const findLateAggression = (streetKey, acts) => {
-      if(!bluffLateStreets.has(streetKey) || !acts.length) return null;
-      const heroAggIdx = acts.findIndex(a => a?.actorPos === heroPos && bluffAggressiveActions.has(String(a?.action || "").toUpperCase()));
-      if(heroAggIdx < 0) return null;
-
-      let foldAfter = false;
-      for(let i = heroAggIdx + 1; i < acts.length; i++){
-        const a = acts[i];
-        if(!a || a.actorPos === heroPos) continue;
-        if(isFoldAction(a)){
-          foldAfter = true;
-          break;
-        }
-        if(isCallAction(a) || isAggressiveAction(a) || String(a.action || "").toUpperCase() === "CHECK"){
-          break;
-        }
-      }
-
-      return { street: streetKey, foldAfter };
-    };
-
-    if(profile.meta.hasCanonicalActions){
-      const riverAgg = findLateAggression("RIVER", profile.streets.river);
-      const turnAgg = findLateAggression("TURN", profile.streets.turn);
-      const chosen = riverAgg || turnAgg;
-      if(chosen){
-        countedStreet = chosen.street;
-        isSuccess = chosen.foldAfter;
-      }
-    } else {
-      const snapHeroAction = String(h.snapHeroAction || "").toUpperCase();
-      const snapStreet = String(h.snapStreet || "").toUpperCase();
-      const isLateAggressive =
-        bluffAggressiveActions.has(snapHeroAction) &&
-        bluffLateStreets.has(snapStreet);
-      if(isLateAggressive){
-        countedStreet = snapStreet;
-        isSuccess = hasFoldPhrase || noShowdownRe.test(notesLower);
-      }
-    }
-
-    if(!countedStreet) return;
+    const bluff = deriveBluffResolutionV1(h);
+    if(!bluff.isAttempt) return;
 
     bluffAttempts += 1;
 
     const resultRaw = Number(h.resultBB);
     const resultValid = isFinite(resultRaw);
 
-    if(isSuccess) bluffSuccessful += 1;
+    if(bluff.isSuccess) bluffSuccessful += 1;
     if(resultValid) bluffNet += resultRaw;
 
-    if(bluffStreet[countedStreet]){
-      bluffStreet[countedStreet].attempts += 1;
-      if(isSuccess) bluffStreet[countedStreet].successful += 1;
-      if(resultValid) bluffStreet[countedStreet].net += resultRaw;
+    if(bluffStreet[bluff.street]){
+      bluffStreet[bluff.street].attempts += 1;
+      if(bluff.isSuccess) bluffStreet[bluff.street].successful += 1;
+      if(resultValid) bluffStreet[bluff.street].net += resultRaw;
     }
   });
   const bluffRate = bluffAttempts ? (bluffSuccessful / bluffAttempts) * 100 : 0;
@@ -7327,6 +7253,114 @@ function getCanonicalActionProfileV1(hand){
     }
   };
 }
+function deriveStreetResponsesV1(actions, heroPos){
+  const out = {
+    heroAggressed: false,
+    callers: [],
+    folders: [],
+    anyCalled: false,
+    anyFolded: false,
+    allFolded: false
+  };
+
+  const acts = Array.isArray(actions) ? actions : [];
+  if(!acts.length || !heroPos) return out;
+
+  const heroAggIdx = acts.findIndex(a => {
+    if(!a || a.actorPos !== heroPos) return false;
+    const k = String(a.action || '').toUpperCase();
+    return k === 'BET' || k === 'RAISE' || k === 'ALLIN';
+  });
+  if(heroAggIdx < 0) return out;
+
+  const callers = new Set();
+  const folders = new Set();
+  out.heroAggressed = true;
+
+  for(let i = heroAggIdx + 1; i < acts.length; i++){
+    const a = acts[i];
+    const who = String(a?.actorPos || '');
+    if(!who || who === heroPos) continue;
+    if(isCallAction(a)) callers.add(who);
+    if(isFoldAction(a)) folders.add(who);
+  }
+
+  out.callers = Array.from(callers);
+  out.folders = Array.from(folders);
+  out.anyCalled = out.callers.length > 0;
+  out.anyFolded = out.folders.length > 0;
+  out.allFolded = out.heroAggressed && out.anyFolded && !out.anyCalled;
+  return out;
+}
+function deriveBluffResolutionV1(hand){
+  const out = {
+    isAttempt: false,
+    isSuccess: false,
+    isFailure: false,
+    street: ''
+  };
+
+  if(!hand) return out;
+
+  const notes = String(hand?.notes || '');
+  const notesLower = notes.toLowerCase();
+  const bluffTermRe = /\b(bluff|stab|take it down|take the hand|take the pot|get the fold|gets villain to fold)\b/i;
+  if(!bluffTermRe.test(notesLower)) return out;
+
+  const profile = getCanonicalActionProfileV1(hand);
+  const heroPos = profile.derived.heroPos;
+
+  if(profile.meta.hasCanonicalActions){
+    const respRiver = deriveStreetResponsesV1(profile.streets.river, heroPos);
+    const respTurn = deriveStreetResponsesV1(profile.streets.turn, heroPos);
+
+    if(respRiver.heroAggressed){
+      out.isAttempt = true;
+      out.isSuccess = respRiver.allFolded === true;
+      out.isFailure = respRiver.anyCalled === true;
+      out.street = 'RIVER';
+      return out;
+    }
+
+    if(respTurn.heroAggressed){
+      out.isAttempt = true;
+      out.isSuccess = respTurn.allFolded === true;
+      out.isFailure = respTurn.anyCalled === true;
+      out.street = 'TURN';
+      return out;
+    }
+  }
+
+  if(!notes.trim()) return out;
+
+  const ctx = buildStreetParseContext(notes, hand);
+  const fallbackHeroAgg = /\b(?:i|hero)\b[\s\S]*?\b(?:bet|raise|jam|all-?in)\b/i;
+  const fallbackCall = /\b(?:villain|he|they|utg\+1|utg|lj|hj|co|btn|sb|bb)\b[\s\S]*?\bcall(?:s|ed)?\b/i;
+  const fallbackFold = /\b(?:villain|he|they|utg\+1|utg|lj|hj|co|btn|sb|bb)\b[\s\S]*?\bfold(?:s|ed)?\b/i;
+
+  const resolveFallbackStreet = (streetKey, seg) => {
+    const actionText = String(seg?.actionText || '').trim();
+    if(!actionText) return null;
+    const heroMatch = actionText.match(fallbackHeroAgg);
+    if(!heroMatch || heroMatch.index == null) return null;
+    const rest = actionText.slice(Number(heroMatch.index) + heroMatch[0].length);
+    if(fallbackCall.test(rest)){
+      return { isAttempt: true, isSuccess: false, isFailure: true, street: streetKey };
+    }
+    if(fallbackFold.test(rest)){
+      return { isAttempt: true, isSuccess: true, isFailure: false, street: streetKey };
+    }
+    return null;
+  };
+
+  const riverFallback = resolveFallbackStreet('RIVER', ctx?.river);
+  if(riverFallback) return riverFallback;
+
+  const turnFallback = resolveFallbackStreet('TURN', ctx?.turn);
+  if(turnFallback) return turnFallback;
+
+  return out;
+}
 function deriveHandSignalsV1(hand){
   const signals = {
     openRaise: false,
@@ -7344,87 +7378,72 @@ function deriveHandSignalsV1(hand){
   };
   if(!hand) return signals;
   signals.pressurePulse = derivePressurePulseV1(hand);
+
   const profile = getCanonicalActionProfileV1(hand);
   if(!profile.meta.hasCanonicalActions){
-    const snapType = String(hand?.snapType || "").toUpperCase();
-    const snapStreet = String(hand?.snapStreet || "").toUpperCase();
-    const snapHeroAction = String(hand?.snapHeroAction || "").toUpperCase();
-    const snapVillainResponse = String(hand?.snapVillainResponse || "UNKNOWN").toUpperCase();
-    const snapIsAggressive = snapHeroAction === "BET" || snapHeroAction === "RAISE" || snapHeroAction === "JAM" || snapHeroAction === "ALLIN";
-    signals.openRaise = snapType === "SRP";
-    signals.cBetFlop = snapType === "SRP" && snapStreet === "FLOP" && snapIsAggressive;
-    signals.doubleBarrel = snapType === "SRP" && snapStreet === "TURN" && snapIsAggressive;
-    signals.tripleBarrel = snapType === "SRP" && snapStreet === "RIVER" && snapIsAggressive;
-    signals.riverBet = snapStreet === "RIVER" && snapIsAggressive;
-    if(snapIsAggressive && snapStreet === "FLOP"){
-      if(snapVillainResponse === "CALL") signals.villainCalledFlop = true;
-      if(snapVillainResponse === "FOLD") signals.villainFoldedFlop = true;
+    const snapType = String(hand?.snapType || '').toUpperCase();
+    const snapStreet = String(hand?.snapStreet || '').toUpperCase();
+    const snapHeroAction = String(hand?.snapHeroAction || '').toUpperCase();
+    const snapVillainResponse = String(hand?.snapVillainResponse || 'UNKNOWN').toUpperCase();
+    const snapIsAggressive = snapHeroAction === 'BET' || snapHeroAction === 'RAISE' || snapHeroAction === 'JAM' || snapHeroAction === 'ALLIN';
+
+    signals.openRaise = snapType === 'SRP';
+    signals.cBetFlop = snapType === 'SRP' && snapStreet === 'FLOP' && snapIsAggressive;
+    signals.doubleBarrel = snapType === 'SRP' && snapStreet === 'TURN' && snapIsAggressive;
+    signals.tripleBarrel = snapType === 'SRP' && snapStreet === 'RIVER' && snapIsAggressive;
+    signals.riverBet = snapStreet === 'RIVER' && snapIsAggressive;
+
+    if(snapIsAggressive && snapStreet === 'FLOP'){
+      if(snapVillainResponse === 'CALL') signals.villainCalledFlop = true;
+      if(snapVillainResponse === 'FOLD') signals.villainFoldedFlop = true;
     }
-    if(snapIsAggressive && snapStreet === "TURN"){
-      if(snapVillainResponse === "CALL") signals.villainCalledTurn = true;
-      if(snapVillainResponse === "FOLD") signals.villainFoldedTurn = true;
+
+    if(snapIsAggressive && snapStreet === 'TURN'){
+      if(snapVillainResponse === 'CALL') signals.villainCalledTurn = true;
+      if(snapVillainResponse === 'FOLD') signals.villainFoldedTurn = true;
     }
-    if(snapIsAggressive && snapStreet === "RIVER"){
-      if(snapVillainResponse === "FOLD") signals.villainFoldedRiver = true;
+
+    if(snapIsAggressive && snapStreet === 'RIVER'){
+      if(snapVillainResponse === 'FOLD') signals.villainFoldedRiver = true;
     }
+
     return signals;
   }
+
   const heroPos = profile.derived.heroPos;
   const pfa = profile.derived.preflopAggressor;
   const pre = profile.streets.pre;
   const flop = profile.streets.flop;
   const turn = profile.streets.turn;
   const river = profile.streets.river;
+
   const heroAggIdxPre = pre.findIndex(a => a.actorPos === heroPos && isAggressiveAction(a));
   if(heroAggIdxPre >= 0){
     const priorVoluntary = pre.slice(0, heroAggIdxPre).some(a => {
-      const k = String(a.action || "").toUpperCase();
-      return k !== "FOLD";
+      const k = String(a.action || '').toUpperCase();
+      return k !== 'FOLD';
     });
     if(!priorVoluntary) signals.openRaise = true;
   }
+
   const heroAggOnStreet = (acts) => acts.some(a => a.actorPos === heroPos && isAggressiveAction(a));
   signals.cBetFlop = (pfa === heroPos) && heroAggOnStreet(flop);
   signals.doubleBarrel = signals.cBetFlop && heroAggOnStreet(turn);
   signals.tripleBarrel = signals.doubleBarrel && heroAggOnStreet(river);
   signals.riverBet = heroAggOnStreet(river);
-  const getHuVillainPos = (street) => {
-    const s = streetKey(street);
-    const isHeadsUp =
-      (s === "FLOP" && profile.derived.headsUpFlop) ||
-      (s === "TURN" && profile.derived.headsUpTurn) ||
-      (s === "RIVER" && profile.derived.headsUpRiver);
-    if(!isHeadsUp) return "";
-    const active = getActivePositionsForStreet(hand, street).filter(Boolean);
-    if(active.length !== 2) return "";
-    if(!active.includes(heroPos)) return "";
-    return active.find(p => p !== heroPos) || "";
-  };
-  const getVillainReaction = (street, acts) => {
-    const villainPos = getHuVillainPos(street);
-    if(!villainPos) return { called: false, folded: false };
-    const heroAggIdx = acts.findIndex(a => a.actorPos === heroPos && isAggressiveAction(a));
-    if(heroAggIdx < 0) return { called: false, folded: false };
-    for(let i = heroAggIdx + 1; i < acts.length; i++){
-      const a = acts[i];
-      if(a.actorPos !== villainPos) continue;
-      if(isCallAction(a)) return { called: true, folded: false };
-      if(isFoldAction(a)) return { called: false, folded: true };
-      if(isAggressiveAction(a)) return { called: false, folded: false };
-    }
-    return { called: false, folded: false };
-  };
-  const flopReaction = getVillainReaction("FLOP", flop);
-  signals.villainCalledFlop = flopReaction.called;
-  signals.villainFoldedFlop = flopReaction.folded;
-  const turnReaction = getVillainReaction("TURN", turn);
-  signals.villainCalledTurn = turnReaction.called;
-  signals.villainFoldedTurn = turnReaction.folded;
-  const riverReaction = getVillainReaction("RIVER", river);
-  signals.villainFoldedRiver = riverReaction.folded;
+
+  const respFlop = deriveStreetResponsesV1(flop, heroPos);
+  const respTurn = deriveStreetResponsesV1(turn, heroPos);
+  const respRiver = deriveStreetResponsesV1(river, heroPos);
+
+  signals.villainCalledFlop = respFlop.anyCalled;
+  signals.villainCalledTurn = respTurn.anyCalled;
+  signals.villainFoldedFlop = respFlop.anyFolded;
+  signals.villainFoldedTurn = respTurn.anyFolded;
+  signals.villainFoldedRiver = respRiver.anyFolded;
+
   return signals;
 }
-
 function safeRate(n, d){
   const num = Number(n);
   const den = Number(d);

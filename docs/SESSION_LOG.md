@@ -14,6 +14,74 @@ SESSION\_LOG.md entry:
 
 
 
+\## v0.21.0 — Response Resolution Layer V1
+
+
+
+\### Summary
+
+Introduced a canonical post-aggression response layer and unified Bluff resolution across the app.
+
+
+
+\### What changed
+
+\- Added `deriveStreetResponsesV1(...)` to resolve:
+
+&#x20; - callers
+
+&#x20; - folders
+
+&#x20; - anyCalled
+
+&#x20; - anyFolded
+
+&#x20; - allFolded
+
+\- Replaced legacy heads-up villain logic in `deriveHandSignalsV1(...)`
+
+\- Added `deriveBluffResolutionV1(hand)` as a shared Bluff engine
+
+\- Migrated both:
+
+&#x20; - current-session Bluff metrics
+
+&#x20; - all-sessions Bluff rollup
+
+&#x20; to the shared canonical/response model
+
+\- Added narrow fallback for commentary-interrupted action lines
+
+\- Restored missing local definitions (`msPotRows`, bluff regex constants) after refactor regressions
+
+
+
+\### Why it matters
+
+\- Enables correct multiway interpretation of post-aggression outcomes
+
+\- Fixes Bluff attempt/success undercounting
+
+\- Establishes a reusable response layer for future analytics (Pressure Pulse, EV heuristics, etc.)
+
+
+
+\### Known limitations
+
+\- Bluff detection still relies on explicit note-language gate
+
+\- Commentary-heavy notes can still bypass canonical extraction in edge cases
+
+\- No opponent identity resolution (by design)
+
+
+
+\### Next
+
+\- Pressure Pulse UI V1
+
+
+
 \## v0.20.1 — Canonical Action Bridge V1
 
 
