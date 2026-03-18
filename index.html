@@ -6177,9 +6177,29 @@ function reconstructHandFromNotesV2(hand){
       }
     }
 
+    const signals = deriveHandSignalsV1(h);
+    const pulseEvents = Array.isArray(signals?.pressurePulse) ? signals.pressurePulse : [];
+
+    const hasDisciplinePulse = pulseEvents.some(x => x?.type === "discipline");
+    const hasAttackPulse = pulseEvents.some(x => x?.type === "attack");
+
+    const pressurePulseState = hasDisciplinePulse
+      ? "DISCIPLINE"
+      : hasAttackPulse
+        ? "ATTACK"
+        : "NEUTRAL";
+
     const rankLabel = opts.rankLabel != null ? String(opts.rankLabel) : String(idx + 1);
 
     const chipStyle = "font-size:10px;padding:1px 6px;opacity:.78";
+
+    const pulseBadgeText = pressurePulseState;
+    const pulseBadgeStyle =
+      pressurePulseState === "ATTACK"
+        ? "display:inline-block;font-size:11px;font-weight:900;padding:4px 10px;border-radius:999px;background:rgba(46, 160, 67, .22);border:1px solid rgba(46, 160, 67, .42);color:#d7ffe2;letter-spacing:.04em;"
+        : pressurePulseState === "DISCIPLINE"
+          ? "display:inline-block;font-size:11px;font-weight:900;padding:4px 10px;border-radius:999px;background:rgba(248, 81, 73, .20);border:1px solid rgba(248, 81, 73, .40);color:#ffd9d6;letter-spacing:.04em;"
+          : "display:inline-block;font-size:11px;font-weight:900;padding:4px 10px;border-radius:999px;background:rgba(148, 163, 184, .18);border:1px solid rgba(148, 163, 184, .32);color:rgba(231,236,255,.88);letter-spacing:.04em;";
 
     return `
       <details class="loggerTop5Row" style="border-top:1px solid rgba(255,255,255,.06)">
@@ -6205,6 +6225,9 @@ function reconstructHandFromNotesV2(hand){
             ${pressureChip ? `<span class="loggerTinyChip" style="${chipStyle}">${pressureChip}</span>` : ""}
             ${heroPosChip ? `<span class="loggerTinyChip" style="${chipStyle}">${heroPosChip}</span>` : ""}
           </div>
+          <div>
+            <span class="loggerTinyChip" style="${pulseBadgeStyle}">${pulseBadgeText}</span>
+          </div>
           <div class="kicker loggerTop5Preview">${notePreview}</div>
         </summary>
         <div style="padding:0 10px 10px 10px">
@@ -6215,6 +6238,7 @@ function reconstructHandFromNotesV2(hand){
       </details>
     `;
   };
+
   const toSafeNumber = (v) => {
     const n = Number(v);
     return isFinite(n) ? n : null;
@@ -6224,7 +6248,6 @@ function reconstructHandFromNotesV2(hand){
     const interesting = (typeof scoreInterestingHandV1 === "function")
       ? scoreInterestingHandV1(h)
       : { score: 0, allInCount: 0, absResultBB: 0 };
-
     const resultNum = toSafeNumber(h?.resultBB);
     const scoreNumRaw = toSafeNumber(interesting?.score);
     const scoreNum = scoreNumRaw != null ? scoreNumRaw : 0;
@@ -7004,7 +7027,8 @@ function derivePressurePulseV1(hand){
 
   const pulses = [];
   const heroPos = getHeroPosForHand(hand);
-  const pfa = getPreflopAggressor(hand);
+  const profile = getCanonicalActionProfileV1(hand);
+  const pfa = profile.derived.preflopAggressor;
   const hasStructuredActions = getSortedActions(hand).length > 0;
   const potInfo = hasStructuredActions ? estimatePotByStreetBB(hand) : null;
   const notesRaw = String(hand?.notes || "").trim();
@@ -7039,13 +7063,11 @@ function derivePressurePulseV1(hand){
   };
 
   const isHeadsUpStreet = (street, acts) => {
-    const structured = getStreetActions(hand, street);
-    if(structured.length){
-      const active = getActivePositionsForStreet(hand, street).filter(Boolean);
-      return active.length === 2 && active.includes(heroPos);
-    }
-    const actors = Array.from(new Set((acts || []).map(a => a.actorPos).filter(Boolean)));
-    return actors.length === 2 && actors.includes(heroPos);
+    const st = streetKey(street);
+    if(st === "FLOP") return profile.derived.headsUpFlop;
+    if(st === "TURN") return profile.derived.headsUpTurn;
+    if(st === "RIVER") return profile.derived.headsUpRiver;
+    return false;
   };
 
   const emit = (street, type, signal, note) => {

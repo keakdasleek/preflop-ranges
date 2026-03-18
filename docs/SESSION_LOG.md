@@ -14,6 +14,48 @@ SESSION\_LOG.md entry:
 
 
 
+\## v0.21.1 — Pressure Pulse UI V1
+
+
+
+\- Added Pressure Pulse UI badge to the shared review hand card renderer
+
+\- Each hand now shows one color-coded Pressure Pulse state:
+
+&#x20; - DISCIPLINE
+
+&#x20; - ATTACK
+
+&#x20; - NEUTRAL
+
+\- Badge is rendered directly below the hand metadata chip row
+
+\- Pressure Pulse now appears in both Top 5 Interesting Hands and Hand History views
+
+\- Single-badge priority is conservative for review:
+
+&#x20; - DISCIPLINE overrides ATTACK
+
+&#x20; - ATTACK overrides NEUTRAL
+
+\- Updated derivePressurePulseV1(hand) to use canonical preflop aggressor and canonical heads-up flags for attack gating
+
+\- No parser, schema, localStorage, or layout refactor changes
+
+
+
+Known issue:
+
+\- ATTACK coverage remains effectively zero in notes-first hands because street participation / heads-up state is still not being propagated correctly across streets from structured notes
+
+
+
+Next:
+
+\- Street Participation Engine V1
+
+
+
 \## v0.21.0 — Response Resolution Layer V1
 
 

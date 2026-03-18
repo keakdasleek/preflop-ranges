@@ -8,89 +8,65 @@ We are working in Casey's Poker Tool.
 
 
 
-Current version: v0.21.0 — Response Resolution Layer V1
+Current version: v0.21.1 — Pressure Pulse UI V1
 
 
 
-We are now moving to the next feature:
+We are now back in DESIGN mode.
 
 
 
-STEP 1 — Proposal Only
+Next feature to design:
 
-
-
-Goal:
-
-Surface Pressure Pulse in the UI using the existing backend signals.
+Street Participation Engine V1
 
 
 
 Context:
 
-\- Pressure Pulse signals already exist in deriveHandSignalsV1(hand)
+\- Pressure Pulse backend and UI now exist
 
-\- No UI currently exposes:
+\- Canonical Action Bridge V1 is implemented
 
-&#x20; - attack spots
+\- Response Resolution Layer V1 is implemented
 
-&#x20; - discipline spots
+\- Pressure Pulse ATTACK coverage remains near zero in notes-first hands
 
-&#x20; - neutral spots
+\- Audit showed the main issue is not only attack-signal narrowness, but broken street participation / heads-up state for notes-rich hands with empty actions arrays
 
 
 
-Task:
+Design goal:
 
-Propose a minimal, high-signal UI for Pressure Pulse V1.
+Use structured notes + canonical actions to track who is still active in the hand street by street.
+
+
+
+Example target:
+
+\- derive active players by street from action sequences
+
+\- correctly know when a hand becomes heads-up after folds/calls
+
+\- feed that into canonical profile / heads-up flags
 
 
 
 Requirements:
 
-\- Modify only index.html
+\- no schema changes
 
-\- Do not change parser, schema, or localStorage
+\- no localStorage changes
 
-\- Do not refactor existing rendering structure
+\- keep logic explicit and conservative
 
-\- Keep UI lightweight and readable
+\- no broad parser rewrite
 
-\- Prefer additive changes only
-
-
-
-Design goals:
-
-\- Help user quickly identify:
-
-&#x20; - where they should attack
-
-&#x20; - where they should show discipline
-
-\- Avoid clutter
-
-\- Work at both:
-
-&#x20; - per-hand level
-
-&#x20; - optional session summary level
+\- work from the structured notes approach already in place
 
 
 
-Return:
+Workflow:
 
-1\. UI concept (hand-level + optional session summary)
-
-2\. Exact insertion points in renderLoggerSessionReviewTable()
-
-3\. Minimal data mapping from existing signals
-
-4\. Example HTML structure
-
-5\. QA checklist
-
-
-
-Do not implement yet.
+DESIGN → Codex Proposal → Review → Implementation → QA → Versioning
 
