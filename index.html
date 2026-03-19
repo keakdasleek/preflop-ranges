@@ -3761,6 +3761,74 @@ function normalizeCard(card){
   return r + s;
 }
 
+function normalizeCardTokenV1(raw){
+  const src = String(raw || "").trim();
+  if(!src) return null;
+  const compact = src.replace(/\s+/g, "");
+  const m = compact.match(/^(10|[2-9TJQKA])([SHDC])$/i);
+  if(!m) return null;
+  const rankRaw = String(m[1] || "").toUpperCase();
+  const suit = String(m[2] || "").toLowerCase();
+  const rank = rankRaw === "10" ? "T" : rankRaw;
+  if(!LOGGER_RANKS.includes(rank)) return null;
+  if(!["s","h","d","c"].includes(suit)) return null;
+  return rank + suit;
+}
+
+function parseHeroCardsTextV1(raw){
+  const src = String(raw || "").trim();
+  if(!src) return [];
+  const compact = src.replace(/\s+/g, "");
+  let parts = [];
+  if(/^(10|[2-9TJQKA])[SHDC](10|[2-9TJQKA])[SHDC]$/i.test(compact)){
+    const pairRe = /(10|[2-9TJQKA])([SHDC])/ig;
+    let m;
+    while((m = pairRe.exec(compact)) !== null){
+      parts.push(`${m[1]}${m[2]}`);
+    }
+  } else {
+    parts = src.split(/[\s,\/|]+/).filter(Boolean);
+  }
+  if(parts.length !== 2) return [];
+  const out = parts.map(x => normalizeCardTokenV1(x));
+  if(out.some(x => !x)) return [];
+  if(out[0] === out[1]) return [];
+  return out;
+}
+
+function parseSnapshotStreetNotesV1(notes){
+  const out = { pre: "", flop: "", turn: "", river: "", end: "" };
+  const src = String(notes || "");
+  if(!src.trim()) return out;
+
+  const sectionRe = /(Pre|Flop|Turn|River|End):([\s\S]*?)(?=(?:\n(?:Pre|Flop|Turn|River|End):)|$)/gi;
+  let found = false;
+  let m;
+  while((m = sectionRe.exec(src)) !== null){
+    const key = String(m[1] || "").toLowerCase();
+    if(Object.prototype.hasOwnProperty.call(out, key)){
+      out[key] = String(m[2] || "").trim();
+      found = true;
+    }
+  }
+
+  if(found) return out;
+  out.pre = src.trim();
+  return out;
+}
+
+function buildSnapshotStreetNotesV1(fields){
+  const src = fields || {};
+  const clean = (key) => String(src[key] || "").trim();
+  return [
+    `Pre: ${clean("pre")}`,
+    `Flop: ${clean("flop")}`,
+    `Turn: ${clean("turn")}`,
+    `River: ${clean("river")}`,
+    `End: ${clean("end")}`
+  ].join("\n");
+}
+
 function allPickedCards(slots){
   return slots.filter(Boolean);
 }
@@ -8272,19 +8340,6 @@ el.appendChild(row);
 function renderLoggerSnapshotEditor({ mount, hand, heroPos, n }){
   mount.innerHTML = "";
 
-  const focusSnapshotNoteAfterRender = () => {
-    setTimeout(()=>{
-      const noteEl = mount.querySelector("textarea");
-      if(!noteEl) return;
-
-      const end = String(noteEl.value || "").length;
-      noteEl.focus();
-      if(typeof noteEl.setSelectionRange === "function"){
-        noteEl.setSelectionRange(end, end);
-      }
-    }, 0);
-  };
-
   const top = document.createElement("div");
   top.style.display = "grid";
   top.style.gap = "10px";
@@ -8310,81 +8365,183 @@ function renderLoggerSnapshotEditor({ mount, hand, heroPos, n }){
   card.style.background = "rgba(255,255,255,.03)";
 
 
-  // Hero cards (optional, helps reconstruct later)
-const heroCardsLine = document.createElement("div");
-heroCardsLine.style.display = "flex";
-heroCardsLine.style.gap = "10px";
-heroCardsLine.style.flexWrap = "wrap";
-heroCardsLine.style.alignItems = "center";
+  const inputBaseStyle = () => {
+    return {
+      padding: "8px 10px",
+      borderRadius: "10px",
+      border: "1px solid rgba(255,255,255,.15)",
+      background: "rgba(255,255,255,.05)",
+      color: "var(--text)",
+      fontWeight: "900"
+    };
+  };
+  const applyInputStyle = (el, width) => {
+    const style = inputBaseStyle();
+    Object.assign(el.style, style);
+    if(width) el.style.width = width;
+  };
+  const setInputValidity = (el, isValid) => {
+    if(!el) return;
+    el.style.border = isValid ? "1px solid rgba(255,255,255,.15)" : "1px solid rgba(248, 81, 73, .75)";
+  };
+  const streetNotesFields = parseSnapshotStreetNotesV1(hand.notes || "");
 
-const heroCardsLabel = document.createElement("div");
-heroCardsLabel.className = "kicker";
-heroCardsLabel.style.color = "var(--muted)";
-heroCardsLabel.style.fontWeight = "800";
-heroCardsLabel.textContent = "Hero cards";
+  // Hero cards
+  const heroCardsLine = document.createElement("div");
+  heroCardsLine.style.display = "flex";
+  heroCardsLine.style.gap = "10px";
+  heroCardsLine.style.flexWrap = "wrap";
+  heroCardsLine.style.alignItems = "center";
 
-const heroCardsVal = document.createElement("div");
-heroCardsVal.className = "kicker";
-heroCardsVal.style.fontWeight = "900";
-heroCardsVal.textContent = (hand.heroCards && hand.heroCards.length === 2 && hand.heroCards[0] && hand.heroCards[1])
-  ? `${cardToPretty(hand.heroCards[0])} ${cardToPretty(hand.heroCards[1])}`
-  : "-";
+  const heroCardsLabel = document.createElement("div");
+  heroCardsLabel.className = "kicker";
+  heroCardsLabel.style.color = "var(--muted)";
+  heroCardsLabel.style.fontWeight = "800";
+  heroCardsLabel.textContent = "Hero cards";
 
-const heroCardsBtn = document.createElement("button");
-heroCardsBtn.textContent = "Pick hero cards";
-heroCardsBtn.style.width = "fit-content";
-heroCardsBtn.style.padding = "8px 12px";
-heroCardsBtn.style.borderRadius = "12px";
-heroCardsBtn.style.fontWeight = "900";
+  const heroCardsInput = document.createElement("input");
+  heroCardsInput.type = "text";
+  heroCardsInput.placeholder = "As Ks or AsKs";
+  heroCardsInput.value = (hand.heroCards && hand.heroCards[0] && hand.heroCards[1])
+    ? `${hand.heroCards[0]} ${hand.heroCards[1]}`
+    : "";
+  applyInputStyle(heroCardsInput, "180px");
 
-heroCardsBtn.addEventListener("click", ()=>{
-  const slots = (hand.heroCards && hand.heroCards.length === 2)
-    ? hand.heroCards.slice()
-    : [null,null];
-
-  openLoggerCardPicker({
-    title: "Pick hero cards",
-    sub: "Select exactly 2 cards (optional in snapshot).",
-    slots,
-    exclude: new Set([
+  const saveHeroCardsInput = () => {
+    const raw = String(heroCardsInput.value || "");
+    if(!raw.trim()){
+      hand.heroCards = [null, null];
+      setInputValidity(heroCardsInput, true);
+      saveLogger();
+      return;
+    }
+    const parsed = parseHeroCardsTextV1(raw);
+    const boardCards = [
       ...(hand.board?.flop || []),
       hand.board?.turn || null,
       hand.board?.river || null
-    ].filter(Boolean)),
-    onSave: (newSlots)=>{
-      hand.heroCards = [newSlots[0] || null, newSlots[1] || null];
-      const hasBothHeroCards = !!hand.heroCards[0] && !!hand.heroCards[1];
-      saveLogger();
-      renderLoggerSnapshotEditor({ mount, hand, heroPos, n });
-      if(hasBothHeroCards){
-        loggerCardFocusSnapshotNotesOnce = true;
-      }
-    }
+    ].filter(Boolean);
+    const unique = new Set(parsed);
+    const hasBoardDup = parsed.some(c => boardCards.includes(c));
+    const isValid = parsed.length === 2 && unique.size === 2 && !hasBoardDup;
+    setInputValidity(heroCardsInput, isValid);
+    if(!isValid) return;
+    heroCardsInput.value = `${parsed[0]} ${parsed[1]}`;
+    hand.heroCards = [parsed[0], parsed[1]];
+    saveLogger();
+  };
+
+  heroCardsInput.addEventListener("change", saveHeroCardsInput);
+  heroCardsInput.addEventListener("blur", saveHeroCardsInput);
+
+  const heroCardsClearBtn = document.createElement("button");
+  heroCardsClearBtn.textContent = "Clear";
+  heroCardsClearBtn.style.width = "fit-content";
+  heroCardsClearBtn.style.padding = "8px 12px";
+  heroCardsClearBtn.style.borderRadius = "12px";
+  heroCardsClearBtn.style.fontWeight = "900";
+  heroCardsClearBtn.style.border = "1px solid rgba(255,255,255,.18)";
+  heroCardsClearBtn.style.background = "rgba(255,255,255,.04)";
+  heroCardsClearBtn.style.opacity = "0.92";
+  heroCardsClearBtn.addEventListener("click", ()=>{
+    heroCardsInput.value = "";
+    hand.heroCards = [null, null];
+    setInputValidity(heroCardsInput, true);
+    saveLogger();
   });
-});
 
-const heroCardsClearBtn = document.createElement("button");
-heroCardsClearBtn.textContent = "Clear";
-heroCardsClearBtn.style.width = "fit-content";
-heroCardsClearBtn.style.padding = "8px 12px";
-heroCardsClearBtn.style.borderRadius = "12px";
-heroCardsClearBtn.style.fontWeight = "900";
-heroCardsClearBtn.style.border = "1px solid rgba(255,255,255,.18)";
-heroCardsClearBtn.style.background = "rgba(255,255,255,.04)";
-heroCardsClearBtn.style.opacity = "0.92";
+  heroCardsLine.appendChild(heroCardsLabel);
+  heroCardsLine.appendChild(heroCardsInput);
+  heroCardsLine.appendChild(heroCardsClearBtn);
+  card.appendChild(heroCardsLine);
 
-heroCardsClearBtn.addEventListener("click", ()=>{
-  hand.heroCards = [null,null];
-  saveLogger();
-  renderLoggerSnapshotEditor({ mount, hand, heroPos, n });
-});
+  // Board
+  const boardLine = document.createElement("div");
+  boardLine.style.display = "flex";
+  boardLine.style.gap = "10px";
+  boardLine.style.flexWrap = "wrap";
+  boardLine.style.alignItems = "center";
 
-heroCardsLine.appendChild(heroCardsLabel);
-heroCardsLine.appendChild(heroCardsVal);
-heroCardsLine.appendChild(heroCardsBtn);
-heroCardsLine.appendChild(heroCardsClearBtn);
+  const boardLabel = document.createElement("div");
+  boardLabel.className = "kicker";
+  boardLabel.style.color = "var(--muted)";
+  boardLabel.style.fontWeight = "800";
+  boardLabel.textContent = "Board";
 
-card.appendChild(heroCardsLine);
+  const curBoard = hand.board || { flop:[null,null,null], turn:null, river:null };
+  const boardInputs = [
+    { key: "flop0", placeholder: "Flop", value: curBoard.flop?.[0] || null },
+    { key: "flop1", placeholder: "Flop", value: curBoard.flop?.[1] || null },
+    { key: "flop2", placeholder: "Flop", value: curBoard.flop?.[2] || null },
+    { key: "turn", placeholder: "Turn", value: curBoard.turn || null },
+    { key: "river", placeholder: "River", value: curBoard.river || null }
+  ].map((cfg) => {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = cfg.placeholder;
+    input.value = cfg.value || "";
+    applyInputStyle(input, "64px");
+    input.style.textAlign = "center";
+    input.dataset.cardKey = cfg.key;
+    return input;
+  });
+
+  const saveBoardInputs = () => {
+    const heroCards = (hand.heroCards || []).filter(Boolean);
+    const normalized = [];
+    const validFlags = [];
+    boardInputs.forEach((input) => {
+      const raw = String(input.value || "");
+      if(!raw.trim()){
+        normalized.push(null);
+        validFlags.push(true);
+        return;
+      }
+      const card = normalizeCardTokenV1(raw);
+      normalized.push(card);
+      validFlags.push(!!card);
+    });
+
+    const cardCounts = new Map();
+    normalized.forEach((card) => {
+      if(!card) return;
+      cardCounts.set(card, (cardCounts.get(card) || 0) + 1);
+    });
+
+    boardInputs.forEach((input, idx) => {
+      const card = normalized[idx];
+      let isValid = validFlags[idx];
+      if(card && (cardCounts.get(card) || 0) > 1) isValid = false;
+      if(card && heroCards.includes(card)) isValid = false;
+      setInputValidity(input, isValid);
+      if(isValid && card) input.value = card;
+    });
+
+    const saved = normalized.map((card, idx) => {
+      const cardCount = card ? (cardCounts.get(card) || 0) : 0;
+      if(!card) return null;
+      if(!validFlags[idx]) return null;
+      if(cardCount > 1) return null;
+      if(heroCards.includes(card)) return null;
+      return card;
+    });
+
+    hand.board = {
+      flop: [saved[0] || null, saved[1] || null, saved[2] || null],
+      turn: saved[3] || null,
+      river: saved[4] || null
+    };
+    saveLogger();
+  };
+
+  boardInputs.forEach((input) => {
+    input.addEventListener("change", saveBoardInputs);
+    input.addEventListener("blur", saveBoardInputs);
+  });
+
+  boardLine.appendChild(boardLabel);
+  boardInputs.forEach(input => boardLine.appendChild(input));
+  card.appendChild(boardLine);
   
   // Result (BB)
   const row2 = document.createElement("div");
@@ -8418,47 +8575,54 @@ card.appendChild(heroCardsLine);
     saveLogger();
   });
 
-  const flagWrap = document.createElement("label");
-  flagWrap.style.display = "inline-flex";
-  flagWrap.style.alignItems = "center";
-  flagWrap.style.gap = "8px";
-  flagWrap.style.fontWeight = "900";
-
-  const flagCb = document.createElement("input");
-  flagCb.type = "checkbox";
-  flagCb.checked = (hand.needsReview !== false); // default true
-  flagCb.addEventListener("change", ()=>{
-    hand.needsReview = !!flagCb.checked;
-    saveLogger();
-  });
-
-  const flagText = document.createElement("span");
-  flagText.textContent = "Flag for review";
-
-  flagWrap.appendChild(flagCb);
-  flagWrap.appendChild(flagText);
-
   row2.appendChild(resLabel);
   row2.appendChild(resInput);
-  row2.appendChild(flagWrap);
 
   card.appendChild(row2);
 
-  // Note
-  const note = document.createElement("textarea");
-  note.placeholder = "Quick note (optional)...";
-  note.value = hand.notes || "";
-  note.style.minHeight = "80px";
-  note.style.padding = "10px 12px";
-  note.style.borderRadius = "12px";
-  note.style.border = "1px solid rgba(255,255,255,.12)";
-  note.style.background = "rgba(255,255,255,.04)";
-  note.style.color = "var(--text)";
-  note.style.resize = "vertical";
-
-  note.addEventListener("change", ()=>{
-    hand.notes = note.value;
+  const streetInputs = {};
+  const saveStreetNotes = () => {
+    hand.notes = buildSnapshotStreetNotesV1({
+      pre: streetInputs.pre?.value || "",
+      flop: streetInputs.flop?.value || "",
+      turn: streetInputs.turn?.value || "",
+      river: streetInputs.river?.value || "",
+      end: streetInputs.end?.value || ""
+    });
     saveLogger();
+  };
+
+  [
+    ["pre", "Pre"],
+    ["flop", "Flop"],
+    ["turn", "Turn"],
+    ["river", "River"],
+    ["end", "End"]
+  ].forEach(([key, label]) => {
+    const fieldWrap = document.createElement("div");
+    fieldWrap.style.display = "grid";
+    fieldWrap.style.gap = "6px";
+
+    const fieldLabel = document.createElement("div");
+    fieldLabel.className = "kicker";
+    fieldLabel.style.color = "var(--muted)";
+    fieldLabel.style.fontWeight = "800";
+    fieldLabel.textContent = label;
+
+    const fieldInput = document.createElement("input");
+    fieldInput.type = "text";
+    fieldInput.value = streetNotesFields[key] || "";
+    fieldInput.placeholder = `${label}...`;
+    applyInputStyle(fieldInput);
+    fieldInput.style.width = "100%";
+
+    fieldInput.addEventListener("change", saveStreetNotes);
+    fieldInput.addEventListener("blur", saveStreetNotes);
+
+    streetInputs[key] = fieldInput;
+    fieldWrap.appendChild(fieldLabel);
+    fieldWrap.appendChild(fieldInput);
+    card.appendChild(fieldWrap);
   });
 
   const reflectionLabel = document.createElement("div");
@@ -8483,9 +8647,29 @@ card.appendChild(heroCardsLine);
     saveLogger();
   });
 
-  card.appendChild(note);
   card.appendChild(reflectionLabel);
   card.appendChild(reflection);
+
+  const flagWrap = document.createElement("label");
+  flagWrap.style.display = "inline-flex";
+  flagWrap.style.alignItems = "center";
+  flagWrap.style.gap = "8px";
+  flagWrap.style.fontWeight = "900";
+
+  const flagCb = document.createElement("input");
+  flagCb.type = "checkbox";
+  flagCb.checked = (hand.needsReview !== false); // default true
+  flagCb.addEventListener("change", ()=>{
+    hand.needsReview = !!flagCb.checked;
+    saveLogger();
+  });
+
+  const flagText = document.createElement("span");
+  flagText.textContent = "Flag for review";
+
+  flagWrap.appendChild(flagCb);
+  flagWrap.appendChild(flagText);
+  card.appendChild(flagWrap);
 
   // Buttons
   const btnRow = document.createElement("div");
@@ -8535,6 +8719,17 @@ saveBtn.addEventListener("click", ()=>{
 
   mount.appendChild(top);
   mount.appendChild(card);
+
+  if(!(hand.heroCards && hand.heroCards[0] && hand.heroCards[1])){
+    setTimeout(()=>{
+      if(document.activeElement && mount.contains(document.activeElement) && document.activeElement !== document.body) return;
+      heroCardsInput.focus();
+      if(typeof heroCardsInput.setSelectionRange === "function"){
+        const end = String(heroCardsInput.value || "").length;
+        heroCardsInput.setSelectionRange(end, end);
+      }
+    }, 0);
+  }
 }
 
 function renderLoggerHandEditor(hand){
@@ -10684,26 +10879,6 @@ actions: [] // [{id, street, actorPos, action, amt, unit, toCall, note, createdA
       }, 0);
       scrollLoggerHandEditorIntoView();
 
-// Auto-open hero cards for SNAPSHOT (optional)
-openLoggerCardPicker({
-  title: "Pick hero cards (snapshot)",
-  sub: "Optional - helps reconstruct later.",
-  slots: (hand.heroCards || [null,null]).slice(),
-  exclude: new Set([
-    ...(hand.board?.flop || []),
-    hand.board?.turn || null,
-    hand.board?.river || null
-  ].filter(Boolean)),
-  onSave: (newSlots)=>{
-    hand.heroCards = [newSlots[0] || null, newSlots[1] || null];
-    saveLogger();
-    renderLoggerHandEditor(hand);   // will render Snapshot editor because logMode is SNAP
-    renderLoggerHandsList();
-    renderLoggerSessionReviewTable?.();
-  }
-});
-
-    
       toast("Hand created");
 }
 

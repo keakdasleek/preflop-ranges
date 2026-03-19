@@ -14,6 +14,74 @@ SESSION\_LOG.md entry:
 
 
 
+\## v0.23.0 — Snapshot Logger Fast Entry V2
+
+
+
+\- Snapshot mode is now the clear primary logger workflow for future product development
+
+\- Replaced the single Snapshot Notes textarea with structured single-line street inputs:
+
+&#x20; - Pre
+
+&#x20; - Flop
+
+&#x20; - Turn
+
+&#x20; - River
+
+&#x20; - End
+
+\- Structured street inputs serialize back into the existing labeled `hand.notes` format, preserving storage compatibility
+
+\- Added Hero Cards autofocus when opening Log New Hand in Snapshot mode
+
+\- Preserved text-based Hero Cards entry and 5-box board entry from the prior fast-entry update
+
+\- Reordered Snapshot logger layout for post-hand reconstruction flow:
+
+&#x20; - Hero Cards
+
+&#x20; - Board
+
+&#x20; - Result (BB)
+
+&#x20; - Pre / Flop / Turn / River / End
+
+&#x20; - Reflection
+
+&#x20; - Flag for review
+
+&#x20; - Save / switch buttons
+
+\- Reflection remains separate from structured notes
+
+\- Existing labeled Snapshot hands load back into the correct street fields
+
+\- Older unlabeled Snapshot notes are preserved safely by loading into Pre
+
+
+
+Impact:
+
+\- Snapshot logging is materially faster and less frustrating during replay-based review
+
+\- Reduces click friction and cursor-placement frustration
+
+\- Improves consistency of structured note entry without changing parser/storage architecture
+
+
+
+No changes to:
+
+\- Full Log mode
+
+\- parser or reconstruction logic
+
+\- schema or localStorage
+
+
+
 \## v0.22.0 — Street Participation Engine + Pressure Pulse UI V2
 
 

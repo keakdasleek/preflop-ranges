@@ -8,65 +8,81 @@ We are working in Casey's Poker Tool.
 
 
 
-Current version: v0.22.0 — Street Participation Engine + Pressure Pulse UI V2
-
-
-
-We are now back in DESIGN mode.
+Current version: v0.23.0 — Snapshot Logger Fast Entry V2
 
 
 
 Current state:
 
-\- Canonical Action Bridge V1 is implemented
+\- Snapshot mode is the primary and future logger workflow
 
-\- Response Resolution Layer V1 is implemented
+\- Snapshot logging now supports:
+
+&#x20; - Hero Cards text entry
+
+&#x20; - 5-box board entry
+
+&#x20; - Result (BB) near the top of flow
+
+&#x20; - structured street inputs:
+
+&#x20;   - Pre
+
+&#x20;   - Flop
+
+&#x20;   - Turn
+
+&#x20;   - River
+
+&#x20;   - End
+
+&#x20; - separate Reflection field
+
+\- Structured street inputs serialize into the existing `hand.notes` labeled format
+
+\- Pressure Pulse backend and UI are implemented
 
 \- Street Participation Engine V1 is implemented
 
-\- Pressure Pulse backend exists and is now surfaced in the UI
-
-\- Pressure Pulse can now visibly show:
-
-&#x20; - ATTACK
-
-&#x20; - DISCIPLINE
-
-&#x20; - both states when both are present
-
-&#x20; - NEUTRAL only when neither exists
+\- Canonical Action Bridge and Response Resolution are implemented
 
 
 
 What we want to do next:
 
-Use real review experience to determine the highest-value next step.
+Step back in DESIGN mode and decide the highest-value next slice.
 
 
 
-Strong candidate directions:
+Likely candidate directions:
 
-1\. Pressure Pulse calibration / tuning
+1\. Snapshot logger keyboard-flow polish
 
-&#x20;  - identify obvious false negatives or false positives
+&#x20;  - improve tab order / enter behavior
 
-&#x20;  - refine attack/discipline signal definitions carefully
-
-
-
-2\. Missed ATTACK V1
-
-&#x20;  - detect hands where an ATTACK opportunity existed but hero did not take the pressure line
-
-&#x20;  - potentially very high coaching value
+&#x20;  - reduce remaining friction during replay logging
 
 
 
-3\. Lightweight Pressure Pulse session summary
+2\. Pressure Pulse calibration
 
-&#x20;  - aggregate ATTACK / DISCIPLINE counts and patterns across a session
+&#x20;  - review whether ATTACK / DISCIPLINE signals are useful enough to improve play
+
+&#x20;  - tune signal coverage vs precision using real reviewed hands
 
 
 
-We should stay in DESIGN mode and decide the next highest-value slice before moving to Codex.
+3\. Review-oriented summaries
+
+&#x20;  - surface higher-level coaching value from the structured hand data now being logged more reliably
+
+
+
+Important product direction:
+
+\- Do not invest further in Full Log mode unless explicitly needed
+
+\- Snapshot mode is the path forward
+
+\- Prioritize improvements that increase logging speed, data quality, and review usefulness
 
