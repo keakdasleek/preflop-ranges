@@ -1,6 +1,6 @@
 <!--
 Casey's Poker Tool
-Version: v0.13.26.2
+Version: v0.23.1
 -->
 
 <!-- Casey's Poker Tool - Single File Application -->
@@ -2179,7 +2179,7 @@ function buildRange(def){
       def: {
         raises: [
           "22+",
-          "A2s+", "A2o+", // all aces
+          "A2s+", "A7o+", // suited: all aces; offsuit: A7o+ only (A2o-A6o too rake-sensitive)
           "K8s+", "KTo+",
           "Q9s+", "QTo+",
           "J9s+", "JTo",
@@ -2188,7 +2188,8 @@ function buildRange(def){
           "86s+"
         ],
         notes: {
-          "AJo":"Prefer 3-bet-or-fold vs earlier opens; as RFI it's strong enough.",
+          "AJo":"Prefer 3-bet-or-fold vs earlier opens; as RFI it is strong enough.",
+          "A7o":"Practical cutoff for offsuit aces at BTN. A2o-A6o create messy top-pair-weak-kicker spots and are rake-unfriendly.",
           "KTo":"Late-position steal; be ready to barrel selectively on good textures.",
           "86s":"Lowest suited connector we open here in this rake environment."
         }
@@ -2252,7 +2253,11 @@ function buildRange(def){
           "22+",
           "AJs+", "AQo+",
           "KQs"
-        ]
+        ],
+        notes: {
+          "22":"Set-mine only from UTG. Must fold vs 3-bets. Marginal at rake-heavy stakes; drop if uncomfortable.",
+          "KQs":"Top of the non-pair suited range from UTG. Treat it as a value open, not a steal."
+        }
       }
     },
 
@@ -2268,6 +2273,7 @@ function buildRange(def){
     ],
 
     // NOTE: A2s/A3s/A4s/A5s removed from calls because they are now explicit MIX hands
+    // NOTE: K9s/Q9s are included in K9s+/Q9s+ below but are overridden by mixWeights to R/C mixes
     calls: [
       "22+",
       "A6s+",
@@ -2385,11 +2391,11 @@ function buildRange(def){
     raises: [
       "TT+",
       "AQo+", "AJs+",
-      "KQs",
-      "A5s", "A4s"
+      "KQs"
+      // NOTE: A4s/A5s removed from raises - they are mix hands handled by mixWeights below
     ],
 
-    // NOTE: remove A2s/A3s/A4s/A5s from the A2s+ bucket because they are explicit MIX hands now
+    // NOTE: A2s/A3s/A4s/A5s not in calls; they are explicit MIX hands set by mixWeights
     calls: [
       "22+",
       "A6s+",
@@ -2400,7 +2406,7 @@ function buildRange(def){
 
     mixes: ["A2s","A3s","A4s","A5s"],
     mixWeights: {
-      // vs CO 4x: very low 3-bet bluffing frequency
+      // vs CO 4x: almost always call; tiny 3-bet frequency only as blocker bluffs
       "A2s": { R: 0.05, C: 0.95 },
       "A3s": { R: 0.04, C: 0.96 },
       "A4s": { R: 0.06, C: 0.94 },
