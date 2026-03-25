@@ -1,6 +1,6 @@
 <!--
 Casey's Poker Tool
-Version: v0.23.1
+Version: v0.25.0
 -->
 
 <!-- Casey's Poker Tool - Single File Application -->
@@ -5735,6 +5735,23 @@ function renderLoggerSessionReviewTable(){
     }
   });
 
+  const msPosOrder = ["UTG", "UTG+1", "LJ", "HJ", "CO", "BTN", "SB", "BB"];
+  const msPosPnl = {};
+  msPosOrder.forEach(p => { msPosPnl[p] = { hands: 0, net: 0 }; });
+  allHands.forEach((h) => {
+    if(!h) return;
+    const resultRaw = Number(h?.resultBB);
+    if(!isFinite(resultRaw)) return;
+    const pos = getHeroPosForHand(h);
+    if(msPosPnl[pos]){ msPosPnl[pos].hands += 1; msPosPnl[pos].net += resultRaw; }
+    else { msPosPnl[pos] = { hands: 1, net: resultRaw }; }
+  });
+  const msPosRows = msPosOrder.filter(p => msPosPnl[p]?.hands > 0).map((p) => {
+    const b = msPosPnl[p];
+    const avg = b.hands ? (b.net / b.hands) : 0;
+    return `<tr><td>${p}</td><td>${b.hands}</td><td>${msFmtBb(b.net)}</td><td>${msFmtBb(avg)}</td></tr>`;
+  }).join("") || `<tr><td colspan="4" class="kicker" style="text-align:center;color:var(--muted)">No positional data yet.</td></tr>`;
+
   const msPotRows = msPotBuckets.some((b) => b.hands > 0)
     ? msPotBuckets.map((b) => {
         const avg = b.hands ? (b.net / b.hands) : 0;
@@ -5833,6 +5850,21 @@ function renderLoggerSessionReviewTable(){
         </tbody>
       </table>
 
+      <div class="kicker" style="font-weight:700;margin:8px 0 4px 0">Positional P&amp;L (All Sessions)</div>
+      <table class="loggerReviewTable">
+        <thead>
+          <tr>
+            <th>Position</th>
+            <th style="width:70px">Hands</th>
+            <th style="width:90px">Net</th>
+            <th style="width:90px">Avg</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${msPosRows}
+        </tbody>
+      </table>
+
       <div class="kicker" style="margin-top:6px">Read-only rollup across all logged sessions.</div>
     </details>
   `;
@@ -5877,6 +5909,44 @@ function renderLoggerSessionReviewTable(){
     bucket.hands += 1;
     bucket.net += resultValid ? resultRaw : 0;
   });
+
+  const posOrder = ["UTG", "UTG+1", "LJ", "HJ", "CO", "BTN", "SB", "BB"];
+  const posPnl = {};
+  posOrder.forEach(p => { posPnl[p] = { hands: 0, net: 0 }; });
+  hands.forEach((h) => {
+    if(!h) return;
+    const resultRaw = Number(h.resultBB);
+    if(!isFinite(resultRaw)) return;
+    const pos = getHeroPosForHand(h);
+    if(posPnl[pos]){ posPnl[pos].hands += 1; posPnl[pos].net += resultRaw; }
+    else { posPnl[pos] = { hands: 1, net: resultRaw }; }
+  });
+  const posRows = posOrder.filter(p => posPnl[p]?.hands > 0).map((p) => {
+    const b = posPnl[p];
+    const avg = b.hands ? (b.net / b.hands) : 0;
+    return `<tr><td>${p}</td><td>${b.hands}</td><td>${fmtBbSigned(b.net)}</td><td>${fmtBbSigned(avg)}</td></tr>`;
+  }).join("") || `<tr><td colspan="4" class="kicker" style="text-align:center;color:var(--muted)">No positional data yet.</td></tr>`;
+
+  const positionalPnlSection = document.createElement("div");
+  positionalPnlSection.style.marginBottom = "10px";
+  positionalPnlSection.innerHTML = `
+    <details>
+      <summary style="margin-bottom:6px;font-weight:900;color:rgba(231,236,255,.92);cursor:pointer">Positional P&amp;L</summary>
+      <table class="loggerReviewTable">
+        <thead>
+          <tr>
+            <th>Position</th>
+            <th style="width:70px">Hands</th>
+            <th style="width:90px">Net</th>
+            <th style="width:90px">Avg</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${posRows}
+        </tbody>
+      </table>
+    </details>
+  `;
 
   const potSizeRows = potSizeBuckets.map((b) => {
     const avg = b.hands ? (b.net / b.hands) : 0;
@@ -6823,6 +6893,7 @@ function deriveHandNarrativeV1(hand){
   mount.appendChild(thisSessionHeader);
   mount.appendChild(sessionSignalsSection);
   mount.appendChild(potSizeSection);
+  mount.appendChild(positionalPnlSection);
   mount.appendChild(bluffSection);
   mount.appendChild(aggressionProfileSection);
 
