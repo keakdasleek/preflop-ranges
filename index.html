@@ -56,6 +56,9 @@ button{
   
 button:hover{filter:brightness(1.08)}
 
+.playerCountBtn{padding:5px 10px;font-size:12px;font-weight:700;opacity:.55;border-radius:8px;transition:opacity .15s}
+.playerCountBtn.active{opacity:1;border-color:var(--call);color:var(--call)}
+
 /* Selects (dark themed with arrow) */
 select{
   background: linear-gradient(180deg, #0b132b, #0f1733);
@@ -948,7 +951,15 @@ select:focus{
           <br/>Tip: click any hand to see the action and why it's there.
         </div>
       </div>
-<div class="controls">
+<div class="controls" style="flex-wrap:wrap;gap:6px">
+  <span class="kicker" style="font-weight:800;white-space:nowrap;line-height:2;opacity:.75">Players:</span>
+  <div id="playerCountBtns" style="display:flex;gap:3px">
+    <button class="playerCountBtn active" data-n="8">8</button>
+    <button class="playerCountBtn" data-n="7">7</button>
+    <button class="playerCountBtn" data-n="6">6</button>
+    <button class="playerCountBtn" data-n="5">5</button>
+    <button class="playerCountBtn" data-n="4">4</button>
+  </div>
   <select id="scenario"></select>
   <select id="persona" title="Opponent persona">
   <option value="Standard">Standard</option>
@@ -976,6 +987,7 @@ select:focus{
           </div>
           <div class="kicker" id="mixNote">Green = Raise/Open/3B - Blue = Call - Red = Fold - Yellow = Mix</div>
         </div>
+        <div id="posMap" style="padding:6px 12px 4px;display:flex;gap:5px;flex-wrap:wrap;align-items:center;border-bottom:1px solid rgba(255,255,255,.07)"></div>
         <div class="matrixScroll"><div class="matrix" id="matrix"></div></div>
       </div>
 
@@ -2170,6 +2182,43 @@ function buildRange(def){
 }
 
 
+  // --- Short-handed position layouts ---
+  // Maps each player count to an ordered list of open-raise positions with their
+  // equivalent 8-max scenario key and opponent count.
+  // Equivalence rule: use the 8-max position that faces the same number of opponents.
+  //   8-max opponents by position: UTG=7, LJ=5, HJ=4, CO=3, BTN=2
+  const playerCountLayouts = {
+    8: [
+      { pos:"UTG",  rfi:"UTG_RFI",  opps:7, note:null },
+      { pos:"LJ",   rfi:"LJ_RFI",   opps:5, note:"Covers LJ and UTG+1" },
+      { pos:"HJ",   rfi:"HJ_RFI",   opps:4, note:null },
+      { pos:"CO",   rfi:"CO_RFI",   opps:3, note:null },
+      { pos:"BTN",  rfi:"BTN_RFI",  opps:2, note:null },
+    ],
+    7: [
+      { pos:"UTG",  rfi:"UTG_RFI",  opps:6, note:"7-max UTG — 6 opponents. Can open slightly wider than the 8-max UTG range shown." },
+      { pos:"LJ",   rfi:"LJ_RFI",   opps:5, note:"Same opponent count as 8-max LJ — range is a direct match." },
+      { pos:"HJ",   rfi:"HJ_RFI",   opps:4, note:null },
+      { pos:"CO",   rfi:"CO_RFI",   opps:3, note:null },
+      { pos:"BTN",  rfi:"BTN_RFI",  opps:2, note:null },
+    ],
+    6: [
+      { pos:"UTG",  rfi:"LJ_RFI",   opps:5, note:"6-max UTG — 5 opponents. Direct equivalent of 8-max LJ/UTG+1 range." },
+      { pos:"HJ",   rfi:"HJ_RFI",   opps:4, note:"Same opponent count as 8-max HJ — range is a direct match." },
+      { pos:"CO",   rfi:"CO_RFI",   opps:3, note:null },
+      { pos:"BTN",  rfi:"BTN_RFI",  opps:2, note:null },
+    ],
+    5: [
+      { pos:"UTG",  rfi:"HJ_RFI",   opps:4, note:"5-max UTG — 4 opponents. Direct equivalent of 8-max HJ range." },
+      { pos:"CO",   rfi:"CO_RFI",   opps:3, note:"Same opponent count as 8-max CO — range is a direct match." },
+      { pos:"BTN",  rfi:"BTN_RFI",  opps:2, note:null },
+    ],
+    4: [
+      { pos:"CO",   rfi:"CO_RFI",   opps:3, note:"4-max CO (first to act) — 3 opponents. Same as 8-max CO range." },
+      { pos:"BTN",  rfi:"BTN_RFI",  opps:2, note:null },
+    ],
+  };
+
   // --- Scenarios ---
   // You can add more simply by extending this object.
   const scenarios = {
@@ -2725,6 +2774,7 @@ function applyPersonaToBuiltRange(built, scenarioKey, personaCode){
 
 
   // --- UI rendering ---
+  let explorerPlayerCount = 8;
   const scenarioSel = document.getElementById("scenario");
   const personaSel = document.getElementById("persona");
 
@@ -3045,7 +3095,14 @@ function renderScenario(key){
 
 
     scenarioTitle.textContent = sc.name;
-    scenarioKicker.textContent = sc.kicker;
+    // Append short-handed equivalence note to kicker when applicable
+    let kickerText = sc.kicker;
+    if(explorerPlayerCount < 8){
+      const layout = playerCountLayouts[explorerPlayerCount] || [];
+      const item = layout.find(i => i.rfi === key);
+      if(item && item.note) kickerText += " — " + item.note;
+    }
+    scenarioKicker.textContent = kickerText;
 
     // Build matrix header row
     matrixEl.innerHTML = "";
@@ -3139,7 +3196,7 @@ document.getElementById("copy").onclick = ()=> {
   copyToClipboard(rangeTextWithContext(activeKey, personaLabel, map));
 };
 
-
+    if(typeof renderPlayerCountMap === "function") renderPlayerCountMap();
   }
 
   function defaultNoteFor(action, hand, key){
@@ -3192,11 +3249,73 @@ document.getElementById("copy").onclick = ()=> {
 scenarioSel.addEventListener("change", () => {
   resetSelectedHandUI();
   renderScenario(scenarioSel.value);
-  renderPostflopAdvice(); // <-- ADD THIS
+  renderPostflopAdvice();
 });
 
+  // --- Player count selector ---
+  function renderPlayerCountMap(){
+    const posMapEl = document.getElementById("posMap");
+    if(!posMapEl) return;
+    const layout = playerCountLayouts[explorerPlayerCount] || [];
+    const currentKey = scenarioSel.value;
+    posMapEl.innerHTML = "";
 
+    if(!layout.length){ posMapEl.style.display = "none"; return; }
+    posMapEl.style.display = "flex";
 
+    const label = document.createElement("span");
+    label.className = "kicker";
+    label.style.cssText = "font-weight:800;opacity:.6;white-space:nowrap;margin-right:2px";
+    label.textContent = `${explorerPlayerCount}-max:`;
+    posMapEl.appendChild(label);
+
+    layout.forEach(item => {
+      const btn = document.createElement("button");
+      btn.className = "loggerTinyChip";
+      const isActive = item.rfi === currentKey;
+      btn.style.cssText = `font-size:11px;padding:3px 10px;cursor:pointer;${isActive ? "opacity:1;font-weight:900" : "opacity:.6"}`;
+      btn.textContent = item.pos;
+      btn.title = item.note || `${item.pos}: ${item.opps} opponents remaining`;
+      btn.addEventListener("click", () => {
+        scenarioSel.value = item.rfi;
+        resetSelectedHandUI();
+        renderScenario(item.rfi);
+        renderPostflopAdvice();
+      });
+      posMapEl.appendChild(btn);
+    });
+
+    const blinds = [
+      { pos:"SB", title:"SB: complete or fold vs. opens — no dedicated RFI range" },
+      { pos:"BB", title:"BB: use BB Defense scenarios in the dropdown above" }
+    ];
+    blinds.forEach(b => {
+      const chip = document.createElement("span");
+      chip.className = "loggerTinyChip";
+      chip.style.cssText = "font-size:11px;padding:3px 10px;opacity:.28;cursor:default";
+      chip.textContent = b.pos;
+      chip.title = b.title;
+      posMapEl.appendChild(chip);
+    });
+  }
+
+  document.getElementById("playerCountBtns").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-n]");
+    if(!btn) return;
+    explorerPlayerCount = Number(btn.dataset.n);
+    document.querySelectorAll(".playerCountBtn").forEach(b =>
+      b.classList.toggle("active", Number(b.dataset.n) === explorerPlayerCount)
+    );
+    // If current scenario isn't in the new layout, switch to first available RFI
+    const layout = playerCountLayouts[explorerPlayerCount] || [];
+    const available = layout.map(i => i.rfi);
+    if(available.length && !available.includes(scenarioSel.value)){
+      scenarioSel.value = available[0];
+      resetSelectedHandUI();
+    }
+    renderScenario(scenarioSel.value);
+    renderPostflopAdvice();
+  });
 
   // Toggle labels
   document.getElementById("toggleLabels").addEventListener("click", (e)=>{
