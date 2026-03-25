@@ -6118,6 +6118,213 @@ function reconstructHandFromNotesV2(hand){
   return lines.slice(0, 7);
 }
 
+function extractVillainCardsV1(endText, reflection){
+  const norm = (s) => String(s||"").replace(/10([cdhs])/gi,"T$1").replace(/\s+/g," ").trim();
+  const texts = [norm(endText), norm(reflection)].filter(Boolean);
+  const pat = /\b(?:villain|he|they|utg\+?1?|lj|hj|co|btn|sb|bb)\b[^.!?]*\b(?:has|had|shows?)\s+([2-9TJQKA][cdhs])\s*([2-9TJQKA][cdhs])\b/gi;
+  for(const txt of texts){
+    pat.lastIndex = 0;
+    const m = pat.exec(txt);
+    if(m) return `${m[1][0].toUpperCase()}${m[1][1].toLowerCase()} ${m[2][0].toUpperCase()}${m[2][1].toLowerCase()}`;
+  }
+  return null;
+}
+
+function classifyPreflopTypeV1(preActs, heroPos){
+  if(!preActs || !preActs.length) return "unknown";
+  const isHero    = (a) => a?.actorPos === heroPos;
+  const isAgg     = (a) => ["RAISE","BET","ALLIN"].includes(String(a?.action||"").toUpperCase());
+  const isCallAct = (a) => String(a?.action||"").toUpperCase() === "CALL";
+  const firstHeroIdx = preActs.findIndex(isHero);
+  if(firstHeroIdx < 0) return "unknown";
+  const firstHeroAct   = preActs[firstHeroIdx];
+  const firstAction    = String(firstHeroAct?.action||"").toUpperCase();
+  const beforeHero     = preActs.slice(0, firstHeroIdx);
+  const aggressorsBefore = beforeHero.filter(isAgg).length;
+  const callersBefore    = beforeHero.filter(isCallAct).length;
+  const totalAgg         = preActs.filter(isAgg).length;
+  if(firstAction === "FOLD")  return "fold_pre";
+  if(firstAction === "CHECK") return "bb_check";
+  if(firstAction === "CALL"){
+    if(aggressorsBefore === 0) return "limp";
+    if(aggressorsBefore === 1) return "call";
+    if(aggressorsBefore === 2) return "call_3bet";
+    return "call_4bet";
+  }
+  if(isAgg(firstHeroAct)){
+    if(aggressorsBefore === 0){
+      if(callersBefore > 0) return "iso";
+      if(totalAgg === 1)    return "open";
+      if(totalAgg === 2)    return "open_3bet_pot";
+      return "open_4bet_pot";
+    }
+    if(aggressorsBefore === 1){
+      if(callersBefore > 0) return "squeeze";
+      if(totalAgg === 2)    return "3bet";
+      return "3bet_4bet_pot";
+    }
+    if(aggressorsBefore === 2) return "4bet";
+    return "5bet";
+  }
+  return "unknown";
+}
+
+function deriveHandNarrativeV1(hand){
+  if(!hand) return { summary:"" };
+  const heroPos  = getHeroPosForHand(hand);
+  const profile  = getCanonicalActionProfileV1(hand);
+  const preActs  = profile.streets.pre;
+  const flopActs = profile.streets.flop;
+  const turnActs = profile.streets.turn;
+  const riverActs = profile.streets.river;
+  const signals  = deriveHandSignalsV1(hand);
+  const notesRaw = String(hand?.notes||"").trim();
+  const ctx      = notesRaw ? buildStreetParseContext(notesRaw, hand) : null;
+  const resultBB = Number(hand?.resultBB);
+  const resultValid = isFinite(resultBB);
+
+  // Board unification
+  const boardObj  = hand?.board || {};
+  const flopArr   = Array.isArray(boardObj.flop) ? boardObj.flop.filter(Boolean) : [];
+  const boardFlop  = flopArr.length === 3 ? flopArr.join(" ") : (ctx?.flop?.board  || null);
+  const boardTurn  = boardObj.turn  || ctx?.turn?.board  || null;
+  const boardRiver = boardObj.river || ctx?.river?.board || null;
+
+  // Street presence and action presence
+  const hasFlop    = !!(flopActs.length  || ctx?.flop?.text);
+  const hasTurn    = !!(turnActs.length  || ctx?.turn?.text);
+  const hasRiver   = !!(riverActs.length || ctx?.river?.text);
+  const flopHasAct  = !!(flopActs.length  || ctx?.flop?.actionText);
+  const turnHasAct  = !!(turnActs.length  || ctx?.turn?.actionText);
+  const riverHasAct = !!(riverActs.length || ctx?.river?.actionText);
+
+  // Pre-flop classification
+  const preflopType = classifyPreflopTypeV1(preActs, heroPos);
+  const isHeroPFA = ["open","iso","open_3bet_pot","open_4bet_pot","3bet","squeeze","3bet_4bet_pot","4bet","5bet"].includes(preflopType);
+  const preFlopActorSet = new Set((preActs||[]).map(a => a?.actorPos).filter(a => a && a !== heroPos));
+  const preflopPlayers  = preFlopActorSet.size + 1;
+
+  // Action helpers
+  const isAgg  = (a) => ["RAISE","BET","ALLIN"].includes(String(a?.action||"").toUpperCase());
+  const isFold = (a) => String(a?.action||"").toUpperCase() === "FOLD";
+  const isJam  = (a) => String(a?.action||"").toUpperCase() === "ALLIN";
+
+  const heroFoldedOn  = (acts) => (acts||[]).some(a => a?.actorPos === heroPos && isFold(a));
+  const heroAggOn     = (acts) => (acts||[]).some(a => a?.actorPos === heroPos && isAgg(a));
+  const heroFoldedPre   = heroFoldedOn(preActs);
+  const heroFoldedFlop  = heroFoldedOn(flopActs);
+  const heroFoldedTurn  = heroFoldedOn(turnActs);
+  const heroFoldedRiver = heroFoldedOn(riverActs);
+  const heroFolded = heroFoldedPre || heroFoldedFlop || heroFoldedTurn || heroFoldedRiver;
+  const heroFlopAgg  = heroAggOn(flopActs)  || !!signals.cBetFlop;
+  const heroTurnAgg  = heroAggOn(turnActs)  || !!signals.doubleBarrel;
+  const heroRiverAgg = heroAggOn(riverActs) || !!signals.riverBet;
+
+  const mwFoldRe = /\b(?:both\s+(?:players?\s+)?fold|everyone\s+folds?|all\s+fold)\b/i;
+  const villainFoldedOn = (acts, txt) =>
+    (acts||[]).some(a => a?.actorPos !== heroPos && isFold(a)) || mwFoldRe.test(txt||"");
+  const villainRaisedOn = (acts) => (acts||[]).some(a => a?.actorPos !== heroPos && ["RAISE","ALLIN"].includes(String(a?.action||"").toUpperCase()));
+  const villainJammedOn = (acts) => (acts||[]).some(a => a?.actorPos !== heroPos && isJam(a));
+
+  const villainFoldedFlop  = villainFoldedOn(flopActs,  ctx?.flop?.actionText)  || !!signals.villainFoldedFlop;
+  const villainFoldedTurn  = villainFoldedOn(turnActs,  ctx?.turn?.actionText)  || !!signals.villainFoldedTurn;
+  const villainFoldedRiver = villainFoldedOn(riverActs, ctx?.river?.actionText) || !!signals.villainFoldedRiver;
+  const villainRaisedFlop  = villainRaisedOn(flopActs);
+  const villainRaisedTurn  = villainRaisedOn(turnActs);
+  const villainRaisedRiver = villainRaisedOn(riverActs);
+  const villainJammedFlop  = villainJammedOn(flopActs);
+  const villainJammedTurn  = villainJammedOn(turnActs);
+  const villainJammedRiver = villainJammedOn(riverActs);
+
+  // Villain cards from End: and reflection
+  const endText  = String(ctx?.end?.text || "");
+  const reflText = String(hand?.reflection || "").replace(/10([cdhs])/gi, "T$1");
+  const villainCards = extractVillainCardsV1(endText, reflText);
+
+  // Outcome classification
+  let outcome = "unknown";
+  let foldedStreet = null;
+  if(heroFoldedPre)    { outcome = "folded_pre"; foldedStreet = "PREFLOP"; }
+  else if(heroFoldedFlop)  { outcome = "folded"; foldedStreet = "FLOP"; }
+  else if(heroFoldedTurn)  { outcome = "folded"; foldedStreet = "TURN"; }
+  else if(heroFoldedRiver) { outcome = "folded"; foldedStreet = "RIVER"; }
+  else {
+    const showdownEvident = !!(villainCards ||
+      /\b(?:villain|he|they|utg\+?1?|lj|hj|co|btn|sb|bb)\s+(?:has|had|shows?)\b/i.test(endText + " " + reflText));
+    if(showdownEvident || !!hand?.wentToShowdown){
+      if(!resultValid)        outcome = "showdown";
+      else if(resultBB > 0)   outcome = "showdown_win";
+      else if(resultBB === 0) outcome = "chop";
+      else                    outcome = "showdown_loss";
+    } else if(resultValid && resultBB > 0){
+      outcome = "won_no_showdown";
+    } else if(resultValid && resultBB < 0){
+      outcome = "lost_no_showdown";
+    }
+  }
+
+  // Build one-liner summary
+  const pfLabelMap = {
+    open:"open", iso:"iso raise", open_3bet_pot:"open, 3bet pot",
+    open_4bet_pot:"open, 4bet pot", "3bet":"3bet",
+    "3bet_4bet_pot":"3bet, 4bet pot", "4bet":"4bet", "5bet":"5bet+",
+    call:"called", call_3bet:"called 3bet", call_4bet:"called 4bet+",
+    limp:"limped", bb_check:"BB", fold_pre:"folded pre", unknown:""
+  };
+  const pfLabel = pfLabelMap[preflopType] || preflopType;
+  const mwNote  = preflopPlayers >= 3 ? ` ${preflopPlayers}way` : "";
+  const parts   = [`${heroPos || "?"} ${pfLabel}${mwNote}`.trim()];
+
+  const descStreet = (heroAgg, heroFolded, villFolded, villRaised, villJammed, hasAct, key) => {
+    if(!hasAct) return null;
+    const heroDesc = heroAgg
+      ? (isHeroPFA && key === "flop" ? "c-bet" : isHeroPFA ? "barrel" : `bet ${key}`)
+      : "checked";
+    if(heroFolded) return `${heroAgg ? heroDesc + ", " : ""}folded ${key}`;
+    const villPart = villFolded ? ", won"
+      : villJammed  ? ", called jam"
+      : villRaised  ? ", faced raise"
+      : "";
+    return heroDesc + villPart;
+  };
+
+  if(preflopType !== "fold_pre" && hasFlop){
+    const flopDesc = descStreet(heroFlopAgg, heroFoldedFlop, villainFoldedFlop, villainRaisedFlop, villainJammedFlop, flopHasAct, "flop");
+    if(flopDesc) parts.push(flopDesc);
+    if(!heroFoldedFlop && !villainFoldedFlop && hasTurn){
+      const turnDesc = descStreet(heroTurnAgg, heroFoldedTurn, villainFoldedTurn, villainRaisedTurn, villainJammedTurn, turnHasAct, "turn");
+      if(turnDesc) parts.push(turnDesc);
+      if(!heroFoldedTurn && !villainFoldedTurn && hasRiver){
+        const riverDesc = descStreet(heroRiverAgg, heroFoldedRiver, villainFoldedRiver, villainRaisedRiver, villainJammedRiver, riverHasAct, "river");
+        if(riverDesc) parts.push(riverDesc);
+      }
+    }
+  } else if(preflopType === "fold_pre" && outcome === "won_no_showdown"){
+    parts.push("won pre");
+  }
+
+  const lastPart = parts[parts.length - 1] || "";
+  const outcomeEmbedded = /,\s*won$/.test(lastPart) || /(?:^|,\s*)folded\s+\w+$/.test(lastPart);
+  if(!outcomeEmbedded){
+    if(outcome === "showdown_win")       parts.push("won showdown");
+    else if(outcome === "showdown_loss") parts.push("lost showdown");
+    else if(outcome === "chop")          parts.push("chop");
+    else if(outcome === "won_no_showdown") parts.push("won");
+    else if(outcome === "folded")        parts.push("folded");
+  }
+
+  return {
+    summary: parts.join(" → "),
+    heroPos, preflopType, isHeroPFA, preflopPlayers,
+    hasFlop, hasTurn, hasRiver,
+    heroFlopAgg, heroTurnAgg, heroRiverAgg,
+    heroFolded, foldedStreet,
+    boardFlop, boardTurn, boardRiver,
+    villainCards, outcome,
+    resultBB: resultValid ? resultBB : null
+  };
+}
+
   const renderReviewHandCardV1 = (entry, idx, opts = {}) => {
     const h = entry?.hand || {};
     const interesting = entry?.interesting || {};
@@ -6212,6 +6419,7 @@ function reconstructHandFromNotesV2(hand){
     const noteRaw = noteSource.trim().replace(/\s+/g, " ");
     const notePreview = noteRaw ? (noteRaw.length > 72 ? `${noteRaw.slice(0, 72)}...` : noteRaw) : "-";
     const noteFull = noteRaw || "-";
+    const narrative = deriveHandNarrativeV1(h);
     const reflectionRaw = String(h.reflection || "").trim().replace(/\s+/g, " ");
     const reflectionHtml = reflectionRaw
       ? `
@@ -6301,7 +6509,7 @@ function reconstructHandFromNotesV2(hand){
             ${disciplinePulseHtml}
             ${neutralPulseHtml}
           </div>
-          <div class="kicker loggerTop5Preview">${notePreview}</div>
+          <div class="kicker loggerTop5Preview">${narrative.summary || notePreview}</div>
         </summary>
         <div style="padding:0 10px 10px 10px">
           ${actionsHtml}
